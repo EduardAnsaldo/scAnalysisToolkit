@@ -49,3 +49,5 @@ Imports:
     viridis
 Depends: 
     R (>= 4.5.1)
+URL: https://github.com/EduardAnsaldo/scAnalysisToolkit
+BugReports: https://github.com/EduardAnsaldo/scAnalysisToolkit/issues

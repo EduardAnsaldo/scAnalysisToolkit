@@ -31,6 +31,13 @@ run_cellchat_analysis <- function(seurat,
            nboot = 100,
            output_file = NULL) {
 
+  # Check for required packages
+  if (!requireNamespace("CellChat", quietly = TRUE)) {
+    stop("Package 'CellChat' is required but not installed. Please install it with:\n",
+         "  devtools::install_github('jinworks/CellChat')",
+         call. = FALSE)
+  }
+
   # Part I: Setup and preprocessing
   message("Starting CellChat analysis...")
 

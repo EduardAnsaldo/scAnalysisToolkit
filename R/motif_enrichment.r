@@ -56,13 +56,13 @@ find_enriched_motifs <- function(seurat_object,
 
   }
   # Find enriched motifs
-  enriched_motifs <- FindMotifs(
+  enriched_motifs <- Signac::FindMotifs(
   object = seurat_object,
   features = top_accessible_peaks
   )
 
   # Create motif plot
-  motif_plot <- MotifPlot(
+  motif_plot <- Signac::MotifPlot(
   object = seurat_object,
   motif = rownames(enriched_motifs)[1:min(n_motifs_to_plot, nrow(enriched_motifs))]
   ) + labs(title = paste0('Enriched Motifs in Cluster ', cluster_id),

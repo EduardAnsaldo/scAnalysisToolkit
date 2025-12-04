@@ -39,7 +39,7 @@ top_peaks_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
 
     da_peaks <- FindAllMarkers(seurat, only.pos = TRUE, min.pct = 0.1, logfc.threshold = 0.25)
 
-    genes <- ClosestFeature(seurat, rownames(da_peaks))
+    genes <- Signac::ClosestFeature(seurat, rownames(da_peaks))
     da_peaks <- left_join(da_peaks, genes, by = c('gene' = 'query_region'))
     da_peaks <- da_peaks |>
         select(-tx_id, -gene_id) |>
@@ -176,7 +176,7 @@ run_differential_accessibility_FindMarkers <- function(seurat, comparison, group
     print(head(results |> filter(p_val < 0.05 & (avg_log2FC)  < -0.5)))
 
 
-    closest_genes <- ClosestFeature(seurat, rownames(results))
+    closest_genes <- Signac::ClosestFeature(seurat, rownames(results))
 
 
     results <- results  |>

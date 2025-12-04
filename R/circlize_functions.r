@@ -162,10 +162,10 @@ plot_circos_clonotypes <- function(
                         }
                         
                     }else {
-                        color = alpha(grid_cols[origin], alpha_col)                                                               
+                        color = alpha(grid_cols[origin], alpha_col)
                     }
-                    circos.link(
-                        origin, 
+                    circlize::circos.link(
+                        origin,
                         coordinates1,
                         target,
                         coordinates2,
@@ -208,11 +208,6 @@ plot_circos_clonotypes <- function(
 #'
 #' @return NULL (invisibly); creates PDF and PNG circos plots and CSV table
 #'
-#' @examples
-#' overlap_circos_and_tables(seurat_tcr, grouping_variable = "Samples",
-#'                          figures_path = "./figures", tables_path = "./tables",
-#'                          samples = c("WT1", "WT2", "KO1", "KO2"),
-#'                          groups = c("WT", "WT", "KO", "KO"))
 #' @export
 overlap_circos_and_tables <- function(
     seurat,
@@ -399,10 +394,6 @@ render_chord_diagram <- function(trbv_j_processed, grid_colors, colored_function
 #'
 #' @return Recorded plot object of the chord diagram
 #'
-#' @examples
-#' create_V_J_chord_diagram(vj_table, figures_path = "./figures",
-#'                         chain_a = "TRBV", chain_b = "TRBJ",
-#'                         group_name = "WT_sample")
 #' @export
 create_V_J_chord_diagram <- function(trbv_j_table,
                                         figures_path,

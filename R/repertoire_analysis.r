@@ -19,9 +19,6 @@
 #'
 #' @return ggplot object with circle packing visualization
 #'
-#' @examples
-#' plot_clonal_repertoire(seurat_tcr, group_name = "WT", "./figures",
-#'                       viridis_option = 'C', label_size_range = c(2, 8))
 #' @export
 plot_clonal_repertoire <- function(seurat, group_name, figures_path, viridis_option = 'D', label_size_range = c(3,10)) {
   # Prepare repertoire data
@@ -97,11 +94,6 @@ return(plot)
 #' @return ggplot object showing D50 values per cell type and replicate group with
 #'   mean bars and error bars
 #'
-#' @examples
-#' calculate_D50(seurat_tcr, cell_grouping_var = cell_type,
-#'              replicate_var = Sample, replicate_group_var = Condition,
-#'              results_path = "./results", figures_path = "./figures",
-#'              tables_path = "./tables")
 #' @export
 calculate_D50 <- function (seurat, cell_grouping_var, replicate_var, replicate_group_var = NULL, results_path, figures_path, tables_path, colors  = NULL) {
 
@@ -130,8 +122,8 @@ calculate_D50 <- function (seurat, cell_grouping_var, replicate_var, replicate_g
                 D50 <- NA
             } else {
                 L50 <- floor(nrow(cell_type_HTO_data)/2)
-                number_unique_50 <- cell_type_HTO_data[1:L50,] %>% summarise(n_distinct(CTaa)) %>% as.numeric()
-                number_unique_total <- cell_type_HTO_data[] %>% summarise(n_distinct(CTaa)) %>% as.numeric()
+                number_unique_50 <- cell_type_HTO_data[1:L50,] |> summarise(n_distinct(CTaa)) |> as.numeric()
+                number_unique_total <- cell_type_HTO_data[] |> summarise(n_distinct(CTaa)) |> as.numeric()
                 D50 <- number_unique_50/number_unique_total
             }
             result <- c(result, D50)
@@ -148,8 +140,8 @@ calculate_D50 <- function (seurat, cell_grouping_var, replicate_var, replicate_g
                 D50 <- NA
             } else {
                 L50 <- floor(nrow(cell_type_HTO_data)/2)
-                number_unique_50 <- cell_type_HTO_data[1:L50,] %>% summarise(n_distinct(CTaa)) %>% as.numeric()
-                number_unique_total <- cell_type_HTO_data[] %>% summarise(n_distinct(CTaa)) %>% as.numeric()
+                number_unique_50 <- cell_type_HTO_data[1:L50,] |> summarise(n_distinct(CTaa)) |> as.numeric()
+                number_unique_total <- cell_type_HTO_data[] |> summarise(n_distinct(CTaa)) |> as.numeric()
                 D50 <- number_unique_50/number_unique_total
             }
             result <- c(result, D50)
@@ -160,13 +152,13 @@ calculate_D50 <- function (seurat, cell_grouping_var, replicate_var, replicate_g
 
     }
     colnames(results) <- paste0(c('All', grouping_var_levels), '_D50')
-    results <- results %>% mutate({{replicate_var}} := rnames) |> arrange({{replicate_var}}) |> relocate({{replicate_var}})
+    results <- results |> mutate({{replicate_var}} := rnames) |> arrange({{replicate_var}}) |> relocate({{replicate_var}})
 
     write.csv(results, file = englue("{tables_path}/D50_per_{{cell_grouping_var}}.csv"), row.names=FALSE)
     print(head(results))
 
     # Convert results to long format for plotting
-    results_long <- results %>%
+    results_long <- results |>
         pivot_longer(-{{replicate_var}}, names_to = englue("{{cell_grouping_var}}"), values_to = "D50") |>
         mutate({{cell_grouping_var}} := fct_inorder({{cell_grouping_var}}))
 
@@ -183,7 +175,7 @@ calculate_D50 <- function (seurat, cell_grouping_var, replicate_var, replicate_g
 
 
     # Remove NA values for plotting
-    results_long <- results_long %>% filter(!is.na(D50))
+    results_long <- results_long |> filter(!is.na(D50))
 
     # Plot: x axis is {{replicate_var}}, show only dots (no columns)
     plot1 <- ggplot(results_long, aes(x = {{replicate_group_var}}, y = D50, color = {{replicate_group_var}})) +

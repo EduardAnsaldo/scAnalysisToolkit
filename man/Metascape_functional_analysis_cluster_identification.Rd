@@ -36,8 +36,3 @@ Performs Metascape pathway enrichment analysis on marker genes for each cluster
 from Seurat FindAllMarkers results. Creates individual enrichment plots for each
 cluster and combines them into a summary figure.
 }
-\examples{
-Metascape_functional_analysis_cluster_identification(seurat, marker_results,
-                                                    identities = "seurat_clusters",
-                                                    path = "./results")
-}

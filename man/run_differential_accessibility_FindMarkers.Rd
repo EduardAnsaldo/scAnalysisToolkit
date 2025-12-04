@@ -54,7 +54,3 @@ FindMarkers with Wilcoxon rank-sum test. Maps differentially accessible peaks
 to nearest genes and saves results to CSV files. Requires sufficient cells
 per comparison group.
 }
-\examples{
-da_results <- run_differential_accessibility_FindMarkers(seurat_atac, "condition",
-                                                        "WT", "KO", cluster = "Tcells")
-}

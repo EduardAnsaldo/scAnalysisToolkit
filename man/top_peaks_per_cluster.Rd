@@ -51,8 +51,3 @@ Seurat's FindAllMarkers on ATAC-seq data. Maps peaks to nearest genes and
 optionally performs pathway enrichment analysis. Saves ranked peak lists
 (top 10, 50, 100) to TSV files.
 }
-\examples{
-peaks <- top_peaks_per_cluster(seurat_atac, n_genes_to_plot = 5,
-                               grouping_var = 'seurat_clusters_atac',
-                               run_pathway_enrichment = c("Metascape"))
-}

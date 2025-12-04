@@ -17,6 +17,3 @@ Named character vector with colors for "DOWN", "UP", and "NO"
 Generates a named color vector for DE visualizations with colors for
 downregulated, upregulated, and non-significant genes.
 }
-\examples{
-my_colors <- create_deg_colors(c("blue", "red"))
-}

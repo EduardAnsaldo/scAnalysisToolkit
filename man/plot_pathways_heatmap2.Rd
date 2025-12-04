@@ -8,7 +8,7 @@ plot_pathways_heatmap2(
   genes_to_plot,
   seurat,
   pathway_name,
-  color_palette = diverging_palette_2,
+  color_palette = grDevices::hcl.colors(n = 20, "RdBu", rev = T),
   grouping_var = "Samples"
 )
 }
@@ -20,7 +20,7 @@ plot_pathways_heatmap2(
 \item{pathway_name}{Character; title for the heatmap}
 
 \item{color_palette}{Character vector; diverging color palette for heatmap.
-Default diverging_palette_2}
+Default grDevices::hcl.colors(n = 20,'RdBu',rev = T)}
 
 \item{grouping_var}{Character; metadata column name for aggregating expression
 (e.g., 'Samples', 'cell_type'). Default 'Samples'}
@@ -33,9 +33,4 @@ Generates a heatmap showing z-scored gene expression across samples or groups.
 Aggregates expression by grouping variable, scales values per gene, and displays
 genes on the y-axis with samples/groups on the x-axis. Uses a diverging color
 palette centered at zero. Alternative orientation to plot_pathways_heatmap.
-}
-\examples{
-genes <- c("Il2", "Ifng", "Tnf", "Il10")
-plot_pathways_heatmap2(genes, seurat, "Cytokine Signaling",
-                      grouping_var = "cell_type")
 }

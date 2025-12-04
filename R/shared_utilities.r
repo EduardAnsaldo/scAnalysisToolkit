@@ -12,8 +12,6 @@
 #'
 #' @return Character string of the created path
 #'
-#' @examples
-#' create_analysis_directory("results/figures")
 create_analysis_directory <- function(path, recursive = TRUE, showWarnings = FALSE) {
     unlink(path, recursive = TRUE)
     dir.create(path, recursive = recursive, showWarnings = showWarnings)
@@ -30,8 +28,6 @@ create_analysis_directory <- function(path, recursive = TRUE, showWarnings = FAL
 #'
 #' @return A ggplot object
 #'
-#' @examples
-#' create_no_data_plot(label = "No significant results")
 create_no_data_plot <- function(label = 'N/A', text_size = 24) {
     ggplot() +
         theme_void() +
@@ -47,8 +43,6 @@ create_no_data_plot <- function(label = 'N/A', text_size = 24) {
 #'
 #' @return NULL (invisibly); sets global option
 #'
-#' @examples
-#' set_enrichment_color_scale()
 set_enrichment_color_scale <- function() {
     color_scale <- viridis::viridis(n = 4, direction = -1)
     options(enrichplot.colours = color_scale)
@@ -64,8 +58,6 @@ set_enrichment_color_scale <- function() {
 #'
 #' @return Named character vector with colors for "DOWN", "UP", and "NO"
 #'
-#' @examples
-#' my_colors <- create_deg_colors(c("blue", "red"))
 create_deg_colors <- function(colors = c('green4', 'darkorchid4')) {
     my_colors <- c(colors, "gray")
     names(my_colors) <- c("DOWN", "UP", "NO")
@@ -87,8 +79,6 @@ create_deg_colors <- function(colors = c('green4', 'darkorchid4')) {
 #'
 #' @return A geom_text_repel layer
 #'
-#' @examples
-#' add_gene_labels_layer("genes_to_label", de_status, label_size = 4)
 add_gene_labels_layer <- function(label_column, diffexpressed, label_size = 5,
                                    max_overlaps = 15, nudge_x = NULL, nudge_y = NULL) {
     # Default nudge based on direction if not specified
@@ -130,8 +120,6 @@ add_gene_labels_layer <- function(label_column, diffexpressed, label_size = 5,
 #'   \item{n_group2}{Integer; number of cells in group 2}
 #'   \item{message}{Character; error message if validation fails}
 #'
-#' @examples
-#' validation <- validate_cell_counts(seurat, "condition", "WT", "KO", 30)
 validate_cell_counts <- function(seurat, comparison, group1, group2, minimum_cell_number) {
     n_group1 <- seurat@meta.data |>
         filter(str_detect(!!as.name(comparison), group1)) |>
@@ -173,9 +161,6 @@ validate_cell_counts <- function(seurat, comparison, group1, group2, minimum_cel
 #'
 #' @return NULL (invisibly); creates output files
 #'
-#' @examples
-#' run_standard_enrichment(de_results, TRUE, NULL, "cluster_1",
-#'                        "./results", "WT", "KO", "condition", 0.5)
 run_standard_enrichment <- function(results, run_pathway_enrichment,
                                     pathways_of_interest = NULL, cluster, path,
                                     group1, group2, comparison = NULL, FC_threshold) {
@@ -217,10 +202,6 @@ run_standard_enrichment <- function(results, run_pathway_enrichment,
 #'
 #' @return NULL (invisibly); creates plot files
 #'
-#' @examples
-#' gene_lists <- list(immune = c("Il2", "Ifng"), metabolic = c("Hk2", "Pkm"))
-#' plot_gene_lists(results, gene_lists, "WT", "KO", "cluster_1",
-#'                my_colors, "./figures", 0.5, 0.05, "Wilcox")
 plot_gene_lists <- function(results, gene_lists_to_plot, group1, group2,
                            cluster, my_colors, local_figures_path,
                            FC_threshold, p_value_threshold, test_type,

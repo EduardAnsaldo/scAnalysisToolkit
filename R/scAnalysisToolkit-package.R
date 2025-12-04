@@ -1,6 +1,13 @@
 #' @keywords internal
 "_PACKAGE"
 
+#' @import Seurat
+#' @import dplyr
+#' @import ggplot2
+#' @import rlang
+#' @import scRepertoire
+ 
+
 ## usethis namespace: start
 #' @importFrom cowplot plot_grid
 #' @importFrom forcats fct
@@ -10,19 +17,20 @@
 #' @importFrom forcats fct_rev
 #' @importFrom ggbeeswarm geom_quasirandom
 #' @importFrom ggrepel geom_text_repel
+#' @importFrom graphics title
+#' @importFrom grDevices recordPlot
+#' @importFrom org.Mm.eg.db org.Mm.eg.db
 #' @importFrom patchwork plot_annotation
 #' @importFrom patchwork wrap_plots
 #' @importFrom purrr map
 #' @importFrom purrr walk
-#' @importFrom rlang englue
-#' @importFrom rlang sym
 #' @importFrom scales alpha
 #' @importFrom scCustomize DimPlot_scCustom
 #' @importFrom scCustomize DotPlot_scCustom
-#' @importFrom scRepertoire .expression2List
+#' @importFrom scCustomize FeaturePlot_scCustom
 #' @importFrom Signac FindMotifs
 #' @importFrom Signac MotifPlot
-#' @importFrom stringr englue
+#' @importFrom stats setNames
 #' @importFrom stringr fixed
 #' @importFrom stringr str_c
 #' @importFrom stringr str_detect
@@ -38,5 +46,9 @@
 #' @importFrom tidyr pivot_longer
 #' @importFrom tidyr pivot_wider
 #' @importFrom tidyr separate_wider_delim
+#' @importFrom utils head
+#' @importFrom utils read.csv
+#' @importFrom utils write.csv
+#' @importFrom utils write.table
 ## usethis namespace: end
 NULL

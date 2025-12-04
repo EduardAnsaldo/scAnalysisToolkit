@@ -41,8 +41,3 @@ accessible chromatin regions for a specific cluster. Uses Signac's FindMotifs
 to perform motif enrichment analysis and generates visualization of top motifs.
 Requires ATAC-seq data with motif annotations.
 }
-\examples{
-motifs <- find_enriched_motifs(seurat_atac, da_peaks, cluster_id = "0",
-                              pct_threshold = 0.1, log2fc_threshold = 1,
-                              n_motifs_to_plot = 15)
-}

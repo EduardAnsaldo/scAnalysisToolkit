@@ -80,8 +80,3 @@ statistical testing, volcano plot generation for both peak regions and nearest g
 and optional pathway enrichment analysis. Creates two volcano plots: one labeled
 with peak coordinates and one with nearest gene names.
 }
-\examples{
-results <- run_differential_accessibility(seurat_atac, "condition", "WT", "KO",
-                                         cluster = "Macrophages",
-                                         run_pathway_enrichment = "Metascape")
-}

@@ -29,10 +29,6 @@
 #'
 #' @return Invisible NULL; creates CSV files and PDF plots
 #'
-#' @examples
-#' GO_overrepresentation_analysis(deg_genes, all_genes, "./enrichment",
-#'                                ontology = "BP", group = "treatment",
-#'                                simplify_terms = TRUE)
 #' @export
 GO_overrepresentation_analysis <- function (significant_genes, all_genes, local_path, ontology = 'ALL', minGSSize = 5, maxGSSize = 400, filename = '', group = '', drop_levels = F, levels_to_drop = c(), simplify_function = min, simplify_by = 'p.adjust', simplify_terms = T, run_network = F, network_n_terms = 100, nterms_to_plot = 50, font_size = 8,  ...)  {
 
@@ -184,10 +180,6 @@ GO_GSEA_analysis <- function (results, local_path, ontology = 'ALL', group) {
 #'
 #' @return Invisible NULL; creates output directories with enrichment results
 #'
-#' @examples
-#' GO_functional_analysis(de_results, grouping_var = "cluster_1",
-#'                       path = "./results", FC_threshold = 0.5,
-#'                       group1 = "WT", group2 = "KO")
 #' @export
 GO_functional_analysis <- function (results,  grouping_var, path='./', FC_threshold = 0.3, p_value_threshold = 0.05, group1 = '', group2 = '', run_GSEA = FALSE, ...) {
  
@@ -245,6 +237,38 @@ cluster <- grouping_var
      return()
 }
 
+#' GO Functional Analysis for Cluster Identification
+#'
+#' Performs Gene Ontology (GO) enrichment analysis on marker genes from multiple
+#' clusters to characterize cluster identities. Extracts top marker genes per cluster,
+#' runs GO overrepresentation analysis using clusterProfiler's compareCluster, and
+#' generates a dot plot visualization comparing enriched terms across clusters.
+#'
+#' @param scRNAseq Seurat object with RNA assay containing gene expression data
+#' @param results Data frame; marker gene results from FindAllMarkers with columns:
+#'   cluster, gene, avg_log2FC, p_val_adj
+#' @param path Character; base output directory path. Default './'
+#' @param object_annotations Character; string to append to output directory name.
+#'   Default ''
+#' @param top_gene_number Integer; number of top marker genes per cluster to use
+#'   for enrichment analysis. Default 50
+#' @param ... Additional arguments passed to GO_overrepresentation_analysis_multiple_lists
+#'   (e.g., ontology, minGSSize, maxGSSize, simplify_terms)
+#'
+#' @return ggplot object; dot plot showing enriched GO terms across clusters
+#'
+#' @details
+#' This function:
+#' 1. Extracts the top N marker genes per cluster ranked by log2 fold change
+#' 2. Creates gene lists for each cluster
+#' 3. Runs GO overrepresentation analysis comparing all clusters simultaneously
+#' 4. Creates an output directory: 'Cluster_identification_functional_analysis_GO_annotations'
+#' 5. Saves enrichment results to CSV files
+#' 6. Returns a dot plot for visualization
+#'
+#' The analysis uses all genes in the RNA assay as the background/universe for
+#' statistical testing.
+#'
 #' @export
 GO_functional_analysis_cluster_identification <- function (scRNAseq, results, path='./', object_annotations = '', top_gene_number = 50, ...) {
 
@@ -254,8 +278,8 @@ GO_functional_analysis_cluster_identification <- function (scRNAseq, results, pa
      all_genes <- Features(scRNAseq[['RNA']]) |>unique()
     #  all_genes_entrezid <- Features(scRNAseq[['RNA']]) |>unique() |> clusterProfiler::bitr(fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = 'org.Mm.eg.db', drop = FALSE) |> pull(ENTREZID) |> unique()
 
-    gene_lists <- results %>%
-        group_by(cluster) %>%
+    gene_lists <- results |>
+        group_by(cluster) |>
         arrange(desc(avg_log2FC), .by_group = TRUE) |>
         slice_head(n = top_gene_number)  |>
         ungroup() |>

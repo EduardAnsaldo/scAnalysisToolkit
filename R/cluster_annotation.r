@@ -31,10 +31,6 @@
 #'     \item labels_per_cell_fine: Fine cell-level annotations
 #'   }
 #'
-#' @examples
-#' seurat <- annotate_seurat_with_SingleR_Eduard(seurat, "./figures",
-#'                                               database = "ImmGen",
-#'                                               annotation_basis = "cluster_fine")
 #' @export
 annotate_seurat_with_SingleR_Eduard <- function(
     seurat,
@@ -55,7 +51,7 @@ annotate_seurat_with_SingleR_Eduard <- function(
     # Annotation logic
     if (annotation_basis == "cluster_fine") {
         predictions <- SingleR::SingleR(
-            test = SingleCellExperiment::as.SingleCellExperiment(seurat),
+            test  =  as.SingleCellExperiment(seurat),
             assay.type.test = 1,
             ref = ref,
             labels = ref$label.fine,
@@ -80,7 +76,7 @@ annotate_seurat_with_SingleR_Eduard <- function(
         }
     } else if (annotation_basis == "cluster_coarse") {
         predictions <- SingleR::SingleR(
-            test = SingleCellExperiment::as.SingleCellExperiment(seurat),
+            test = as.SingleCellExperiment(seurat),
             assay.type.test = 1,
             ref = ref,
             labels = ref$label.main,
@@ -105,7 +101,7 @@ annotate_seurat_with_SingleR_Eduard <- function(
         }
     } else if (annotation_basis == "cell_coarse") {
         predictions <- SingleR::SingleR(
-            test = SingleCellExperiment::as.SingleCellExperiment(seurat),
+            test = as.SingleCellExperiment(seurat),
             assay.type.test = 1,
             ref = ref,
             labels = ref$label.main
@@ -125,7 +121,7 @@ annotate_seurat_with_SingleR_Eduard <- function(
         }
     } else if (annotation_basis == "cell_fine") {
         predictions <- SingleR::SingleR(
-            test = SingleCellExperiment::as.SingleCellExperiment(seurat),
+            test = as.SingleCellExperiment(seurat),
             assay.type.test = 1,
             ref = ref,
             labels = ref$label.fine
@@ -180,10 +176,6 @@ annotate_seurat_with_SingleR_Eduard <- function(
 #'   \item{topn}{Data frame; top n markers per cluster}
 #'   \item{top100}{Data frame; top 100 markers per cluster}
 #'
-#' @examples
-#' markers <- top_genes_per_cluster(seurat, n_genes_to_plot = 5,
-#'                                 grouping_var = 'seurat_clusters',
-#'                                 run_pathway_enrichment = c("Metascape"))
 #' @export
 top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = 'seurat_clusters', object_annotations = '', tables_path = 'results/tables/', figures_path = 'results/figures/', results_path = 'results/', run_pathway_enrichment = NULL, ...) {
 
@@ -199,33 +191,32 @@ top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
 
 
     #Add gene annotations:
-    annotations <- read.csv(here::here('scripts', 'support_scripts', 'annotations.csv'))
     seurat.markers <- seurat.markers |>
                     left_join(y= unique(annotations[,c('gene_name', 'description')]),
                         by = c('gene' = 'gene_name')) |>
                             mutate(cluster = fct_inseq(cluster))
 
     #Top10 markers
-    seurat.markers %>%
-        group_by(cluster) %>%
+    seurat.markers |>
+        group_by(cluster) |>
         arrange(desc(avg_log2FC), .by_group = TRUE) |>
         slice_head(n = 10) -> top10
 
     #Top25 markers
-    seurat.markers %>%
-        group_by(cluster) %>%
+    seurat.markers |>
+        group_by(cluster) |>
         arrange(desc(avg_log2FC), .by_group = TRUE) |>
         slice_head(n = 50) -> top50
 
     #Top100 markers
-    seurat.markers %>%
-        group_by(cluster) %>%
+    seurat.markers |>
+        group_by(cluster) |>
         arrange(desc(avg_log2FC), .by_group = TRUE) |>
         slice_head(n = 100) -> top100
 
     #Topn markers
-    seurat.markers %>%
-        group_by(cluster) %>%
+    seurat.markers |>
+        group_by(cluster) |>
         arrange(desc(avg_log2FC), .by_group = TRUE) |>
         slice_head(n = n_genes_to_plot) -> topn
 
@@ -234,8 +225,8 @@ top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
     # write.table(top25,file=here::here(path,'top25',object_annotations, ".tsv"), sep="\t",row.names = FALSE)
     write.table(top10,file=here::here(tables_path, paste0('top10', '_',object_annotations, ".tsv")), sep="\t",row.names = FALSE)
 
-    top100_genes_per_cluster <- top100 %>%
-        group_by(cluster) %>%
+    top100_genes_per_cluster <- top100 |>
+        group_by(cluster) |>
         summarise(genes = str_flatten_comma(gene))
 
     write.table(top100_genes_per_cluster,

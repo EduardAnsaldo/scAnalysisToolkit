@@ -31,10 +31,6 @@
 #'   \item{scatterplot}{ggplot; scatterplot object}
 #'   \item{volcanoplot}{ggplot; volcano plot object}
 #'
-#' @examples
-#' results <- pseudobulk(seurat_obj, "condition", "WT", "KO",
-#'                      cluster = "Tcells", FC_threshold = 0.5,
-#'                      run_pathway_enrichment = "Metascape")
 #' @export
 pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clusters',
                        path = './', FC_threshold = 0.3, p_value_threshold = 0.05,
@@ -154,9 +150,6 @@ pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clus
 #'   \item{UP_count}{Integer; number of upregulated genes}
 #'   \item{DOWN_count}{Integer; number of downregulated genes}
 #'
-#' @examples
-#' results <- DEG_FindMarkers_RNA_assay(seurat_obj, "condition", "WT", "KO",
-#'                                     cluster = "Bcells", FC_threshold = 0.5)
 #' @export
 DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clusters',
                                       path = './', FC_threshold = 0.3, p_value_threshold = 0.05,
@@ -293,9 +286,6 @@ DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, clus
 #'   \item{scatterplot}{ggplot; scatterplot object}
 #'   \item{volcanoplot}{ggplot; volcano plot object}
 #'
-#' @examples
-#' results <- DEG_FindMarkers_SCT_assay(seurat_obj, "condition", "WT", "KO",
-#'                                     cluster = "Macrophages", FC_threshold = 0.5)
 #' @export
 DEG_FindMarkers_SCT_assay <- function(scRNAseq, comparison, group1, group2, is_integrated_subset = FALSE,
                                       cluster = 'all_clusters', path = './', FC_threshold = 0.3,
@@ -477,10 +467,6 @@ DEG_FindMarkers_SCT_assay <- function(scRNAseq, comparison, group1, group2, is_i
 #'   \item{UP_count}{Integer; number of upregulated genes}
 #'   \item{DOWN_count}{Integer; number of downregulated genes}
 #'
-#' @examples
-#' results <- bulk_analysis(counts_df, "Groups", "Control", "Treatment",
-#'                         cluster = "experiment1", FC_threshold = 0.5,
-#'                         run_pathway_enrichment = TRUE)
 #' @export
 bulk_analysis <- function(counts_table, comparison = 'Groups', group1, group2, cluster = '',
                          path = './', FC_threshold = 0.3, p_value_threshold = 0.05,

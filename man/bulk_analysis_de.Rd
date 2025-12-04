@@ -52,7 +52,3 @@ Performs differential expression analysis using DESeq2 on bulk RNA-seq count dat
 Uses DESeq2's negative binomial model for statistical testing and includes PCA
 visualization for quality control. Requires at least 2 biological replicates per group.
 }
-\examples{
-de_results <- bulk_analysis_de(counts_df, "Groups", "Control", "Treatment",
-                               cluster = "experiment1", FC_threshold = 0.5)
-}

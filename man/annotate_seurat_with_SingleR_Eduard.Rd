@@ -47,8 +47,3 @@ Supports both cluster-level and cell-level annotation with fine or coarse
 granularity. Generates UMAP visualizations of annotations and optionally
 splits by experimental groups.
 }
-\examples{
-seurat <- annotate_seurat_with_SingleR_Eduard(seurat, "./figures",
-                                              database = "ImmGen",
-                                              annotation_basis = "cluster_fine")
-}

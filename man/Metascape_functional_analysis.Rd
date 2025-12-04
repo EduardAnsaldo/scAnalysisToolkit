@@ -41,8 +41,3 @@ Wrapper function that performs Metascape pathway enrichment analysis on differen
 expression results. Runs enrichment separately for upregulated and downregulated genes,
 creating organized output directories for each direction.
 }
-\examples{
-Metascape_functional_analysis(de_results, grouping_var = "cluster_1",
-                             group2 = "KO", group1 = "WT",
-                             path = "./results", FC_threshold = 0.5)
-}

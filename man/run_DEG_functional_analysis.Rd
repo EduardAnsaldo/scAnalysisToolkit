@@ -27,13 +27,3 @@ expression results using one or more methods. Supports ClusterProfiler (GO/KEGG)
 Metascape web-based analysis, and gProfiler2. Automatically calls the appropriate
 analysis function based on method selection.
 }
-\examples{
-# Single method
-results <- run_DEG_functional_analysis(de_results, method = "Metascape",
-                                      grouping_var = "cluster_1", path = "./results")
-
-# Multiple methods
-results <- run_DEG_functional_analysis(de_results,
-                                      method = c("Metascape", "ClusterProfiler"),
-                                      path = "./results")
-}

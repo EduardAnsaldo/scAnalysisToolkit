@@ -19,15 +19,6 @@
 #' @return If single method: results from that method. If multiple methods: named list
 #'   with results from each method. If method is NULL: invisible(NULL)
 #'
-#' @examples
-#' # Single method
-#' results <- run_DEG_functional_analysis(de_results, method = "Metascape",
-#'                                       grouping_var = "cluster_1", path = "./results")
-#'
-#' # Multiple methods
-#' results <- run_DEG_functional_analysis(de_results,
-#'                                       method = c("Metascape", "ClusterProfiler"),
-#'                                       path = "./results")
 #' @export
 run_DEG_functional_analysis <- function(results,
                                         method = NULL,
@@ -78,15 +69,6 @@ run_DEG_functional_analysis <- function(results,
 #' @return If single method: results from that method. If multiple methods: named list
 #'   with results from each method. If method is NULL: invisible(NULL)
 #'
-#' @examples
-#' # Single method
-#' enrichment <- run_overrepresentation_analysis(deg_genes, method = "Metascape",
-#'                                              local_path = "./enrichment")
-#'
-#' # Multiple methods
-#' enrichment <- run_overrepresentation_analysis(deg_genes,
-#'                                              method = c("ClusterProfiler", "gProfiler2"),
-#'                                              all_genes = background_genes)
 #' @export
 run_overrepresentation_analysis <- function(genes,
                                            method = NULL,

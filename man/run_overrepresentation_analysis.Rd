@@ -26,13 +26,3 @@ gene list using one or more methods. Supports ClusterProfiler (GO/KEGG), gProfil
 and Metascape web-based analysis. Tests which biological pathways/processes are
 statistically enriched in the gene list compared to a background.
 }
-\examples{
-# Single method
-enrichment <- run_overrepresentation_analysis(deg_genes, method = "Metascape",
-                                             local_path = "./enrichment")
-
-# Multiple methods
-enrichment <- run_overrepresentation_analysis(deg_genes,
-                                             method = c("ClusterProfiler", "gProfiler2"),
-                                             all_genes = background_genes)
-}

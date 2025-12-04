@@ -47,7 +47,7 @@ run_cellchat_analysis <- function(seurat,
 
   ## Extract expression data and metadata from the Seurat object
   if ("Samples" %in% colnames(seurat@meta.data)) {
-  seurat@meta.data <- seurat@meta.data |> mutate(samples = Samples)
+    seurat@meta.data <- seurat@meta.data |> mutate(samples = Samples)
   }
 
   message("Creating CellChat object...")
@@ -55,11 +55,11 @@ run_cellchat_analysis <- function(seurat,
 
   ## Set the CellChat database
   cellchat_object@DB <- if (species == "mouse") {
-  CellChatDB.mouse
+    CellChat::CellChatDB.mouse
   } else if (species == "human") {
-  CellChatDB.human
+    CellChat::CellChatDB.human
   } else {
-  stop("Species must be either 'mouse' or 'human'")
+    stop("Species must be either 'mouse' or 'human'")
   }
 
   ## Preprocessing the data for CellChat analysis
@@ -68,12 +68,12 @@ run_cellchat_analysis <- function(seurat,
 
   # Set up parallel processing if requested
   if (use_parallel) {
-  message(sprintf("Setting up parallel processing with %d workers...", n_workers))
-  future::plan("multisession", workers = n_workers)
-  options(future.globals.maxSize = max_memory_mb * 1024^2)
+    message(sprintf("Setting up parallel processing with %d workers...", n_workers))
+    future::plan("multisession", workers = n_workers)
+    options(future.globals.maxSize = max_memory_mb * 1024^2)
   } else {
-  message("Running in sequential mode...")
-  future::plan("sequential")
+    message("Running in sequential mode...")
+    future::plan("sequential")
   }
 
   cellchat_object <- CellChat::identifyOverExpressedGenes(cellchat_object)
@@ -86,21 +86,21 @@ run_cellchat_analysis <- function(seurat,
 
   ## Optional: smooth data using PPI network
   if (smooth_data) {
-  message("Smoothing data using PPI network...")
-  ppi_network <- if (species == "mouse") PPI.mouse else PPI.human
-  cellchat_object <- smoothData(cellchat_object, adj = ppi_network)
+    message("Smoothing data using PPI network...")
+    ppi_network <- if (species == "mouse") CellChat::PPI.mouse else CellChat::PPI.human
+    cellchat_object <- smoothData(cellchat_object, adj = ppi_network)
   }
 
   # Part II: Compute communication probabilities
   message(sprintf("Computing communication probabilities (nboot = %d)...", nboot))
   ptm <- Sys.time()
   cellchat_object <- CellChat::computeCommunProb(
-  cellchat_object,
-  type = "triMean",
-  raw.use = !smooth_data,
-  population.size = population_size,
-  seed.use = 3514L,
-  nboot = nboot
+    cellchat_object,
+    type = "triMean",
+    raw.use = !smooth_data,
+    population.size = population_size,
+    seed.use = 3514L,
+    nboot = nboot
   )
   execution_time <- Sys.time() - ptm
   message(sprintf("Execution time: %.2f mins", as.numeric(execution_time, units = "mins")))
@@ -110,7 +110,6 @@ run_cellchat_analysis <- function(seurat,
   cellchat_object <- CellChat::filterCommunication(cellchat_object, min.cells = min_cells)
 
   ## Infer signaling pathway level communication
-
   message("Computing communication probabilities at pathway level...")
   ptm <- Sys.time()
   cellchat_object <- CellChat::computeCommunProbPathway(cellchat_object)
@@ -120,19 +119,19 @@ run_cellchat_analysis <- function(seurat,
   ## Calculate aggregated network
   message("Aggregating cell-cell communication network...")
   if (!is.null(subset_cell_groups)) {
-  cellchat_object <- CellChat::aggregateNet(
-  cellchat_object,
-  sources.use = subset_cell_groups,
-  targets.use = subset_cell_groups
-  )
+    cellchat_object <- CellChat::aggregateNet(
+      cellchat_object,
+      sources.use = subset_cell_groups,
+      targets.use = subset_cell_groups
+    )
   } else {
-  cellchat_object <- CellChat::aggregateNet(cellchat_object)
+    cellchat_object <- CellChat::aggregateNet(cellchat_object)
   }
 
   # Save if output file specified
   if (!is.null(output_file)) {
-  message(sprintf("Saving CellChat object to: %s", output_file))
-  saveRDS(cellchat_object, file = output_file)
+    message(sprintf("Saving CellChat object to: %s", output_file))
+    saveRDS(cellchat_object, file = output_file)
   }
 
   future::plan("sequential")  # Reset to sequential plan

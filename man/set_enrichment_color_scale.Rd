@@ -13,6 +13,3 @@ NULL (invisibly); sets global option
 Sets the global color scale option for enrichplot package visualizations
 using a viridis color palette.
 }
-\examples{
-set_enrichment_color_scale()
-}

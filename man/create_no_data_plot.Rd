@@ -18,6 +18,3 @@ A ggplot object
 Generates a blank plot with a text label, used when there are insufficient
 results to visualize (e.g., no significant genes found).
 }
-\examples{
-create_no_data_plot(label = "No significant results")
-}

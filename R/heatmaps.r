@@ -12,18 +12,14 @@
 #' @param seurat Seurat object with gene expression data
 #' @param pathway_name Character; title for the heatmap
 #' @param color_palette Character vector; diverging color palette for heatmap.
-#'   Default diverging_palette_2
+#'   Default grDevices::hcl.colors(n = 20,'RdBu',rev = T)
 #' @param grouping_var Character; metadata column name for aggregating expression
 #'   (e.g., 'Samples', 'cell_type'). Default 'Samples'
 #'
 #' @return ggplot object with heatmap
 #'
-#' @examples
-#' genes <- c("Il2", "Ifng", "Tnf", "Il10")
-#' plot_pathways_heatmap(genes, seurat, "Cytokine Signaling",
-#'                      grouping_var = "Samples")
 #' @export
-plot_pathways_heatmap <- function(genes_to_plot, seurat, pathway_name, color_palette = diverging_palette_2, grouping_var = 'Samples') {
+plot_pathways_heatmap <- function(genes_to_plot, seurat, pathway_name, color_palette = grDevices::hcl.colors(n = 20,'RdBu',rev = T), grouping_var = 'Samples') {
 
     Aggregated_expression <- AggregateExpression(seurat, group.by = grouping_var, return.seurat = T)
     data_to_plot <- Aggregated_expression[['RNA']]$data |>
@@ -72,18 +68,14 @@ plot_pathways_heatmap <- function(genes_to_plot, seurat, pathway_name, color_pal
 #' @param seurat Seurat object with gene expression data
 #' @param pathway_name Character; title for the heatmap
 #' @param color_palette Character vector; diverging color palette for heatmap.
-#'   Default diverging_palette_2
+#'   Default grDevices::hcl.colors(n = 20,'RdBu',rev = T)
 #' @param grouping_var Character; metadata column name for aggregating expression
 #'   (e.g., 'Samples', 'cell_type'). Default 'Samples'
 #'
 #' @return ggplot object with heatmap
 #'
-#' @examples
-#' genes <- c("Il2", "Ifng", "Tnf", "Il10")
-#' plot_pathways_heatmap2(genes, seurat, "Cytokine Signaling",
-#'                       grouping_var = "cell_type")
 #' @export
-plot_pathways_heatmap2 <- function(genes_to_plot, seurat, pathway_name, color_palette = diverging_palette_2, grouping_var = 'Samples') {
+plot_pathways_heatmap2 <- function(genes_to_plot, seurat, pathway_name, color_palette = grDevices::hcl.colors(n = 20,'RdBu',rev = T), grouping_var = 'Samples') {
 
     Aggregated_expression <- AggregateExpression(seurat, group.by = grouping_var, return.seurat = T)
     data_to_plot <- Aggregated_expression[['RNA']]$data |>

@@ -20,6 +20,3 @@ Character string of the created path
 Removes an existing directory and creates a fresh one. Useful for ensuring
 clean output directories for analysis results.
 }
-\examples{
-create_analysis_directory("results/figures")
-}

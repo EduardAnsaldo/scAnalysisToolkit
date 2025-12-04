@@ -60,8 +60,3 @@ NULL (invisibly); creates plot files
 Iterates through named lists of genes and generates corresponding
 scatterplots and volcano plots for each gene list.
 }
-\examples{
-gene_lists <- list(immune = c("Il2", "Ifng"), metabolic = c("Hk2", "Pkm"))
-plot_gene_lists(results, gene_lists, "WT", "KO", "cluster_1",
-               my_colors, "./figures", 0.5, 0.05, "Wilcox")
-}

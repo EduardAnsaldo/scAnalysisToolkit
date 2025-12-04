@@ -44,9 +44,3 @@ and replicates. D50 measures the proportion of unique clonotypes needed to accou
 for the most abundant 50\% of cells. Higher D50 indicates greater clonal diversity.
 Requires at least 20 cells per group for reliable calculation.
 }
-\examples{
-calculate_D50(seurat_tcr, cell_grouping_var = cell_type,
-             replicate_var = Sample, replicate_group_var = Condition,
-             results_path = "./results", figures_path = "./figures",
-             tables_path = "./tables")
-}

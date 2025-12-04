@@ -23,10 +23,6 @@
 #'   \item{plot}{ggplot; visualization of top enriched motif logos}
 #'   \item{n_peaks}{Integer; number of peaks used for enrichment analysis}
 #'
-#' @examples
-#' motifs <- find_enriched_motifs(seurat_atac, da_peaks, cluster_id = "0",
-#'                               pct_threshold = 0.1, log2fc_threshold = 1,
-#'                               n_motifs_to_plot = 15)
 #' @export
 find_enriched_motifs <- function(seurat_object,
                   da_results,

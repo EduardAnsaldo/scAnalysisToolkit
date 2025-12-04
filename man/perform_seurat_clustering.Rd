@@ -80,8 +80,3 @@ normalization, PCA, UMAP dimensionality reduction, clustering at multiple
 resolutions, marker gene identification, and optional SingleR cell type annotation.
 Generates extensive visualizations and optionally performs pathway enrichment.
 }
-\examples{
-results <- perform_seurat_clustering(seurat, npcs = 50, dimensions = 30,
-                                    selected_resolution = 0.25,
-                                    run_pathway_enrichment = c("Metascape"))
-}

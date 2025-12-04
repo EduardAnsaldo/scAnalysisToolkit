@@ -17,10 +17,6 @@
 #'
 #' @return ggplot object with pathway enrichment bar plot, or "N/A" plot if no results
 #'
-#' @examples
-#' Metascape_overrepresentation_analysis(deg_genes, local_path = "./enrichment",
-#'                                      group = "treatment", grouping_var = "cluster_1",
-#'                                      nterms_to_plot_metascape = 10)
 #' @export
 Metascape_overrepresentation_analysis <- function (significant_genes_FC_ordered, local_path, group, grouping_var, nterms_to_plot_metascape = 12 , filename = '', ...) {
 
@@ -120,10 +116,6 @@ if (nrow(enrichment_results) > 1) {
 #'
 #' @return Invisible NULL; creates output directories with Metascape enrichment results
 #'
-#' @examples
-#' Metascape_functional_analysis(de_results, grouping_var = "cluster_1",
-#'                              group2 = "KO", group1 = "WT",
-#'                              path = "./results", FC_threshold = 0.5)
 #' @export
 Metascape_functional_analysis <- function (results, grouping_var, group2, group1, path='./', FC_threshold, p_value_threshold = 0.05, ...) {
 
@@ -185,10 +177,6 @@ Metascape_functional_analysis <- function (results, grouping_var, group2, group1
 #'
 #' @return Patchwork object with combined enrichment plots for all clusters
 #'
-#' @examples
-#' Metascape_functional_analysis_cluster_identification(seurat, marker_results,
-#'                                                     identities = "seurat_clusters",
-#'                                                     path = "./results")
 #' @export
 Metascape_functional_analysis_cluster_identification <- function (seurat, results, identities = 'seurat_clusters', path='./', object_annotations = '', ...) {
 

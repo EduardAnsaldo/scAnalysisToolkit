@@ -50,7 +50,3 @@ Performs differential expression analysis using Seurat's FindMarkers function
 with Wilcoxon rank-sum test on the RNA assay. Calculates counts per million (CPM)
 for visualization and filtering. Suitable for non-normalized or log-normalized data.
 }
-\examples{
-de_results <- DEG_FindMarkers_RNA_assay_de(seurat_obj, "condition", "WT", "KO",
-                                           cluster = "Bcells", FC_threshold = 0.5)
-}

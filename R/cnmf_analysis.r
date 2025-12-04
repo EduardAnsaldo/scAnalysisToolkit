@@ -23,7 +23,7 @@
 #' @param top_n Integer; number of top genes per program to extract. Default 100
 #' @param topn_plot Integer; number of top genes per program for heatmap visualization. Default 6
 #' @param run_pathway_enrichment Character vector; enrichment methods ('Metascape',
-#'   'ClusterProfiler', or NULL). Default pathway_enrichment
+#'   'ClusterProfiler', or NULL). Default NULL
 #' @param ... Additional arguments passed to pathway enrichment functions
 #'
 #' @return List with elements:
@@ -34,10 +34,6 @@
 #'   \item{genes_score_table}{Data frame of gene loadings for visualization}
 #'   \item{spectra_score}{Matrix of gene spectra scores}
 #'
-#' @examples
-#' results <- run_cnmf_results(seurat, data_dir = "./cnmf_output",
-#'                            runname = "experiment1", k_used = 8,
-#'                            run_pathway_enrichment = c("Metascape"))
 #' @export
 run_cnmf_results <- function (
     seurat,                    # Seurat object
@@ -53,7 +49,7 @@ run_cnmf_results <- function (
     object_annotations = '',
     top_n = 100,                # top genes per program to extract
     topn_plot = 6,             # top genes used in dotplot
-    run_pathway_enrichment = pathway_enrichment,       # run Metascape_overrepresentation_analysis
+    run_pathway_enrichment = NULL,       # run Metascape_overrepresentation_analysis
     ...
 ) {
 
@@ -157,7 +153,6 @@ run_cnmf_results <- function (
 
 
     #Add gene annotations:
-    annotations <- read.csv(here::here('scripts', 'support_scripts', 'annotations.csv'))
     top_colnames_long <- top_colnames |>
         pivot_longer(everything(), names_to = 'gene_expression_program', values_to = 'gene')  |>
         mutate(gene_expression_program = fct_inseq(gene_expression_program)) |>
@@ -222,7 +217,7 @@ run_cnmf_results <- function (
             for (gene_expression_program in colnames(top_colnames)) {
                 local_path_2 <- here::here(local_path_pathway_enrichment, gene_expression_program)
                 dir.create(local_path_2, recursive = TRUE, showWarnings = FALSE)
-                plot_list[[gene_expression_program]] <- Metascape_overrepresentation_analysis(top_colnames %>% dplyr::pull(gene_expression_program),
+                plot_list[[gene_expression_program]] <- Metascape_overrepresentation_analysis(top_colnames |> dplyr::pull(gene_expression_program),
                             local_path = local_path_2,
                             group = gene_expression_program,
                             filename = paste0(gene_expression_program, '_'),

@@ -37,8 +37,3 @@ Performs pathway overrepresentation analysis using the Metascape web-based tool
 (msbio command-line interface). Submits gene list to Metascape, retrieves results,
 and creates a bar plot of top enriched pathways.
 }
-\examples{
-Metascape_overrepresentation_analysis(deg_genes, local_path = "./enrichment",
-                                     group = "treatment", grouping_var = "cluster_1",
-                                     nterms_to_plot_metascape = 10)
-}

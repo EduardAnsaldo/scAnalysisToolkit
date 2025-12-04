@@ -63,8 +63,3 @@ Orchestrates a full pseudobulk differential expression analysis workflow includi
 statistical testing with DESeq2, scatter and volcano plot generation, and optional
 pathway enrichment analysis. Returns both statistical results and visualizations.
 }
-\examples{
-results <- pseudobulk(seurat_obj, "condition", "WT", "KO",
-                     cluster = "Tcells", FC_threshold = 0.5,
-                     run_pathway_enrichment = "Metascape")
-}

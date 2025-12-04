@@ -18,7 +18,7 @@ run_cnmf_results(
   object_annotations = "",
   top_n = 100,
   topn_plot = 6,
-  run_pathway_enrichment = pathway_enrichment,
+  run_pathway_enrichment = NULL,
   ...
 )
 }
@@ -50,7 +50,7 @@ run_cnmf_results(
 \item{topn_plot}{Integer; number of top genes per program for heatmap visualization. Default 6}
 
 \item{run_pathway_enrichment}{Character vector; enrichment methods ('Metascape',
-'ClusterProfiler', or NULL). Default pathway_enrichment}
+'ClusterProfiler', or NULL). Default NULL}
 
 \item{...}{Additional arguments passed to pathway enrichment functions}
 }
@@ -69,9 +69,4 @@ to identify gene expression programs (GEPs) in single-cell data. Optionally runs
 cNMF consensus command, loads results, normalizes program usage scores, creates
 visualizations (UMAP feature plots, violin plots, heatmaps), and performs pathway
 enrichment analysis on top genes per program.
-}
-\examples{
-results <- run_cnmf_results(seurat, data_dir = "./cnmf_output",
-                           runname = "experiment1", k_used = 8,
-                           run_pathway_enrichment = c("Metascape"))
 }

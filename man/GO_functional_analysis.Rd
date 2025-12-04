@@ -45,8 +45,3 @@ expression results. Runs overrepresentation analysis (ORA) separately for upregu
 and downregulated genes, with optional Gene Set Enrichment Analysis (GSEA). Creates
 organized output directories with plots and tables.
 }
-\examples{
-GO_functional_analysis(de_results, grouping_var = "cluster_1",
-                      path = "./results", FC_threshold = 0.5,
-                      group1 = "WT", group2 = "KO")
-}

@@ -76,7 +76,3 @@ Orchestrates a full Wilcoxon differential expression analysis workflow for the
 RNA assay including statistical testing, scatter and volcano plot generation,
 pathway enrichment analysis, and optional custom gene list visualization.
 }
-\examples{
-results <- DEG_FindMarkers_RNA_assay(seurat_obj, "condition", "WT", "KO",
-                                    cluster = "Bcells", FC_threshold = 0.5)
-}

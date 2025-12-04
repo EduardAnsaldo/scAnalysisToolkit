@@ -29,10 +29,6 @@
 #'
 #' @return A ggplot object
 #'
-#' @examples
-#' scatterplot(de_results, "WT", "KO", "./figures",
-#'            FC_threshold = 0.5, p_value_threshold = 0.05,
-#'            test_type = "Wilcox")
 #' @export
 scatterplot <- function (results, group1, group2, local_figures_path, FC_threshold, p_value_threshold, cluster = 'all_clusters', my_colors = c('green4', 'darkorchid4', 'gray'), max_overlaps = 15, label_size = 5, label_threshold = 10000, distance_from_diagonal_threshold = 0.5, test_type = c('Wilcox', 'Pseudobulk', 'Bulk'), genes_to_plot = NULL, pt_size = 1.3, ...) {
 
@@ -90,7 +86,7 @@ scatterplot <- function (results, group1, group2, local_figures_path, FC_thresho
 
       # Replace genes to label with provided gene list if applicable
       if (!is.null(genes_to_plot)) {
-        results_scatter <- results_scatter %>%
+        results_scatter <- results_scatter |>
             mutate(
                 genes_to_label_first = ifelse(
                     genes %in% genes_to_plot,
@@ -160,10 +156,6 @@ scatterplot <- function (results, group1, group2, local_figures_path, FC_thresho
 #'
 #' @return A ggplot object
 #'
-#' @examples
-#' volcano_plot(de_results, "WT", "KO", "cluster_1", "./figures",
-#'             FC_threshold = 0.5, p_value_threshold = 0.05,
-#'             test_type = "Wilcox")
 #' @export
 volcano_plot <- function (results, group1, group2, cluster, local_figures_path, FC_threshold, p_value_threshold, max_overlaps = 15, label_size = 5, my_colors = c('green4', 'darkorchid4', 'gray'), test_type = c('Wilcox', 'Pseudobulk', 'Bulk', 'Wilcox_ATAC', 'Wilcox_ATAC_closest_genes'), genes_to_plot = NULL, pt_size = 1.5, ...) {
 
@@ -214,7 +206,7 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
 
       # Replace genes to label with provided gene list if applicable
       if (!is.null(genes_to_plot)) {
-        results_volcano <- results_volcano %>%
+        results_volcano <- results_volcano |>
             mutate(
                 genes_to_label_UP = ifelse((
                     genes %in% genes_to_plot) & (log2FoldChange >= FC_threshold),
@@ -231,15 +223,15 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
 
     # Remove non-significant genes that would bias the plot visualization
     initial_number_of_genes <- nrow(results_volcano)
-    max_FC_up_significant <- results_volcano %>% filter(diffexpressed != 'NO') %>% dplyr::select(log2FoldChange) %>% max(na.rm = T)
-    min_FC_up_significant <- results_volcano %>% filter(diffexpressed != 'NO') %>% dplyr::select(log2FoldChange) %>% min(na.rm = T)
+    max_FC_up_significant <- results_volcano |> filter(diffexpressed != 'NO') |> dplyr::select(log2FoldChange) |> max(na.rm = T)
+    min_FC_up_significant <- results_volcano |> filter(diffexpressed != 'NO') |> dplyr::select(log2FoldChange) |> min(na.rm = T)
     if (min_FC_up_significant > -3 | is.na(min_FC_up_significant)) {
         min_FC_up_significant <- -3
     }
     if (max_FC_up_significant  < 3 | is.na(max_FC_up_significant)) {
         max_FC_up_significant <- 3
     }
-    results_volcano <- results_volcano %>% filter(!(diffexpressed == 'NO' & (log2FoldChange < min_FC_up_significant | log2FoldChange > max_FC_up_significant))) |>
+    results_volcano <- results_volcano |> filter(!(diffexpressed == 'NO' & (log2FoldChange < min_FC_up_significant | log2FoldChange > max_FC_up_significant))) |>
         arrange(diffexpressed)
     final_number_of_genes <- nrow(results_volcano)
     print(paste('Removed', initial_number_of_genes-final_number_of_genes, 'non-significant genes that would bias the plot visualization'))

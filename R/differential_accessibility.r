@@ -27,10 +27,6 @@
 #'   \item{topn}{Data frame; top n peaks per cluster}
 #'   \item{da_results}{Data frame; all differential accessibility results}
 #'
-#' @examples
-#' peaks <- top_peaks_per_cluster(seurat_atac, n_genes_to_plot = 5,
-#'                                grouping_var = 'seurat_clusters_atac',
-#'                                run_pathway_enrichment = c("Metascape"))
 #' @export
 top_peaks_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = 'seurat_clusters_atac', object_annotations = '', tables_path = 'results/tables/', figures_path = 'results/figures/', results_path = 'results/', run_pathway_enrichment = NULL, ...) {
 
@@ -51,7 +47,6 @@ top_peaks_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
 
 
     #Add gene annotations:
-    annotations <- read.csv(here::here('scripts', 'support_scripts', 'annotations.csv'))
     da_peaks <- da_peaks |>
                     left_join(y= unique(annotations[,c('gene_name', 'description')]),
                         by = c('gene' = 'gene_name')) |>
@@ -59,26 +54,26 @@ top_peaks_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
 
 
     #Top10 markers
-    da_peaks %>%
-        group_by(cluster) %>%
+    da_peaks |>
+        group_by(cluster) |>
         arrange(desc(avg_log2FC), .by_group = TRUE) |>
         slice_head(n = 10) -> top10
 
     #Top25 markers
-    da_peaks %>%
-        group_by(cluster) %>%
+    da_peaks |>
+        group_by(cluster) |>
         arrange(desc(avg_log2FC), .by_group = TRUE) |>
         slice_head(n = 50) -> top50
 
     #Top100 markers
-    da_peaks %>%
-        group_by(cluster) %>%
+    da_peaks |>
+        group_by(cluster) |>
         arrange(desc(avg_log2FC), .by_group = TRUE) |>
         slice_head(n = 100) -> top100
 
     #Topn markers
-    da_peaks %>%
-        group_by(cluster) %>%
+    da_peaks |>
+        group_by(cluster) |>
         arrange(desc(avg_log2FC), .by_group = TRUE) |>
         slice_head(n = n_genes_to_plot) -> topn
 
@@ -87,8 +82,8 @@ top_peaks_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
     # write.table(top25,file=here::here(path,'top25',object_annotations, ".tsv"), sep="\t",row.names = FALSE)
     write.table(top10,file=here::here(tables_path, paste0('top10_peaks', '_',object_annotations, ".tsv")), sep="\t",row.names = FALSE)
 
-    top100_genes_per_cluster <- top100 %>%
-        group_by(cluster) %>%
+    top100_genes_per_cluster <- top100 |>
+        group_by(cluster) |>
         summarise(genes = str_flatten_comma(gene))
 
     write.table(top100_genes_per_cluster,
@@ -139,9 +134,6 @@ top_peaks_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
 #'   \item{DOWN_count}{Integer; number of less accessible peaks}
 #'   \item{results}{Data frame; complete DA results with nearest genes and annotations}
 #'
-#' @examples
-#' da_results <- run_differential_accessibility_FindMarkers(seurat_atac, "condition",
-#'                                                         "WT", "KO", cluster = "Tcells")
 #' @export
 run_differential_accessibility_FindMarkers <- function(seurat, comparison, group1, group2,
                                          cluster = 'all_clusters', path = './', FC_threshold = 0.3,
@@ -195,7 +187,6 @@ run_differential_accessibility_FindMarkers <- function(seurat, comparison, group
         rename(peak = gene, genes = gene_name)
 
     #Add gene annotations:
-    annotations <- read.csv(here::here('scripts', 'support_scripts', 'annotations.csv'))
     results <- results |>
                 left_join(y= unique(annotations[,c('gene_name', 'description')]),
                     by = c('genes' = 'gene_name')) |>
@@ -270,10 +261,6 @@ run_differential_accessibility_FindMarkers <- function(seurat, comparison, group
 #'   \item{DOWN_count}{Integer; number of less accessible peaks}
 #'   \item{results}{Data frame; complete DA results}
 #'
-#' @examples
-#' results <- run_differential_accessibility(seurat_atac, "condition", "WT", "KO",
-#'                                          cluster = "Macrophages",
-#'                                          run_pathway_enrichment = "Metascape")
 #' @export
 run_differential_accessibility <- function(seurat, comparison, group1, group2, is_integrated_subset = FALSE,
                                       cluster = 'all_clusters', path = './', FC_threshold = 0.3,

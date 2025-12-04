@@ -42,7 +42,3 @@ NULL (invisibly); creates output files
 Executes Metascape functional analysis and optional pathway-specific
 analysis on differential expression results.
 }
-\examples{
-run_standard_enrichment(de_results, TRUE, NULL, "cluster_1",
-                       "./results", "WT", "KO", "condition", 0.5)
-}

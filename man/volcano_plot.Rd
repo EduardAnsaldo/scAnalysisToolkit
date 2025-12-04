@@ -63,8 +63,3 @@ with genes colored by differential expression status. Supports both RNA-seq and
 ATAC-seq data. Automatically removes extreme non-significant genes to improve
 visualization.
 }
-\examples{
-volcano_plot(de_results, "WT", "KO", "cluster_1", "./figures",
-            FC_threshold = 0.5, p_value_threshold = 0.05,
-            test_type = "Wilcox")
-}

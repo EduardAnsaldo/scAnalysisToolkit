@@ -38,10 +38,6 @@
 #'   \item{resolutions}{Resolutions tested}
 #'   \item{selected_resolution}{Resolution selected for detailed analysis}
 #'
-#' @examples
-#' results <- perform_seurat_clustering(seurat, npcs = 50, dimensions = 30,
-#'                                     selected_resolution = 0.25,
-#'                                     run_pathway_enrichment = c("Metascape"))
 #' @export
 perform_seurat_clustering <- function(
     seurat,
@@ -231,17 +227,14 @@ perform_seurat_clustering <- function(
 #'     \item Bar plot PDF: Mean frequency with error bars and individual points
 #'   }
 #'
-#' @examples
-#' extract_cell_counts(seurat, seurat_clusters, "./figures", "./tables",
-#'                    object_annotations = "experiment1")
 #' @export
 extract_cell_counts <- function(seurat, grouping_var, figures_path, tables_path, object_annotations='') {
     cell_counts <- FetchData(seurat, vars = c(englue("{{grouping_var}}"), "Samples", "Groups"))
     cell_counts <- arrange(cell_counts, Samples)
 
-    counts <- cell_counts %>% add_count(Samples, name='total_cell_count_by_sample')
+    counts <- cell_counts |> add_count(Samples, name='total_cell_count_by_sample')
 
-    counts <- counts %>%
+    counts <- counts |>
         dplyr::count(  {{grouping_var}},  , Samples, Groups,  total_cell_count_by_sample,name='cluster_count')  |>
             mutate(frequency_within_sample=cluster_count*100/total_cell_count_by_sample)  |>
             mutate(Samples = as.character(Samples)) |>

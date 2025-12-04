@@ -62,7 +62,3 @@ with Wilcoxon rank-sum test on the SCTransform-normalized assay. Calculates CPMs
 from SCT counts for visualization. Handles integrated datasets with optional
 UMI recorrection.
 }
-\examples{
-de_results <- DEG_FindMarkers_SCT_assay_de(seurat_obj, "condition", "WT", "KO",
-                                           cluster = "Macrophages", FC_threshold = 0.5)
-}

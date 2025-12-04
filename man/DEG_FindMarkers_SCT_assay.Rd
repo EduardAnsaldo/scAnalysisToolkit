@@ -89,7 +89,3 @@ SCTransform-normalized data including statistical testing, scatter and volcano
 plot generation, pathway enrichment analysis, and optional custom gene list
 visualization. Handles integrated datasets appropriately.
 }
-\examples{
-results <- DEG_FindMarkers_SCT_assay(seurat_obj, "condition", "WT", "KO",
-                                    cluster = "Macrophages", FC_threshold = 0.5)
-}

@@ -35,7 +35,3 @@ T cell clonotype, sized by clonal frequency. Colors indicate clone size category
 (small, medium, large, hyperexpanded). Requires scRepertoire-processed TCR data
 with CTaa and clonalFrequency metadata.
 }
-\examples{
-plot_clonal_repertoire(seurat_tcr, group_name = "WT", "./figures",
-                      viridis_option = 'C', label_size_range = c(2, 8))
-}

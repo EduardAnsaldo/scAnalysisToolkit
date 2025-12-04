@@ -68,9 +68,3 @@ Generates circular chord diagrams showing TCR clonotype overlap across samples/g
 and creates summary tables of clonotype distribution. Uses circlize package to
 visualize shared clonotypes between conditions with colored links.
 }
-\examples{
-overlap_circos_and_tables(seurat_tcr, grouping_variable = "Samples",
-                         figures_path = "./figures", tables_path = "./tables",
-                         samples = c("WT1", "WT2", "KO1", "KO2"),
-                         groups = c("WT", "WT", "KO", "KO"))
-}

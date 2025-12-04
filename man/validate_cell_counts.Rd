@@ -28,6 +28,3 @@ List with elements:
 Checks if each comparison group has sufficient cells for differential
 expression analysis. Returns validation status and cell counts.
 }
-\examples{
-validation <- validate_cell_counts(seurat, "condition", "WT", "KO", 30)
-}

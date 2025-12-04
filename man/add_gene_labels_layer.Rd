@@ -34,6 +34,3 @@ Creates a geom_text_repel layer for adding gene labels to scatterplots
 and volcano plots. Automatically adjusts nudge direction based on whether
 genes are up or downregulated.
 }
-\examples{
-add_gene_labels_layer("genes_to_label", de_status, label_size = 4)
-}

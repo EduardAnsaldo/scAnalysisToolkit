@@ -76,8 +76,3 @@ Orchestrates a full bulk RNA-seq differential expression analysis workflow using
 DESeq2 including statistical testing, scatter and volcano plot generation, pathway
 enrichment analysis, and optional custom gene list visualization.
 }
-\examples{
-results <- bulk_analysis(counts_df, "Groups", "Control", "Treatment",
-                        cluster = "experiment1", FC_threshold = 0.5,
-                        run_pathway_enrichment = TRUE)
-}

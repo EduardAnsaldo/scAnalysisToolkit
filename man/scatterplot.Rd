@@ -67,8 +67,3 @@ Generates a scatterplot comparing average expression between two groups,
 with genes colored by differential expression status. Labels are added
 intelligently based on distance from diagonal and expression levels.
 }
-\examples{
-scatterplot(de_results, "WT", "KO", "./figures",
-           FC_threshold = 0.5, p_value_threshold = 0.05,
-           test_type = "Wilcox")
-}

@@ -71,8 +71,3 @@ enrichGO function. Tests which GO terms are statistically enriched in a gene lis
 compared to a background. Optionally simplifies redundant terms and creates network
 visualizations.
 }
-\examples{
-GO_overrepresentation_analysis(deg_genes, all_genes, "./enrichment",
-                               ontology = "BP", group = "treatment",
-                               simplify_terms = TRUE)
-}

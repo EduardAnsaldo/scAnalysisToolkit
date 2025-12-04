@@ -58,7 +58,3 @@ counts from single-cell data. Aggregates counts by biological replicate and
 uses DESeq2's negative binomial model for statistical testing. Includes PCA
 visualization for quality control.
 }
-\examples{
-de_results <- pseudobulk_de(seurat_obj, "condition", "WT", "KO",
-                            cluster = "Tcells", FC_threshold = 0.5)
-}

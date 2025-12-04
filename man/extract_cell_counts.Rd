@@ -37,7 +37,3 @@ Calculates cell counts and frequencies for each cluster/cell type across samples
 and experimental groups. Generates frequency tables and bar plots with error bars
 showing mean frequency and variability across replicates.
 }
-\examples{
-extract_cell_counts(seurat, seurat_clusters, "./figures", "./tables",
-                   object_annotations = "experiment1")
-}

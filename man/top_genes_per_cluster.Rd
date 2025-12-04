@@ -53,8 +53,3 @@ generates a dot plot visualization. Saves ranked gene lists (top 10, 50, 100)
 to TSV files and optionally performs pathway enrichment analysis using
 Metascape and/or ClusterProfiler.
 }
-\examples{
-markers <- top_genes_per_cluster(seurat, n_genes_to_plot = 5,
-                                grouping_var = 'seurat_clusters',
-                                run_pathway_enrichment = c("Metascape"))
-}

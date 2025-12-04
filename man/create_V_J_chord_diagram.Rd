@@ -47,8 +47,3 @@ Generates a circular chord diagram showing the pairing frequency between TCR
 V-region and J-region genes. Link color and transparency represent interaction
 strength. Commonly used to visualize TRBV-TRBJ or TRAV-TRAJ pairings.
 }
-\examples{
-create_V_J_chord_diagram(vj_table, figures_path = "./figures",
-                        chain_a = "TRBV", chain_b = "TRBJ",
-                        group_name = "WT_sample")
-}

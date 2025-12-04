@@ -28,9 +28,6 @@
 #'   \item{DOWN_count}{Integer; number of downregulated genes}
 #'   \item{results}{Data frame; complete DE results with gene annotations and counts}
 #'
-#' @examples
-#' de_results <- pseudobulk_de(seurat_obj, "condition", "WT", "KO",
-#'                             cluster = "Tcells", FC_threshold = 0.5)
 #' @export
 pseudobulk_de <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clusters',
                           path = './', FC_threshold = 0.3, p_value_threshold = 0.05,
@@ -146,7 +143,6 @@ pseudobulk_de <- function(scRNAseq, comparison, group1, group2, cluster = 'all_c
         ungroup()
 
     # Add gene annotations
-    annotations <- read.csv(here::here('scripts', 'support_scripts', 'annotations.csv'))
     results <- results |>
         rownames_to_column('genes') |>
         left_join(y = unique(annotations[, c('gene_name', 'description')]),
@@ -207,9 +203,6 @@ pseudobulk_de <- function(scRNAseq, comparison, group1, group2, cluster = 'all_c
 #'   \item{DOWN_count}{Integer; number of downregulated genes}
 #'   \item{results}{Data frame; complete DE results with gene annotations and CPMs}
 #'
-#' @examples
-#' de_results <- DEG_FindMarkers_RNA_assay_de(seurat_obj, "condition", "WT", "KO",
-#'                                            cluster = "Bcells", FC_threshold = 0.5)
 #' @export
 DEG_FindMarkers_RNA_assay_de <- function(scRNAseq, comparison, group1, group2,
                                          cluster = 'all_clusters', path = './',
@@ -264,7 +257,6 @@ DEG_FindMarkers_RNA_assay_de <- function(scRNAseq, comparison, group1, group2,
                             )
 
     # Add gene annotations
-    annotations <- read.csv(here::here('scripts', 'support_scripts', 'annotations.csv'))
     results <- results |>
                     rownames_to_column('genes') |>
                     rename(
@@ -333,9 +325,6 @@ DEG_FindMarkers_RNA_assay_de <- function(scRNAseq, comparison, group1, group2,
 #'   \item{DOWN_count}{Integer; number of downregulated genes}
 #'   \item{results}{Data frame; complete DE results with gene annotations and CPMs}
 #'
-#' @examples
-#' de_results <- DEG_FindMarkers_SCT_assay_de(seurat_obj, "condition", "WT", "KO",
-#'                                            cluster = "Macrophages", FC_threshold = 0.5)
 #' @export
 DEG_FindMarkers_SCT_assay_de <- function(scRNAseq, comparison, group1, group2, is_integrated_subset = FALSE,
                                          cluster = 'all_clusters', path = './', FC_threshold = 0.3,
@@ -391,7 +380,6 @@ DEG_FindMarkers_SCT_assay_de <- function(scRNAseq, comparison, group1, group2, i
         )
     counts_CPM |> head() |> print()
     # Add gene annotations
-    annotations <- read.csv(here::here('scripts', 'support_scripts', 'annotations.csv'))
     results <- results |>
         rownames_to_column('genes') |>
         rename(
@@ -458,9 +446,6 @@ DEG_FindMarkers_SCT_assay_de <- function(scRNAseq, comparison, group1, group2, i
 #'   \item{DOWN_count}{Integer; number of downregulated genes}
 #'   \item{results}{Data frame; complete DE results with gene annotations and counts}
 #'
-#' @examples
-#' de_results <- bulk_analysis_de(counts_df, "Groups", "Control", "Treatment",
-#'                                cluster = "experiment1", FC_threshold = 0.5)
 #' @export
 bulk_analysis_de <- function(counts_table, comparison = 'Groups', group1, group2,
                              cluster = '', path = './', FC_threshold = 0.3,
@@ -541,7 +526,6 @@ bulk_analysis_de <- function(counts_table, comparison = 'Groups', group1, group2
         ungroup()
 
     # Add gene annotations
-    annotations <- read.csv(here::here('scripts', 'support_scripts', 'annotations.csv'))
     results <- results |>
                     rownames_to_column('genes') |>
                     left_join(y = unique(annotations[, c('gene_name', 'description')]),

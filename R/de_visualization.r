@@ -157,7 +157,7 @@ scatterplot <- function (results, group1, group2, local_figures_path, FC_thresho
 #' @return A ggplot object
 #'
 #' @export
-volcano_plot <- function (results, group1, group2, cluster, local_figures_path, FC_threshold, p_value_threshold, max_overlaps = 15, label_size = 5, my_colors = c('green4', 'darkorchid4', 'gray'), test_type = c('Wilcox', 'Pseudobulk', 'Bulk', 'Wilcox_ATAC', 'Wilcox_ATAC_closest_genes'), genes_to_plot = NULL, pt_size = 1.5, ...) {
+volcano_plot <- function (results, group1, group2, cluster, local_figures_path, FC_threshold, p_value_threshold, max_overlaps = 15, label_size = 5, my_colors = c('green4', 'darkorchid4', 'gray'), test_type = c('Wilcox', 'Pseudobulk', 'Bulk', 'Wilcox_ATAC', 'Wilcox_ATAC_closest_genes', 'Wilcox_ChromVar_motif'), genes_to_plot = NULL, pt_size = 1.5, ...) {
 
     # determine plot title
     test_type <- match.arg(test_type)
@@ -166,6 +166,8 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
         plot_title <- paste0('Differentially Accessible Regions in ', str_replace(cluster,pattern = '_',replace = ' ') )
     } else if (test_type == 'Wilcox_ATAC_closest_genes') {
         plot_title <- paste0('Genes Closest to Differentially Accessible Regions in ', str_replace(cluster,pattern = '_',replace = ' ') )
+    } else if (test_type == 'Wilcox_ChromVar_motif') {
+        plot_title <- paste0('Differentially Active Motifs in ', str_replace(cluster,pattern = '_',replace = ' ') )
     } else {
         plot_title <- paste0(test_type, ' DEGs in ', str_replace(cluster,pattern = '_',replace = ' ') )
     }

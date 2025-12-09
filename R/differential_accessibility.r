@@ -49,9 +49,12 @@ top_peaks_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
     #Add gene annotations:
     da_peaks <- da_peaks |>
                     left_join(y= unique(annotations[,c('gene_name', 'description')]),
-                        by = c('gene' = 'gene_name')) |>
-                            mutate(cluster = fct_inseq(cluster))
-
+                        by = c('gene' = 'gene_name'))   
+    
+    if (all(is.numeric(unique(da_peaks$cluster)))) {
+        da_peaks <- da_peaks |>
+            mutate(cluster = fct_inseq(cluster))
+    }
 
     #Top10 markers
     da_peaks |>

@@ -50,7 +50,6 @@ Imports:
     scCustomize,
     scRepertoire,
     Seurat,
-    SingleR,
     stats,
     stringr,
     tibble,
@@ -63,4 +62,6 @@ URL: https://github.com/EduardAnsaldo/scAnalysisToolkit
 BugReports: https://github.com/EduardAnsaldo/scAnalysisToolkit/issues
 Suggests: 
     CellChat,
-    Signac
+    Signac,
+    SingleR
+

@@ -182,7 +182,7 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
     results_volcano <- results |>
         drop_na(pvalue) |>
         mutate(
-            log10_pval = log10(padj+10^-300)*-1) |>
+            log10_pval = log10(padj+10^-600)*-1) |>
         mutate(
             genes_to_label_UP = ifelse(
                 (log2FoldChange >= FC_threshold) &

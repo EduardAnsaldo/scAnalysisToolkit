@@ -16,7 +16,7 @@ volcano_plot(
   label_size = 5,
   my_colors = c("green4", "darkorchid4", "gray"),
   test_type = c("Wilcox", "Pseudobulk", "Bulk", "Wilcox_ATAC",
-    "Wilcox_ATAC_closest_genes"),
+    "Wilcox_ATAC_closest_genes", "Wilcox_ChromVar_motif"),
   genes_to_plot = NULL,
   pt_size = 1.5,
   ...

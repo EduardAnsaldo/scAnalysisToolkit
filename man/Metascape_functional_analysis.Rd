@@ -12,6 +12,7 @@ Metascape_functional_analysis(
   path = "./",
   FC_threshold,
   p_value_threshold = 0.05,
+  top_n_genes = NULL,
   ...
 )
 }
@@ -30,6 +31,9 @@ log2FoldChange, padj}
 \item{FC_threshold}{Numeric; log2 fold change threshold for filtering genes}
 
 \item{p_value_threshold}{Numeric; adjusted p-value threshold. Default 0.05}
+
+\item{top_n_genes}{Integer; maximum number of top genes to include based on p-value.
+Default NULL (include all significant genes)}
 
 \item{...}{Additional arguments passed to Metascape_overrepresentation_analysis}
 }

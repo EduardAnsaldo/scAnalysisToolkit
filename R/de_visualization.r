@@ -152,12 +152,14 @@ scatterplot <- function (results, group1, group2, local_figures_path, FC_thresho
 #'   'Wilcox_ATAC', 'Wilcox_ATAC_closest_genes'
 #' @param genes_to_plot Character vector; specific genes to highlight. Default NULL
 #' @param pt_size Numeric; point size. Default 1.5
+#' @param p_value_max Numeric; maximum -log10 p-value for capping extremely small
+#'   p-values in visualization. Default 600
 #' @param ... Additional arguments passed to plotting functions
 #'
 #' @return A ggplot object
 #'
 #' @export
-volcano_plot <- function (results, group1, group2, cluster, local_figures_path, FC_threshold, p_value_threshold, max_overlaps = 15, label_size = 5, my_colors = c('green4', 'darkorchid4', 'gray'), test_type = c('Wilcox', 'Pseudobulk', 'Bulk', 'Wilcox_ATAC', 'Wilcox_ATAC_closest_genes', 'Wilcox_ChromVar_motif'), genes_to_plot = NULL, pt_size = 1.5, ...) {
+volcano_plot <- function (results, group1, group2, cluster, local_figures_path, FC_threshold, p_value_threshold, max_overlaps = 15, label_size = 5, my_colors = c('green4', 'darkorchid4', 'gray'), test_type = c('Wilcox', 'Pseudobulk', 'Bulk', 'Wilcox_ATAC', 'Wilcox_ATAC_closest_genes', 'Wilcox_ChromVar_motif'), genes_to_plot = NULL, pt_size = 1.5, p_value_max = 600, ...) {
 
     # determine plot title
     test_type <- match.arg(test_type)
@@ -182,7 +184,7 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
     results_volcano <- results |>
         drop_na(pvalue) |>
         mutate(
-            log10_pval = log10(padj+10^-600)*-1) |>
+            log10_pval = log10(padj+10^-p_value_max)*-1) |>
         mutate(
             genes_to_label_UP = ifelse(
                 (log2FoldChange >= FC_threshold) &
@@ -236,7 +238,7 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
     results_volcano <- results_volcano |> filter(!(diffexpressed == 'NO' & (log2FoldChange < min_FC_up_significant | log2FoldChange > max_FC_up_significant))) |>
         arrange(diffexpressed)
     final_number_of_genes <- nrow(results_volcano)
-    print(paste('Removed', initial_number_of_genes-final_number_of_genes, 'non-significant genes that would bias the plot visualization'))
+    message('Removed ', initial_number_of_genes-final_number_of_genes, ' non-significant genes that would bias the plot visualization')
 
     volcano_plot <- results_volcano |>
         arrange(desc(padj)) |>
@@ -283,4 +285,77 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
     ggsave(plot = volcano_plot, filename = paste0(test_type, '_volcano_in_', cluster, '.pdf'), path = local_figures_path)
     print(volcano_plot)
     return(volcano_plot)
+}
+
+#' Create Staggered Grouped Bar Plot for DEG Counts
+#'
+#' Generates a horizontal bar plot showing the number of upregulated and downregulated
+#' differentially expressed genes (DEGs) for each cell type or cluster. Cell types are
+#' ordered by total number of DEGs (upregulated + downregulated).
+#'
+#' @param deg_counts_df Data frame with columns: cell_type (character), UP_count (numeric),
+#'   DOWN_count (numeric)
+#' @param figures_path Character; directory path to save the plot
+#' @param title Character; plot title. Default 'Differentially Expressed Genes by Cell Type'
+#' @param width Numeric; plot width in inches. Default 10
+#' @param height Numeric; plot height in inches. Default 6
+#' @param up_color Character; color for upregulated genes. Default '#E64B35' (red)
+#' @param down_color Character; color for downregulated genes. Default '#4DBBD5' (blue)
+#'
+#' @return A ggplot object
+#'
+#' @export
+plot_deg_counts <- function(deg_counts_df, figures_path, title = 'Differentially Expressed Genes by Cell Type', width = 10, height = 6, up_color = '#E64B35', down_color = '#4DBBD5') {
+
+    # Validate input
+    required_cols <- c('cell_type', 'UP_count', 'DOWN_count')
+    if (!all(required_cols %in% colnames(deg_counts_df))) {
+        stop("deg_counts_df must contain columns: cell_type, UP_count, DOWN_count")
+    }
+
+    # Transform data for plotting
+    deg_counts_long <- deg_counts_df |>
+        mutate(total_genes = UP_count + DOWN_count) |>
+        arrange(desc(total_genes)) |>
+        mutate(cell_type = fct_inorder(cell_type) |> fct_rev()) |>
+        pivot_longer(
+            cols = c(UP_count, DOWN_count),
+            names_to = "direction",
+            values_to = "count"
+        ) |>
+        mutate(direction = factor(direction, levels = c("DOWN_count", "UP_count")))
+
+    # Create plot
+    p <- ggplot(deg_counts_long, aes(x = count, y = cell_type, fill = direction)) +
+        geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+        scale_fill_manual(
+            values = c("UP_count" = up_color, "DOWN_count" = down_color),
+            labels = c("UP_count" = "Upregulated", "DOWN_count" = "Downregulated")
+        ) +
+        scale_x_continuous(breaks = scales::breaks_extended(n = 10)) +
+        labs(
+            title = title,
+            x = "Number of DEGs",
+            y = "Cell Type",
+            fill = "Direction"
+        ) +
+        theme_minimal(base_size = 16) +
+        theme(
+            legend.position = "top",
+            legend.text = element_text(size = 14),
+            legend.title = element_text(size = 15, face = "bold"),
+            axis.text.x = element_text(size = 13),
+            axis.text.y = element_text(size = 13),
+            axis.title.x = element_text(size = 15, face = "bold"),
+            axis.title.y = element_text(size = 15, face = "bold"),
+            plot.title = element_text(size = 17, face = "bold"),
+            panel.grid.major.x = element_line(color = "gray80", linewidth = 0.5),
+            panel.grid.minor.x = element_line(color = "gray90", linewidth = 0.25)
+        )
+
+    # Save plot
+    ggsave(paste0(figures_path, '/DEG_counts_barplot.pdf'), plot = p, width = width, height = height)
+    print(p)
+
+    return(p)
 }

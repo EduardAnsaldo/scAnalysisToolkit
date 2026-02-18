@@ -167,6 +167,11 @@ annotate_seurat_with_SingleR_Eduard <- function(
 #' @param results_path Character; path for pathway enrichment results. Default 'results/'
 #' @param run_pathway_enrichment Character vector; enrichment methods to run
 #'   ('Metascape', 'ClusterProfiler', or NULL). Default NULL
+#' @param filter_ig Logical; whether to filter out immunoglobulin genes (Igh, Igl, Igk)
+#'   from FindAllMarkers results. Default FALSE
+#' @param filter_tcr Logical; whether to filter out T cell receptor genes (Trav, Trbv,
+#'   Trdv, Trgv, Traj, Trbj, Trdj, Trgj, Trac, Trbc, Trdc, Trgc) from FindAllMarkers
+#'   results. Default FALSE
 #' @param ... Additional arguments passed to ClusterProfiler analysis
 #'
 #' @return List with elements:
@@ -177,7 +182,7 @@ annotate_seurat_with_SingleR_Eduard <- function(
 #'   \item{top100}{Data frame; top 100 markers per cluster}
 #'
 #' @export
-top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = 'seurat_clusters', object_annotations = '', tables_path = 'results/tables/', figures_path = 'results/figures/', results_path = 'results/', run_pathway_enrichment = NULL, ...) {
+top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = 'seurat_clusters', object_annotations = '', tables_path = 'results/tables/', figures_path = 'results/figures/', results_path = 'results/', run_pathway_enrichment = NULL, filter_ig = FALSE, filter_tcr = FALSE, ...) {
 
     sequential_palette_dotplot <- grDevices::hcl.colors(n = 20,'YlGn',rev = T)
 
@@ -186,6 +191,26 @@ top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
 
     seurat.markers <- FindAllMarkers(seurat, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
 
+    # Filter out Ig genes if requested
+    if (filter_ig) {
+        message("Filtering out Ig genes from FindAllMarkers results...")
+        n_before <- nrow(seurat.markers)
+        seurat.markers <- seurat.markers |>
+            filter(!str_detect(gene, "^Igh|^Igl|^Igk"))
+        n_after <- nrow(seurat.markers)
+        message(sprintf("Removed %d Ig genes (%d -> %d markers)", n_before - n_after, n_before, n_after))
+    }
+
+    # Filter out TCR genes if requested
+    if (filter_tcr) {
+        message("Filtering out TCR genes from FindAllMarkers results...")
+        n_before <- nrow(seurat.markers)
+        seurat.markers <- seurat.markers |>
+            filter(!str_detect(gene, "^Trav|^Trbv|^Trdv|^Trgv|^Traj|^Trbj|^Trdj|^Trgj|^Trac|^Trbc|^Trdc|^Trgc"))
+        n_after <- nrow(seurat.markers)
+        message(sprintf("Removed %d TCR genes (%d -> %d markers)", n_before - n_after, n_before, n_after))
+    }
+
     # saveRDS(seurat.markers, file = 'seurat.markers.rds')
 
 
@@ -193,31 +218,37 @@ top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
     #Add gene annotations:
     seurat.markers <- seurat.markers |>
                     left_join(y= unique(annotations[,c('gene_name', 'description')]),
-                        by = c('gene' = 'gene_name')) |>
-                            mutate(cluster = fct_inseq(cluster))
+                        by = c('gene' = 'gene_name')) 
+
+    
+    # Only convert to ordered factor if all cluster levels can be coerced to numeric
+    if (all(!is.na(suppressWarnings(as.numeric(as.character(unique(seurat.markers$cluster))))))) {
+        seurat.markers <- seurat.markers |>
+            mutate(cluster = fct_inseq(cluster))
+    }
 
     #Top10 markers
     seurat.markers |>
         group_by(cluster) |>
-        arrange(desc(avg_log2FC), .by_group = TRUE) |>
+        arrange(p_val_adj, desc(avg_log2FC), .by_group = TRUE) |>
         slice_head(n = 10) -> top10
 
     #Top25 markers
     seurat.markers |>
         group_by(cluster) |>
-        arrange(desc(avg_log2FC), .by_group = TRUE) |>
+        arrange(p_val_adj, desc(avg_log2FC), .by_group = TRUE) |>
         slice_head(n = 50) -> top50
 
     #Top100 markers
     seurat.markers |>
         group_by(cluster) |>
-        arrange(desc(avg_log2FC), .by_group = TRUE) |>
+        arrange(p_val_adj, desc(avg_log2FC), .by_group = TRUE) |>
         slice_head(n = 100) -> top100
 
     #Topn markers
     seurat.markers |>
         group_by(cluster) |>
-        arrange(desc(avg_log2FC), .by_group = TRUE) |>
+        arrange(p_val_adj, desc(avg_log2FC), .by_group = TRUE) |>
         slice_head(n = n_genes_to_plot) -> topn
 
     # Save the top markers to files
@@ -238,7 +269,7 @@ top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
     gene_list_plot <- gene_list_plot |> unique() |> rev()
     plot1 <- DotPlot_scCustom(seurat,
                     features = gene_list_plot,
-                    colors_use=sequential_palette_dotplot,
+                    colors_use = hcl.colors(12, palette = "RdBu", rev = TRUE),
                     flip_axes = T,
                     dot.scale = 8,
                     dot.min = 0,
@@ -263,6 +294,6 @@ top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
 
     }
 
-    return(list(plot = plot1, ClusterProfiler_results = ClusterProfiler_results, metascape_results = metascape_results, topn = topn, top100 = top100) )
+    return(list(plot = plot1, ClusterProfiler_results = ClusterProfiler_results, metascape_results = metascape_results, topn = topn, top100 = top100, seurat.markers = seurat.markers) )
 
 }

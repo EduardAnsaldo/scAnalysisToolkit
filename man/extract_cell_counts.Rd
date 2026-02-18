@@ -9,7 +9,8 @@ extract_cell_counts(
   grouping_var,
   figures_path,
   tables_path,
-  object_annotations = ""
+  object_annotations = "",
+  plot_grouping = "Samples"
 )
 }
 \arguments{
@@ -23,13 +24,18 @@ extract_cell_counts(
 \item{tables_path}{Character; path to save frequency and count tables}
 
 \item{object_annotations}{Character; string to append to output file names. Default ''}
+
+\item{plot_grouping}{Character; type of plot to generate. "Samples" creates a grouped
+bar plot with individual sample points (default), "Groups" creates a stacked bar plot
+showing the composition of experimental groups within each cluster/cell type. Default "Samples"}
 }
 \value{
 Invisibly returns NULL. Creates output files:
 \itemize{
 \item Frequency table CSV: Percentage of each cluster per sample
 \item Count table CSV: Raw cell counts per cluster per sample
-\item Bar plot PDF: Mean frequency with error bars and individual points
+\item Bar plot PDF: Mean frequency with error bars and individual points (Samples mode)
+or stacked bar plot showing composition (Groups mode)
 }
 }
 \description{

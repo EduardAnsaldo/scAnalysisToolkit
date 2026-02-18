@@ -207,17 +207,17 @@ DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, clus
                 max_overlaps = max_overlaps, label_size = label_size,
                 label_threshold = label_threshold, test_type = 'Wilcox')
 
-    # Pathway enrichment analysis
-    run_standard_enrichment(
+    # Overrepresentation analysis
+    run_DEG_functional_analysis(
         results = de_results$results,
-        run_pathway_enrichment = run_pathway_enrichment,
-        pathways_of_interest = pathways_of_interest,
-        cluster = cluster,
+        method = run_pathway_enrichment,
+        grouping_var = cluster,
         path = path,
+        FC_threshold = FC_threshold,
+        p_value_threshold = p_value_threshold,
         group1 = group1,
         group2 = group2,
-        comparison = comparison,
-        FC_threshold = FC_threshold
+        ...
     )
 
     # Plot specific gene lists
@@ -519,17 +519,17 @@ bulk_analysis <- function(counts_table, comparison = 'Groups', group1, group2, c
                 max_overlaps = max_overlaps, label_size = label_size,
                 label_threshold = label_threshold, test_type = 'Bulk', ...)
 
-    # Pathway enrichment analysis
-    run_standard_enrichment(
+    # Overrepresentation analysis
+    run_DEG_functional_analysis(
         results = de_results$results,
-        run_pathway_enrichment = run_pathway_enrichment,
-        pathways_of_interest = pathways_of_interest,
-        cluster = cluster,
+        method = run_pathway_enrichment,
+        grouping_var = cluster,
         path = path,
+        FC_threshold = FC_threshold,
+        p_value_threshold = p_value_threshold,
         group1 = group1,
         group2 = group2,
-        comparison = comparison,
-        FC_threshold = FC_threshold
+        ...
     )
 
     # Plot specific gene lists

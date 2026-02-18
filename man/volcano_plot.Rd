@@ -19,6 +19,7 @@ volcano_plot(
     "Wilcox_ATAC_closest_genes", "Wilcox_ChromVar_motif"),
   genes_to_plot = NULL,
   pt_size = 1.5,
+  p_value_max = 600,
   ...
 )
 }
@@ -51,6 +52,9 @@ Default c('green4', 'darkorchid4', 'gray')}
 \item{genes_to_plot}{Character vector; specific genes to highlight. Default NULL}
 
 \item{pt_size}{Numeric; point size. Default 1.5}
+
+\item{p_value_max}{Numeric; maximum -log10 p-value for capping extremely small
+p-values in visualization. Default 600}
 
 \item{...}{Additional arguments passed to plotting functions}
 }

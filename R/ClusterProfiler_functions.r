@@ -104,8 +104,8 @@ GO_GSEA_analysis <- function (results, local_path, ontology = 'ALL', group) {
 
           #### GSEA ####
 
-     fold_changes <- results |> arrange(desc(log2FoldChange)) |> pull(log2FoldChange)
-     names(fold_changes) <- results |> arrange(desc(log2FoldChange)) |> pull(genes)
+     fold_changes <- results |> arrange(padj, desc(log2FoldChange)) |> pull(log2FoldChange)
+     names(fold_changes) <- results |> arrange(padj, desc(log2FoldChange)) |> pull(genes)
 
      gsea_results <- clusterProfiler::gseGO(geneList     = fold_changes,
                OrgDb        = org.Mm.eg.db,
@@ -176,65 +176,82 @@ GO_GSEA_analysis <- function (results, local_path, ontology = 'ALL', group) {
 #' @param group1 Character; name of control group. Default ''
 #' @param group2 Character; name of treatment group. Default ''
 #' @param run_GSEA Logical; whether to run GSEA in addition to ORA. Default FALSE
+#' @param top_n_genes Integer or NULL; number of top genes to use for ORA. If NULL, uses all significant genes. Default NULL
 #' @param ... Additional arguments passed to GO_overrepresentation_analysis
 #'
 #' @return Invisible NULL; creates output directories with enrichment results
 #'
 #' @export
-GO_functional_analysis <- function (results,  grouping_var, path='./', FC_threshold = 0.3, p_value_threshold = 0.05, group1 = '', group2 = '', run_GSEA = FALSE, ...) {
+GO_functional_analysis <- function (results,  grouping_var, path='./', FC_threshold = 0.3, p_value_threshold = 0.05, group1 = '', group2 = '', run_GSEA = FALSE, top_n_genes = NULL, ...) {
  
-    #  results <- results[which(duplicated(results$genes) == F),]
+     #  results <- results[which(duplicated(results$genes) == F),]
 #    results$entrezid <-  results |> pull(genes) |> clusterProfiler::bitr(fromType = 'SYMBOL', toType = 'ENTREZID', OrgDb = 'org.Mm.eg.db', drop = FALSE) |> pull(ENTREZID)
-    #results <- results[which(duplicated(results$entrezid) == F),]
+     #results <- results[which(duplicated(results$entrezid) == F),]
 cluster <- grouping_var
 
 ####################################### UP ########################################
 
-     local_path <- create_analysis_directory(here::here(path, paste0('GO_functional_analysis_UP_in_', group2, '_', cluster)))
+      local_path <- create_analysis_directory(here::here(path, paste0('GO_functional_analysis_UP_in_', group2, '_', cluster)))
 
-     significant_genes <- results |> filter((padj < p_value_threshold) & (log2FoldChange > FC_threshold)) |> arrange(padj) |> pull(genes)
-     all_genes <- results |> arrange(padj) |> pull(genes)
+      significant_genes <- results |> 
+            filter((padj < p_value_threshold) & (log2FoldChange > FC_threshold)) |> 
+            arrange(padj)
+      
+      if (!is.null(top_n_genes)) {
+            significant_genes <- significant_genes |> slice_head(n = top_n_genes)
+      }
+      
+      significant_genes <- significant_genes |> pull(genes)
+      all_genes <- results |> arrange(padj) |> pull(genes)
 
-     ######################## ORA ########################
+      ######################## ORA ########################
 
 #      GO_overrepresentation_analysis(significant_genes, all_genes, local_path, ontology = 'ALL', group = group2)
-     GO_overrepresentation_analysis(significant_genes, all_genes, local_path, group = group2, ...)
-     # GO_overrepresentation_analysis(significant_genes, all_genes, local_path, ontology = 'MF')
-     # GO_overrepresentation_analysis(significant_genes, all_genes, local_path, ontology = 'CC')
+      GO_overrepresentation_analysis(significant_genes, all_genes, local_path, group = group2, ...)
+      # GO_overrepresentation_analysis(significant_genes, all_genes, local_path, ontology = 'MF')
+      # GO_overrepresentation_analysis(significant_genes, all_genes, local_path, ontology = 'CC')
 
-     #################### GSEA ####################
-    if (run_GSEA) {
-    #  GO_GSEA_analysis(results, local_path, ontology = 'ALL', group = group2)
-     GO_GSEA_analysis(results, local_path, group = group2, ...)
-     # GO_GSEA_analysis(results, local_path, ontology = 'MF')
-     # GO_GSEA_analysis(results, local_path, ontology = 'CC')
-    }
+      #################### GSEA ####################
+     if (run_GSEA) {
+     #  GO_GSEA_analysis(results, local_path, ontology = 'ALL', group = group2)
+      GO_GSEA_analysis(results, local_path, group = group2, ...)
+      # GO_GSEA_analysis(results, local_path, ontology = 'MF')
+      # GO_GSEA_analysis(results, local_path, ontology = 'CC')
+     }
 
 
 ######################################## DOWN ########################################
 
-     local_path <- create_analysis_directory(here::here(path, paste0('GO_functional_analysis_UP_in_', group1, '_', cluster)))
+      local_path <- create_analysis_directory(here::here(path, paste0('GO_functional_analysis_UP_in_', group1, '_', cluster)))
 
-     significant_genes <- results |> filter((padj < p_value_threshold) & (log2FoldChange < -1*FC_threshold)) |> arrange(padj) |> pull(genes)
-     all_genes <- results |> arrange(padj) |> pull(genes)
+      significant_genes <- results |> 
+            filter((padj < p_value_threshold) & (log2FoldChange < -1*FC_threshold)) |> 
+            arrange(padj)
+      
+      if (!is.null(top_n_genes)) {
+            significant_genes <- significant_genes |> slice_head(n = top_n_genes)
+      }
+      
+      significant_genes <- significant_genes |> pull(genes)
+      all_genes <- results |> arrange(padj) |> pull(genes)
 
-     ######################## ORA ########################
+      ######################## ORA ########################
 
-    #  GO_overrepresentation_analysis(significant_genes, all_genes, local_path, ontology = 'ALL', group = group1)
-     GO_overrepresentation_analysis(significant_genes, all_genes, local_path, group = group1, ...)
-     # GO_overrepresentation_analysis(significant_genes, all_genes, local_path, ontology = 'MF')
-     # GO_overrepresentation_analysis(significant_genes, all_genes, local_path, ontology = 'CC')
+     #  GO_overrepresentation_analysis(significant_genes, all_genes, local_path, ontology = 'ALL', group = group1)
+      GO_overrepresentation_analysis(significant_genes, all_genes, local_path, group = group1, ...)
+      # GO_overrepresentation_analysis(significant_genes, all_genes, local_path, ontology = 'MF')
+      # GO_overrepresentation_analysis(significant_genes, all_genes, local_path, ontology = 'CC')
 
-    
-     #################### GSEA ####################
-     if (run_GSEA) {
-        # GO_GSEA_analysis(results, local_path, ontology = 'ALL', group1)
-     GO_GSEA_analysis(results, local_path, group1, ...)
-     # GO_GSEA_analysis(results, local_path, ontology = 'MF')
-     # GO_GSEA_analysis(results, local_path, ontology = 'CC')
-     }
+     
+      #################### GSEA ####################
+      if (run_GSEA) {
+          # GO_GSEA_analysis(results, local_path, ontology = 'ALL', group1)
+      GO_GSEA_analysis(results, local_path, group1, ...)
+      # GO_GSEA_analysis(results, local_path, ontology = 'MF')
+      # GO_GSEA_analysis(results, local_path, ontology = 'CC')
+      }
 
-     return()
+      return()
 }
 
 #' GO Functional Analysis for Cluster Identification
@@ -280,7 +297,7 @@ GO_functional_analysis_cluster_identification <- function (scRNAseq, results, pa
 
     gene_lists <- results |>
         group_by(cluster) |>
-        arrange(desc(avg_log2FC), .by_group = TRUE) |>
+        arrange(p_val_adj, desc(avg_log2FC), .by_group = TRUE) |>
         slice_head(n = top_gene_number)  |>
         ungroup() |>
         select(cluster, gene)  |>
@@ -400,8 +417,8 @@ msigdbr_functional_analysis <- function (results,cluster,  path='./') {
 
         #### GSEA ####
 
-        fold_changes <- results |> arrange(desc(log2FoldChange)) |> pull(log2FoldChange)
-        names(fold_changes) <- results |> arrange(desc(log2FoldChange)) |> pull(entrezid)
+        fold_changes <- results |> arrange(padj, desc(log2FoldChange)) |> pull(log2FoldChange)
+        names(fold_changes) <- results |> arrange(padj, desc(log2FoldChange)) |> pull(entrezid)
 
         gsea_results <- clusterProfiler::GSEA(geneList     = fold_changes,
                     # OrgDb        = org.Mm.eg.db,
@@ -463,8 +480,13 @@ GO_overrepresentation_analysis_multiple_lists <- function (gene_list, all_genes,
             enrichment_results <- clusterProfiler::dropGO(enrichment_results, level = levels_to_drop)
         
      }
+     
      enrichment_results <- enrichment_results |>
-          mutate(Cluster = fct_inseq(Cluster)) 
+          mutate(Cluster = if (all(!is.na(suppressWarnings(as.numeric(levels(factor(Cluster))))))) {
+               fct_inseq(Cluster)
+          } else {
+               factor(Cluster)
+          })
      #   group_by(Cluster) |>
      #   arrange((p.adjust))# |>
        # ungroup()
@@ -486,7 +508,8 @@ GO_overrepresentation_analysis_multiple_lists <- function (gene_list, all_genes,
             #    x = 'p.adjust',
                label_format = 60, 
                font.size = font_size) +
-               labs(x = grouping_var)
+               labs(x = grouping_var) + 
+               theme(axis.text.x = element_text(angle = 45, hjust = 1))
           print(p1)
           ggsave(plot = p1, filename = paste0(filename, 'GO overrepresentation_analysis_dotplot_', ontology,'.pdf'), width = 10, height = 18, path = local_path)
      }

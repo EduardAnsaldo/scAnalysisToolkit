@@ -13,6 +13,8 @@ top_genes_per_cluster(
   figures_path = "results/figures/",
   results_path = "results/",
   run_pathway_enrichment = NULL,
+  filter_ig = FALSE,
+  filter_tcr = FALSE,
   ...
 )
 }
@@ -36,6 +38,13 @@ Default ''}
 
 \item{run_pathway_enrichment}{Character vector; enrichment methods to run
 ('Metascape', 'ClusterProfiler', or NULL). Default NULL}
+
+\item{filter_ig}{Logical; whether to filter out immunoglobulin genes (Igh, Igl, Igk)
+from FindAllMarkers results. Default FALSE}
+
+\item{filter_tcr}{Logical; whether to filter out T cell receptor genes (Trav, Trbv,
+Trdv, Trgv, Traj, Trbj, Trdj, Trgj, Trac, Trbc, Trdc, Trgc) from FindAllMarkers
+results. Default FALSE}
 
 \item{...}{Additional arguments passed to ClusterProfiler analysis}
 }

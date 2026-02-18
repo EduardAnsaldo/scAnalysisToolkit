@@ -41,7 +41,7 @@ pseudobulk_de <- function(scRNAseq, comparison, group1, group2, cluster = 'all_c
     gene_lists_path <- here::here(path, 'gene_lists')
     dir.create(gene_lists_path, showWarnings = FALSE, recursive = TRUE)
 
-    print(paste('Cluster', cluster))
+    message('Cluster: ', cluster)
 
     group1 <- stringr::fixed(group1)
     group2 <- stringr::fixed(group2)
@@ -51,12 +51,11 @@ pseudobulk_de <- function(scRNAseq, comparison, group1, group2, cluster = 'all_c
     # Check there are enough cells
     cell_validation <- validate_cell_counts(scRNAseq, comparison, group1, group2, minimum_cell_number)
 
-    print('number of cells in group 1')
-    print(cell_validation$n_group1)
-    print('number of cells in group 2')
-    print(cell_validation$n_group2)
+    message('Number of cells in group 1: ', cell_validation$n_group1)
+    message('Number of cells in group 2: ', cell_validation$n_group2)
 
     if (!cell_validation$valid) {
+        warning(cell_validation$message)
         return(list(
             all_count = cell_validation$message,
             UP_count = cell_validation$message,
@@ -88,15 +87,14 @@ pseudobulk_de <- function(scRNAseq, comparison, group1, group2, cluster = 'all_c
         filter(row_sums >= 10) |>
         dplyr::select(-row_sums)
 
-    print('Group 1 Length')
-    print(nrow(colData |> filter(condition == group1)))
-    print('Group 2 Length')
-    print(nrow(colData |> filter(condition == group2)))
+    message('Group 1 replicates: ', nrow(colData |> filter(condition == group1)))
+    message('Group 2 replicates: ', nrow(colData |> filter(condition == group2)))
 
     # Check for sufficient replicates
     if ((length(unique(colData$condition)) != 2) |
         (nrow(colData |> filter(condition == group1)) < 2) |
         (nrow(colData |> filter(condition == group2)) < 2)) {
+        warning('Not enough biological replicates per group (minimum 2 per group required)')
         return(list(
             all_count = 'Not enough biological replicates per group',
             UP_count = 'Not enough biological replicates per group',
@@ -165,9 +163,9 @@ pseudobulk_de <- function(scRNAseq, comparison, group1, group2, cluster = 'all_c
     # Write results to CSV files
     write.csv(results |> arrange(padj),
              file = here::here(gene_lists_path, paste('ALL_GENES_DEG_Analysis', cluster, 'pseudobulk', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_UP |> arrange(desc(log2FoldChange)),
+    write.csv(results_filtered_UP |> arrange(padj, desc(log2FoldChange)),
              file = here::here(gene_lists_path, paste('DEG_UP_in', group2, cluster, 'pseudobulk', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_DOWN |> arrange(log2FoldChange),
+    write.csv(results_filtered_DOWN |> arrange(padj, log2FoldChange),
              file = here::here(gene_lists_path, paste('DEG_DOWN_in', group2, cluster, 'pseudobulk', group2, 'vs', group1, '.csv', sep = '_')))
 
     # Return counts and results
@@ -213,7 +211,7 @@ DEG_FindMarkers_RNA_assay_de <- function(scRNAseq, comparison, group1, group2,
     gene_lists_path <- here::here(path, 'gene_lists')
     dir.create(gene_lists_path, showWarnings = FALSE, recursive = TRUE)
 
-    print(paste('Cluster', cluster))
+    message('Cluster: ', cluster)
 
     group1 <- stringr::fixed(group1)
     group2 <- stringr::fixed(group2)
@@ -223,12 +221,11 @@ DEG_FindMarkers_RNA_assay_de <- function(scRNAseq, comparison, group1, group2,
     # Check there are enough cells
     cell_validation <- validate_cell_counts(scRNAseq, comparison, group1, group2, minimum_cell_number)
 
-    print('number of cells in group 1')
-    print(cell_validation$n_group1)
-    print('number of cells in group 2')
-    print(cell_validation$n_group2)
+    message('Number of cells in group 1: ', cell_validation$n_group1)
+    message('Number of cells in group 2: ', cell_validation$n_group2)
 
     if (!cell_validation$valid) {
+        warning(cell_validation$message)
         return(list(
             all_count = cell_validation$message,
             UP_count = cell_validation$message,
@@ -281,9 +278,9 @@ DEG_FindMarkers_RNA_assay_de <- function(scRNAseq, comparison, group1, group2,
     # Write results to CSV files
     write.csv(results_filtered |> arrange(padj),
              file = here::here(gene_lists_path, paste('ALL_GENES_DEG_Analysis', cluster, 'Wilcox', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_UP |> arrange(desc(log2FoldChange)),
+    write.csv(results_filtered_UP |> arrange(padj, desc(log2FoldChange)),
              file = here::here(gene_lists_path, paste('DEG_UP_in', group2, cluster, 'Wilcox', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_DOWN |> arrange(log2FoldChange),
+    write.csv(results_filtered_DOWN |> arrange(padj, log2FoldChange),
              file = here::here(gene_lists_path, paste('DEG_DOWN_in', group2, cluster, 'Wilcox', group2, 'vs', group1, '.csv', sep = '_')))
 
     # Return counts and results
@@ -335,22 +332,21 @@ DEG_FindMarkers_SCT_assay_de <- function(scRNAseq, comparison, group1, group2, i
     gene_lists_path <- here::here(path, 'gene_lists')
     dir.create(gene_lists_path, showWarnings = FALSE, recursive = TRUE)
 
-    print(paste('Cluster', cluster))
+    message('Cluster: ', cluster)
 
     group1 <- stringr::fixed(group1)
     group2 <- stringr::fixed(group2)
 
     Idents(scRNAseq) <- comparison
 
-    print('number of cells in group 1')
-    print(scRNAseq@meta.data |> filter(str_detect(!!as.name(comparison), group1)) |> nrow())
-    print('number of cells in group 2')
-    print(scRNAseq@meta.data |> filter(str_detect(!!as.name(comparison), group2)) |> nrow())
+    message('Number of cells in group 1: ', scRNAseq@meta.data |> filter(str_detect(!!as.name(comparison), group1)) |> nrow())
+    message('Number of cells in group 2: ', scRNAseq@meta.data |> filter(str_detect(!!as.name(comparison), group2)) |> nrow())
 
     # Check there are enough cells
     cell_validation <- validate_cell_counts(scRNAseq, comparison, group1, group2, minimum_cell_number)
 
     if (!cell_validation$valid) {
+        warning(cell_validation$message)
         return(list(
             all_count = cell_validation$message,
             UP_count = cell_validation$message,
@@ -378,7 +374,7 @@ DEG_FindMarkers_SCT_assay_de <- function(scRNAseq, comparison, group1, group2, i
             !!paste0('Avg_', group2) := !!as.name(group2),
             !!paste0('Avg_', group1) := !!as.name(group1)
         )
-    counts_CPM |> head() |> print()
+
     # Add gene annotations
     results <- results |>
         rownames_to_column('genes') |>
@@ -406,9 +402,9 @@ DEG_FindMarkers_SCT_assay_de <- function(scRNAseq, comparison, group1, group2, i
     # Write results to CSV files
     write.csv(results |> arrange(padj),
              file = here::here(gene_lists_path, paste('ALL_GENES_DEG_Analysis', cluster, 'Wilcox', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_UP |> arrange(desc(log2FoldChange)),
+    write.csv(results_filtered_UP |> arrange(padj, desc(log2FoldChange)),
              file = here::here(gene_lists_path, paste('DEG_UP_in', group2, cluster, 'Wilcox', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_DOWN |> arrange(log2FoldChange),
+    write.csv(results_filtered_DOWN |> arrange(padj, log2FoldChange),
              file = here::here(gene_lists_path, paste('DEG_DOWN_in', group2, cluster, 'Wilcox', group2, 'vs', group1, '.csv', sep = '_')))
 
     # Return counts and results
@@ -456,7 +452,7 @@ bulk_analysis_de <- function(counts_table, comparison = 'Groups', group1, group2
     gene_lists_path <- here::here(path, 'gene_lists')
     dir.create(gene_lists_path, showWarnings = FALSE, recursive = TRUE)
 
-    print(paste('Cluster', cluster))
+    message('Cluster: ', cluster)
 
     group1 <- stringr::fixed(group1)
     group2 <- stringr::fixed(group2)
@@ -471,15 +467,14 @@ bulk_analysis_de <- function(counts_table, comparison = 'Groups', group1, group2
     counts <- counts |> mutate(row_sums = rowSums(counts)) |>
               filter(row_sums >= 10) |> dplyr::select(-row_sums)
 
-    print('Group 1 Length')
-    print(nrow(colData |> filter(condition == group1)))
-    print('Group 2 Length')
-    print(nrow(colData |> filter(condition == group2)))
+    message('Group 1 replicates: ', nrow(colData |> filter(condition == group1)))
+    message('Group 2 replicates: ', nrow(colData |> filter(condition == group2)))
 
     # Check for sufficient replicates
     if ((length(unique(colData$condition)) != 2) |
         (nrow(colData |> filter(condition == group1)) < 2) |
         (nrow(colData |> filter(condition == group2)) < 2)) {
+        warning('Not enough biological replicates per group (minimum 2 per group required)')
         return(list(
             all_count = 'Not enough biological replicates per group',
             UP_count = 'Not enough biological replicates per group',
@@ -548,9 +543,9 @@ bulk_analysis_de <- function(counts_table, comparison = 'Groups', group1, group2
     # Write results to CSV files
     write.csv(results |> arrange(padj),
              file = here::here(gene_lists_path, paste('ALL_GENES_DEG_Analysis', cluster, 'bulk', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_UP |> arrange(desc(log2FoldChange)),
+    write.csv(results_filtered_UP |> arrange(padj, desc(log2FoldChange)),
              file = here::here(gene_lists_path, paste('DEG_UP_in', group2, cluster, 'bulk', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_DOWN |> arrange(log2FoldChange),
+    write.csv(results_filtered_DOWN |> arrange(padj, log2FoldChange),
              file = here::here(gene_lists_path, paste('DEG_DOWN_in', group2, cluster, 'bulk', group2, 'vs', group1, '.csv', sep = '_')))
 
     # Return counts and results

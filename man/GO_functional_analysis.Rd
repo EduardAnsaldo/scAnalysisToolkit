@@ -13,6 +13,7 @@ GO_functional_analysis(
   group1 = "",
   group2 = "",
   run_GSEA = FALSE,
+  top_n_genes = NULL,
   ...
 )
 }
@@ -33,6 +34,8 @@ log2FoldChange, padj}
 \item{group2}{Character; name of treatment group. Default ''}
 
 \item{run_GSEA}{Logical; whether to run GSEA in addition to ORA. Default FALSE}
+
+\item{top_n_genes}{Integer or NULL; number of top genes to use for ORA. If NULL, uses all significant genes. Default NULL}
 
 \item{...}{Additional arguments passed to GO_overrepresentation_analysis}
 }

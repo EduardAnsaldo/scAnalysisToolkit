@@ -30,14 +30,12 @@
 #' @export
 top_peaks_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = 'seurat_clusters_atac', object_annotations = '', tables_path = 'results/tables/', figures_path = 'results/figures/', results_path = 'results/', run_pathway_enrichment = NULL, ...) {
 
-    sequential_palette_dotplot <- grDevices::hcl.colors(n = 20,'YlGn',rev = T)
-
     # Set the identity class for clustering
     Idents(seurat) <- grouping_var
     # Set the default assay to 'ATAC'
     DefaultAssay(seurat) <- 'ATAC'
 
-    da_peaks <- FindAllMarkers(seurat, only.pos = TRUE, min.pct = 0.1, logfc.threshold = 0.25)
+    da_peaks <- FindAllMarkers(seurat, test.use = 'LR', only.pos = TRUE, min.pct = 0.1, logfc.threshold = 0.25, latent.vars = 'nCount_ATAC')
 
     genes <- Signac::ClosestFeature(seurat, rownames(da_peaks))
     da_peaks <- left_join(da_peaks, genes, by = c('gene' = 'query_region'))
@@ -59,30 +57,30 @@ top_peaks_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
     #Top10 markers
     da_peaks |>
         group_by(cluster) |>
-        arrange(desc(avg_log2FC), .by_group = TRUE) |>
+        arrange(p_val_adj, desc(avg_log2FC), .by_group = TRUE) |>
         slice_head(n = 10) -> top10
 
     #Top25 markers
     da_peaks |>
         group_by(cluster) |>
-        arrange(desc(avg_log2FC), .by_group = TRUE) |>
+        arrange(p_val_adj, desc(avg_log2FC), .by_group = TRUE) |>
         slice_head(n = 50) -> top50
 
     #Top100 markers
     da_peaks |>
         group_by(cluster) |>
-        arrange(desc(avg_log2FC), .by_group = TRUE) |>
+        arrange(p_val_adj, desc(avg_log2FC), .by_group = TRUE) |>
         slice_head(n = 100) -> top100
 
     #Topn markers
     da_peaks |>
         group_by(cluster) |>
-        arrange(desc(avg_log2FC), .by_group = TRUE) |>
+        arrange(p_val_adj, desc(avg_log2FC), .by_group = TRUE) |>
         slice_head(n = n_genes_to_plot) -> topn
 
     # Save the top markers to files
     write.table(top100,file=here::here(tables_path, paste0('top100_peaks', '_',object_annotations, ".tsv")), sep="\t",row.names = FALSE)
-    # write.table(top25,file=here::here(path,'top25',object_annotations, ".tsv"), sep="\t",row.names = FALSE)
+    # write.table(top25,file=here::where(path,'top25',object_annotations, ".tsv"), sep="\t",row.names = FALSE)
     write.table(top10,file=here::here(tables_path, paste0('top10_peaks', '_',object_annotations, ".tsv")), sep="\t",row.names = FALSE)
 
     top100_genes_per_cluster <- top100 |>
@@ -115,7 +113,7 @@ top_peaks_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
 #' Core Differential Accessibility Analysis
 #'
 #' Performs differential accessibility testing on ATAC-seq data using Seurat's
-#' FindMarkers with Wilcoxon rank-sum test. Maps differentially accessible peaks
+#' FindMarkers with Logistic regression tests with nCount_ATAC as latent variable. Maps differentially accessible peaks
 #' to nearest genes and saves results to CSV files. Requires sufficient cells
 #' per comparison group.
 #'
@@ -147,23 +145,22 @@ run_differential_accessibility_FindMarkers <- function(seurat, comparison, group
     gene_lists_path <- here::here(path, 'gene_lists')
     dir.create(gene_lists_path, showWarnings = FALSE, recursive = TRUE)
 
-    print(paste('Cluster', cluster))
+    message('Cluster: ', cluster)
 
     group1 <- fixed(group1)
     group2 <- fixed(group2)
 
     Idents(seurat) <- comparison
 
-    print('number of cells in group 1')
-    print(seurat@meta.data |> filter(str_detect(!!as.name(comparison), group1)) |> nrow())
-    print('number of cells in group 2')
-    print(seurat@meta.data |> filter(str_detect(!!as.name(comparison), group2)) |> nrow())
+    message('Number of cells in group 1: ', seurat@meta.data |> filter(str_detect(!!as.name(comparison), group1)) |> nrow())
+    message('Number of cells in group 2: ', seurat@meta.data |> filter(str_detect(!!as.name(comparison), group2)) |> nrow())
 
     # Check there are enough cells
     n_group1 <- seurat@meta.data |> filter(str_detect(!!as.name(comparison), group1)) |> nrow()
     n_group2 <- seurat@meta.data |> filter(str_detect(!!as.name(comparison), group2)) |> nrow()
 
     if (n_group1 < minimum_cell_number | n_group2 < minimum_cell_number) {
+        warning('Not enough cells per group (minimum ', minimum_cell_number, ' required)')
         return(list(
             all_count = 'Not enough cells',
             UP_count = 'Not enough cells',
@@ -175,8 +172,7 @@ run_differential_accessibility_FindMarkers <- function(seurat, comparison, group
     DefaultAssay(seurat) <- 'ATAC'
     # Run Wilcox test
     results <- FindMarkers(object = seurat, ident.1 = group1, ident.2 = group2,
-                          assay = 'ATAC', slot = 'data', test.use = 'wilcox', min.pct = min_fraction, only.pos = F, logfc.threshold = 0.5)
-    print(head(results |> filter(p_val < 0.05 & (avg_log2FC)  < -0.5)))
+                          assay = 'ATAC', slot = 'data', test.use = 'LR', latent.vars = 'nCount_ATAC', min.pct = min_fraction, only.pos = F, logfc.threshold = 0.5)
 
 
     closest_genes <- Signac::ClosestFeature(seurat, rownames(results))
@@ -214,9 +210,9 @@ run_differential_accessibility_FindMarkers <- function(seurat, comparison, group
     # Write results to CSV files
     write.csv(results |> arrange(padj),
              file = here::here(gene_lists_path, paste('ALL_PEAKS_DA_Analysis', cluster, 'Wilcox', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_UP |> arrange(desc(log2FoldChange)),
+    write.csv(results_filtered_UP |> arrange(padj, desc(log2FoldChange)),
              file = here::here(gene_lists_path, paste('PEAKS_UP_in', group2, cluster, 'Wilcox', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_DOWN |> arrange(log2FoldChange),
+    write.csv(results_filtered_DOWN |> arrange(padj, log2FoldChange),
              file = here::here(gene_lists_path, paste('PEAKS_UP_in_DOWN_in', group2, cluster, 'Wilcox', group2, 'vs', group1, '.csv', sep = '_')))
 
     # Return counts and results
@@ -368,4 +364,206 @@ run_differential_accessibility <- function(seurat, comparison, group1, group2, i
         results = da_results$results
         # volcanoplot = volcanoplot_output
     ))
+}
+
+
+#' Compare Motif Activity Between Two Clusters
+#'
+#' This function performs pairwise comparison of transcription factor motif activities
+#' between two specified clusters using ChromVAR scores. It identifies differentially
+#' active motifs and generates visualization plots including volcano plots, motif
+#' sequence logos, UMAP feature plots, and violin plots.
+#'
+#' @param seurat A Seurat object containing chromVAR and ATAC assays
+#' @param cluster_id Character or numeric. The primary cluster identifier to compare
+#' @param other_cluster_id Character or numeric. The comparison cluster identifier
+#' @param identities Character. The metadata column to use for cell identities.
+#'   Default is 'seurat_clusters_atac'
+#' @param reduction Character. The dimensional reduction to use for feature plots.
+#'   Default is 'umap.wnn'
+#' @param topn Numeric. Number of top motifs to display for up and down-regulated
+#'   activities. Default is 9
+#' @param JASPARConnect A JASPAR database connection object for retrieving motif
+#'   information and sequence logos
+#' @param sequential_palette Color palette for feature plots
+#' @param ... Additional arguments passed to volcano_plot function
+#'
+#' @return A data frame of differential motif activities with columns:
+#'   \itemize{
+#'     \item avg_diff: Average difference in chromVAR scores
+#'     \item p_val: P-value from likelihood ratio test
+#'     \item p_val_adj: Adjusted p-value
+#'     \item pct.1: Percentage of cells in cluster_id
+#'     \item pct.2: Percentage of cells in other_cluster_id
+#'     \item motif_name: Human-readable motif name from JASPAR
+#'   }
+#'
+#' @details
+#' The function performs the following steps:
+#' \enumerate{
+#'   \item Runs FindMarkers using likelihood ratio test on chromVAR scores,
+#'         controlling for ATAC fragment counts
+#'   \item Identifies top up-regulated motifs (avg_diff > 0, padj < 0.05)
+#'   \item Identifies top down-regulated motifs (avg_diff < 0, padj < 0.05)
+#'   \item Generates a volcano plot of all differential motif activities
+#'   \item For both up and down-regulated sets:
+#'     \itemize{
+#'       \item Displays motif sequence logos
+#'       \item Creates UMAP feature plots showing motif activity
+#'       \item Generates violin plots comparing activity between clusters
+#'     }
+#'   \item Annotates results with motif names from JASPAR database
+#' }
+#'
+#' @note This function requires the following packages: Seurat, Signac, TFBSTools,
+#'   patchwork, dplyr, purrr, scCustomize
+#'
+#' @examples
+#' \dontrun{
+#' # Compare motif activities between cluster 1 and cluster 2
+#' diff_motifs <- compare_motive_activity_pairwise(
+#'   seurat = my_seurat,
+#'   cluster_id = 1,
+#'   other_cluster_id = 2,
+#'   JASPARConnect = jaspar_db,
+#'   sequential_palette = viridis::viridis(100)
+#' )
+#' }
+#'
+#' @export
+
+# Custom function, to be incorporated into the package later
+compare_motive_activity_pairwise <- function(seurat, cluster_id, other_cluster_id, figures_path, identities='seurat_clusters_atac', reduction = 'umap.wnn', topn=9, JASPARConnect, sequential_palette , ...) {
+  
+  # Set the default assay and identities
+  DefaultAssay(seurat) <- 'chromvar'
+  Idents(seurat) <- identities  
+  
+  differential_activity <- FindMarkers(
+    object = seurat,
+    ident.1 = cluster_id,
+    ident.2 = other_cluster_id,
+    assay = 'chromvar',
+    slot = 'data',
+    only.pos = FALSE,
+    mean.fxn = rowMeans,
+    fc.name = 'avg_diff',
+    # latent.vars = 'nCount_ATAC'
+  )
+
+  
+
+  top_motif_activities_up <- differential_activity |> 
+    filter(avg_diff > 0) |> 
+    filter(p_val_adj < 0.05) |>
+    arrange(p_val_adj) |>
+    slice_head(n = topn) |>
+    rownames_to_column(var = 'gene') |>
+    pull(gene) |> 
+    unique()
+
+  top_motif_activities_down <- differential_activity |> 
+    filter(avg_diff < 0) |> 
+    filter(p_val_adj < 0.05) |>
+    arrange(p_val_adj) |>
+    slice_head(n = topn) |>
+    rownames_to_column(var = 'gene') |>
+    pull(gene) |> 
+    unique()
+  
+  differential_activity_cluster <- differential_activity |> 
+    rownames_to_column(var = 'gene') |>
+    rename(log2FoldChange = avg_diff, pvalue = p_val, padj = p_val_adj) |>
+    mutate(genes = map_chr(gene, ID_to_symbol)) 
+
+
+  plot <- volcano_plot(differential_activity_cluster, group1 = other_cluster_id, group2 = cluster_id, cluster = cluster_id, local_figures_path = figures_path, FC_threshold = 0.25, p_value_threshold = 0.05, test_type = 'Wilcox_ChromVar_motif', ...)
+
+    # Create a list of motif sets to iterate over
+    motif_sets <- list(
+      up = list(motifs = top_motif_activities_up, label = "UP"),
+      down = list(motifs = top_motif_activities_down, label = "DOWN")
+    )
+    
+    # Iterate over both up and down motif sets
+    walk(motif_sets, function(motif_set) {
+      motifs <- motif_set$motifs
+      label <- motif_set$label
+      
+      # Create motif plot
+      motif_plot <- MotifPlot(
+        object = seurat,
+        motifs = motifs,
+        assay = 'ATAC'
+      ) + labs(title = paste0('Top Motif Activities ', label, ' in Cluster ', cluster_id))
+      
+    print(motif_plot)
+    ggsave(
+      filename = here::here(figures_path, paste0('motif_sequences_', label, '_cluster_', cluster_id, '_vs_', other_cluster_id, '.pdf')),
+      plot = motif_plot,
+      width = 12,
+      height = 8
+    )
+      
+      # Get motif names
+      top_motif_names <- map(motifs, function(motif_id) {
+        motif_matrix <- getMatrixByID(
+          x = JASPARConnect, 
+          ID = motif_id   
+        )
+        return(motif_matrix@name)
+      }) 
+      
+      seurat_local <- subset(seurat, idents = c(cluster_id, other_cluster_id))
+      
+      # Create feature plots
+      plots <- map2(motifs, top_motif_names, function(TF_ID, TF_name) {
+        p <- FeaturePlot_scCustom(seurat, feature = TF_ID, reduction = reduction, colors_use = sequential_palette) + 
+          labs(title = paste0(TF_name)) + 
+          NoAxes() + 
+          NoLegend()
+        return(p)
+      })
+    combined_plot <- wrap_plots(plots, axes = 'collect', axis_titles = 'collect', guides = 'auto') + 
+        plot_annotation(title = paste0('Top Motif Activities ', label, ' in Cluster ', cluster_id))
+    print(combined_plot)
+    ggsave(
+      filename = here::here(figures_path, paste0('motif_activities_', label, '_cluster_', cluster_id, '_vs_', other_cluster_id, '.pdf')),
+      plot = combined_plot,
+      width = 12,
+      height = 10
+    )
+      
+      # Create violin plots
+      violin_plots <- map2(motifs, top_motif_names, function(TF_ID, TF_name) {
+        p <- VlnPlot(seurat_local, assay = 'chromvar', features = TF_ID, group.by = identities, pt.size = 0) + 
+          labs(title = paste0(TF_name)) + 
+          NoLegend() + 
+          theme(axis.title.x = element_blank(), axis.title.y = element_blank())
+        return(p)
+      })
+    combined_violin_plot <- wrap_plots(violin_plots, axes = 'collect', axis_titles = 'collect', guides = 'auto') + 
+        plot_annotation(title = paste0('Top Motif Activities ', label, ' in Cluster ', cluster_id))
+    print(combined_violin_plot)
+    ggsave(
+      filename = here::here(figures_path, paste0('motif_activities_violin_', label, '_cluster_', cluster_id, '_vs_', other_cluster_id, '.pdf')),
+      plot = combined_violin_plot,
+      width = 12,
+      height = 10
+    )
+    })
+  
+    # Update differential_activity rownames with motif names
+    differential_activity <- differential_activity |>
+      rownames_to_column(var = 'motif_id') |>
+      mutate(
+        motif_name = map_chr(motif_id, function(motif_id) {
+            motif_matrix <- getMatrixByID(
+              x = JASPARConnect,
+              ID = motif_id
+            )
+            return(motif_matrix@name)
+          })) |> 
+      column_to_rownames(var = 'motif_id')      
+  return(differential_activity)
 }

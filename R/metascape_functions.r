@@ -88,7 +88,7 @@ if (nrow(enrichment_results) > 1) {
                scale_y_discrete(labels = scales::label_wrap(22))+
                theme(axis.text.y = element_text(size = 9), title = element_text(size = 16), plot.title.position = 'plot', legend.position = 'none', axis.text.x = element_text(size = 10))
      #    print(plot2)
-     ggsave(plot = plot2, filename = paste0(filename, '_Pathway_enrichment_analysis_metascape', '.pdf'), width = 12, height = 6, path = local_path)
+     ggsave(plot = plot2, filename = paste0(filename, '_Pathway_enrichment_analysis_metascape', '.pdf'), width = 6, height = 6, path = local_path)
      return(plot2)
      } else {
           return(create_no_data_plot())
@@ -112,51 +112,69 @@ if (nrow(enrichment_results) > 1) {
 #' @param path Character; base output directory path. Default './'
 #' @param FC_threshold Numeric; log2 fold change threshold for filtering genes
 #' @param p_value_threshold Numeric; adjusted p-value threshold. Default 0.05
+#' @param top_n_genes Integer; maximum number of top genes to include based on p-value.
+#'   Default NULL (include all significant genes)
 #' @param ... Additional arguments passed to Metascape_overrepresentation_analysis
 #'
 #' @return Invisible NULL; creates output directories with Metascape enrichment results
 #'
 #' @export
-Metascape_functional_analysis <- function (results, grouping_var, group2, group1, path='./', FC_threshold, p_value_threshold = 0.05, ...) {
+Metascape_functional_analysis <- function (results, grouping_var, group2, group1, path='./', FC_threshold, p_value_threshold = 0.05, top_n_genes = NULL, ...) {
 
-    grouping_var_kebab_case <- str_replace_all(grouping_var, ' ', '_')
-    group2_kebab_case <- str_replace_all(group2, ' ', '_')
-    group1_kebab_case <- str_replace_all(group1, ' ', '_')
+     grouping_var_kebab_case <- str_replace_all(grouping_var, ' ', '_')
+     group2_kebab_case <- str_replace_all(group2, ' ', '_')
+     group1_kebab_case <- str_replace_all(group1, ' ', '_')
 
-     results <- results[which(duplicated(results$genes) == F),]
+      results <- results[which(duplicated(results$genes) == F),]
 
 ####################################### UP ########################################
 
-     local_path <- create_analysis_directory(here::here(path, paste0('Functional_analysis_metascape_UP_in_', group2_kebab_case, '_', grouping_var_kebab_case)))
-     print(local_path)
+      local_path <- create_analysis_directory(here::here(path, paste0('Functional_analysis_metascape_UP_in_', group2_kebab_case, '_', grouping_var_kebab_case)))
 
-     significant_genes <- results |> filter((padj < p_value_threshold) & (log2FoldChange > FC_threshold)) |> arrange(padj) |> arrange(desc(log2FoldChange)) |> pull(genes)
-     
-     if (length(significant_genes) > 2) {
-          p1 <- Metascape_overrepresentation_analysis(significant_genes, local_path =  local_path , group = group2, grouping_var = grouping_var, filename = '', ...)
-          print(p1)
+      significant_genes <- results |> 
+            filter((padj < p_value_threshold) & (log2FoldChange > FC_threshold)) |> 
+            arrange(desc(log2FoldChange)) |> 
+            arrange(padj)
+      
+      if (!is.null(top_n_genes)) {
+            significant_genes <- significant_genes |> head(top_n_genes)
+      }
+      
+      significant_genes <- significant_genes |> pull(genes)
+      
+      if (length(significant_genes) > 2) {
+            p1 <- Metascape_overrepresentation_analysis(significant_genes, local_path =  local_path , group = group2, grouping_var = grouping_var, filename = '', ...)
+            print(p1)
 
-     }else {
-          p1 <- create_no_data_plot()
-          print(p1)
-     }
+      }else {
+            p1 <- create_no_data_plot()
+            print(p1)
+      }
 
 ######################################## DOWN ########################################
 
-     local_path <- create_analysis_directory(here::here(path, paste0('Functional_analysis_metascape_DOWN_in', group1_kebab_case, '_', grouping_var_kebab_case)))
-     print(local_path)
+      local_path <- create_analysis_directory(here::here(path, paste0('Functional_analysis_metascape_DOWN_in', group1_kebab_case, '_', grouping_var_kebab_case)))
 
-     significant_genes <- results |> filter((padj < p_value_threshold) & (log2FoldChange < -1*FC_threshold)) |> arrange(padj) |> arrange(log2FoldChange) |> pull(genes)
+      significant_genes <- results |> 
+            filter((padj < p_value_threshold) & (log2FoldChange < -1*FC_threshold)) |> 
+            arrange(log2FoldChange) |> 
+            arrange(padj)
+      
+      if (!is.null(top_n_genes)) {
+            significant_genes <- significant_genes |> head(top_n_genes)
+      }
+      
+      significant_genes <- significant_genes |> pull(genes)
 
-     if (length(significant_genes) > 2) {
-          p1 <- Metascape_overrepresentation_analysis(significant_genes, local_path = local_path , group = group1, grouping_var = grouping_var, filename = '', ...)
-          print(p1)
-     }
-     else {
-          p1 <- create_no_data_plot()
-          print(p1)
-     }
-} 
+      if (length(significant_genes) > 2) {
+            p1 <- Metascape_overrepresentation_analysis(significant_genes, local_path = local_path , group = group1, grouping_var = grouping_var, filename = '', ...)
+            print(p1)
+      }
+      else {
+            p1 <- create_no_data_plot()
+            print(p1)
+      }
+}
 
 
 

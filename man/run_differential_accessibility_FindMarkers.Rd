@@ -50,7 +50,7 @@ List with elements:
 }
 \description{
 Performs differential accessibility testing on ATAC-seq data using Seurat's
-FindMarkers with Wilcoxon rank-sum test. Maps differentially accessible peaks
+FindMarkers with Logistic regression tests with nCount_ATAC as latent variable. Maps differentially accessible peaks
 to nearest genes and saves results to CSV files. Requires sufficient cells
 per comparison group.
 }

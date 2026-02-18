@@ -22,7 +22,10 @@ perform_seurat_clustering(
   run_pathway_enrichment = FALSE,
   n_genes_to_plot = 3,
   run_singler = FALSE,
-  singler_database = "ImmGen"
+  singler_database = "ImmGen",
+  filter_ig = FALSE,
+  filter_tcr = FALSE,
+  quiet_vdj = FALSE
 )
 }
 \arguments{
@@ -63,6 +66,15 @@ Default FALSE}
 \item{run_singler}{Logical; whether to run SingleR cell type annotation. Default FALSE}
 
 \item{singler_database}{Character; SingleR reference database. Default 'ImmGen'}
+
+\item{filter_ig}{Logical; whether to filter out immunoglobulin genes from marker
+gene analysis. Default FALSE}
+
+\item{filter_tcr}{Logical; whether to filter out T cell receptor genes from marker
+gene analysis. Default FALSE}
+
+\item{quiet_vdj}{Logical; whether to remove VDJ genes (Igh, Igk, Igl, Tra, Trb, Trd, Trg)
+from variable features after SCTransform. Default FALSE}
 }
 \value{
 List with elements:

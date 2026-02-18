@@ -92,7 +92,8 @@ run_overrepresentation_analysis <- function(genes,
            },
            Metascape = {
              if (exists("Metascape_overrepresentation_analysis", mode = "function")) {
-               Metascape_overrepresentation_analysis(genes, ...)
+               plot <- Metascape_overrepresentation_analysis(genes, ...)
+                print(plot)
              } else stop("Metascape_overrepresentation_analysis not found")
            },
            stop("Unknown overrepresentation method: ", m))

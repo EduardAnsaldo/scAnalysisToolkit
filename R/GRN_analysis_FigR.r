@@ -690,7 +690,6 @@ analyze_figr_results <- function(figR.d,
 #'@param TFs character specifying valid TF gene symbols to subset heatmap to. Default is NULL (no subsetting)
 #'@param ... additional parameters passed to the \code{\link[ComplexHeatmap]{Heatmap}})
 #'@return a TF-DORC filtered Heatmap generatd using \code{\link[ComplexHeatmap]{Heatmap}})
-#'@import dplyr ComplexHeatmap BuenColors scales reshape2 tibble circlize
 #'@export
 plotfigRHeatmap_EA <- function(figR.d,
                  score.cut=1,

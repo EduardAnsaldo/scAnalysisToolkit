@@ -27,7 +27,9 @@ extract_cell_counts(
 
 \item{plot_grouping}{Character; type of plot to generate. "Samples" creates a grouped
 bar plot with individual sample points (default), "Groups" creates a stacked bar plot
-showing the composition of experimental groups within each cluster/cell type. Default "Samples"}
+showing the composition of experimental groups within each cluster/cell type, "grouping_var"
+creates a stacked bar plot showing the composition of clusters/cell types within each
+experimental group (same as "Groups" but with x-axis and fill variables switched). Default "Samples"}
 }
 \value{
 Invisibly returns NULL. Creates output files:

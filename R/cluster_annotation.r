@@ -167,6 +167,8 @@ annotate_seurat_with_SingleR_Eduard <- function(
 #' @param results_path Character; path for pathway enrichment results. Default 'results/'
 #' @param run_pathway_enrichment Character vector; enrichment methods to run
 #'   ('Metascape', 'ClusterProfiler', or NULL). Default NULL
+#' @param n_genes_for_enrichment Integer; number of top marker genes per cluster to use
+#'   for pathway enrichment analysis. Default 100
 #' @param filter_ig Logical; whether to filter out immunoglobulin genes (Igh, Igl, Igk)
 #'   from FindAllMarkers results. Default FALSE
 #' @param filter_tcr Logical; whether to filter out T cell receptor genes (Trav, Trbv,
@@ -182,7 +184,7 @@ annotate_seurat_with_SingleR_Eduard <- function(
 #'   \item{top100}{Data frame; top 100 markers per cluster}
 #'
 #' @export
-top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = 'seurat_clusters', object_annotations = '', tables_path = 'results/tables/', figures_path = 'results/figures/', results_path = 'results/', run_pathway_enrichment = NULL, filter_ig = FALSE, filter_tcr = FALSE, ...) {
+top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = 'seurat_clusters', object_annotations = '', tables_path = 'results/tables/', figures_path = 'results/figures/', results_path = 'results/', run_pathway_enrichment = NULL, n_genes_for_enrichment = 100, filter_ig = FALSE, filter_tcr = FALSE, ...) {
 
     sequential_palette_dotplot <- grDevices::hcl.colors(n = 20,'YlGn',rev = T)
 
@@ -251,6 +253,12 @@ top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
         arrange(p_val_adj, desc(avg_log2FC), .by_group = TRUE) |>
         slice_head(n = n_genes_to_plot) -> topn
 
+    # Top markers for enrichment (controlled by n_genes_for_enrichment parameter)
+    seurat.markers |>
+        group_by(cluster) |>
+        arrange(p_val_adj, desc(avg_log2FC), .by_group = TRUE) |>
+        slice_head(n = n_genes_for_enrichment) -> top_for_enrichment
+
     # Save the top markers to files
     write.table(top100,file=here::here(tables_path, paste0('top100', '_',object_annotations, ".tsv")), sep="\t",row.names = FALSE)
     # write.table(top25,file=here::here(path,'top25',object_annotations, ".tsv"), sep="\t",row.names = FALSE)
@@ -286,10 +294,10 @@ top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
         # Run pathway enrichment analysis
     if (!is.null(run_pathway_enrichment)) {
         if ('Metascape' %in% run_pathway_enrichment) {
-            metascape_results <- Metascape_functional_analysis_cluster_identification(seurat, top100, identities = 'seurat_clusters', path=results_path, object_annotations = object_annotations)
+            metascape_results <- Metascape_functional_analysis_cluster_identification(seurat, top_for_enrichment, identities = 'seurat_clusters', path=results_path, object_annotations = object_annotations)
         }
         if ('ClusterProfiler' %in% run_pathway_enrichment) {
-            ClusterProfiler_results <- GO_functional_analysis_cluster_identification(seurat, seurat.markers, path=results_path, object_annotations = object_annotations, top_gene_number = 100, ...)
+            ClusterProfiler_results <- GO_functional_analysis_cluster_identification(seurat, seurat.markers, path=results_path, object_annotations = object_annotations, top_gene_number = n_genes_for_enrichment, ...)
         }
 
     }

@@ -510,7 +510,7 @@ GO_overrepresentation_analysis_multiple_lists <- function (gene_list, all_genes,
                font.size = font_size) +
                labs(x = grouping_var) + 
                theme(axis.text.x = element_text(angle = 45, hjust = 1))
-          print(p1)
+#           print(p1)
           ggsave(plot = p1, filename = paste0(filename, 'GO overrepresentation_analysis_dotplot_', ontology,'.pdf'), width = 10, height = 18, path = local_path)
      }
      return(list(plot = p1, results = enrichment_results))

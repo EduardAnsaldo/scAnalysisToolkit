@@ -13,6 +13,7 @@ compare_DORC_scores_pairwise(
   figures_path,
   identities = "seurat_clusters_atac",
   topn = 9,
+  cluster = NULL,
   ...
 )
 }
@@ -43,7 +44,7 @@ A data frame containing differential activity results with the following columns
 \itemize{
 \item Gene names as row names
 \item p_val: Raw p-values from differential testing
-\item avg_diff: Average difference in activity between clusters
+\item avg_log2FC: Average difference in activity between clusters
 \item pct.1: Percentage of cells in cluster_id with detected activity
 \item pct.2: Percentage of cells in other_cluster_id with detected activity
 \item p_val_adj: Bonferroni-corrected p-values
@@ -53,15 +54,12 @@ The function performs the following workflow:
 \enumerate{
 \item Sets the default assay to 'DORCs' and identities to specified column
 \item Runs FindMarkers using Wilcoxon rank sum test on the DORCs assay
-\item Identifies top upregulated genes (avg_diff > 0, padj < 0.05)
-\item Identifies top downregulated genes (avg_diff < 0, padj < 0.05)
+\item Identifies top upregulated genes (avg_log2FC > 0, padj < 0.05)
+\item Identifies top downregulated genes (avg_log2FC < 0, padj < 0.05)
 \item Generates a volcano plot of differential activity (saved to figures_path)
 \item Creates side-by-side DORC and RNA expression plots for top upregulated genes
 \item Creates side-by-side DORC and RNA expression plots for top downregulated genes
 \item Saves all individual gene plots as PNG files to figures_path
-}View top differentially active genes
-
-head(results)
 }
 }
 \description{
@@ -69,6 +67,14 @@ This function performs differential activity analysis between two specified clus
 in a Seurat object and generates visualization plots for top differentially expressed
 genes (DORCs). It identifies genes with significantly higher or lower activity in
 one cluster compared to another and creates combined DORC and RNA expression plots.
+}
+\examples{
+\dontrun{
+# View top differentially active genes
+head(results)
+}
+
+
 }
 \seealso{
 \code{\link[Seurat]{FindMarkers}} for differential expression testing

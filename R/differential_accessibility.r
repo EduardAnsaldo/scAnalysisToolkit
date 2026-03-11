@@ -172,7 +172,7 @@ run_differential_accessibility_FindMarkers <- function(seurat, comparison, group
     DefaultAssay(seurat) <- 'ATAC'
     # Run Wilcox test
     results <- FindMarkers(object = seurat, ident.1 = group1, ident.2 = group2,
-                          assay = 'ATAC', slot = 'data', test.use = 'LR', latent.vars = 'nCount_ATAC', min.pct = min_fraction, only.pos = F, logfc.threshold = 0.5)
+                          assay = 'ATAC', slot = 'data', test.use = 'LR', latent.vars = 'nCount_ATAC', min.pct = min_fraction, only.pos = F, logfc.threshold = FC_threshold)
 
 
     closest_genes <- Signac::ClosestFeature(seurat, rownames(results))
@@ -433,11 +433,27 @@ run_differential_accessibility <- function(seurat, comparison, group1, group2, i
 #' @export
 
 # Custom function, to be incorporated into the package later
-compare_motive_activity_pairwise <- function(seurat, cluster_id, other_cluster_id, figures_path, identities='seurat_clusters_atac', reduction = 'umap.wnn', topn=9, JASPARConnect, sequential_palette , ...) {
+compare_motive_activity_pairwise <- function(seurat, cluster_id, other_cluster_id, cluster_title = NULL, figures_path, identities='seurat_clusters_atac', reduction = 'umap.wnn', topn=9, JASPARConnect, sequential_palette , ...) {
+
+  if (is.null(cluster_title)) {
+    cluster_title <- paste("Cluster", cluster_id, "vs", other_cluster_id)
+  }
   
   # Set the default assay and identities
   DefaultAssay(seurat) <- 'chromvar'
   Idents(seurat) <- identities  
+  
+  # Check cell counts for both groups
+  n_cells_group1 <- sum(seurat@meta.data[[identities]] == cluster_id)
+  n_cells_group2 <- sum(seurat@meta.data[[identities]] == other_cluster_id)
+  
+  if (n_cells_group1 < 3 | n_cells_group2 < 3) {
+    warning(sprintf(
+      "Insufficient cells for comparison: Cluster %s (%d cells) vs Cluster %s (%d cells). Minimum 3 cells required per group.",
+      cluster_id, n_cells_group1, other_cluster_id, n_cells_group2
+    ))
+    return(NULL)
+  }
   
   differential_activity <- FindMarkers(
     object = seurat,
@@ -477,7 +493,7 @@ compare_motive_activity_pairwise <- function(seurat, cluster_id, other_cluster_i
     mutate(genes = map_chr(gene, ID_to_symbol)) 
 
 
-  plot <- volcano_plot(differential_activity_cluster, group1 = other_cluster_id, group2 = cluster_id, cluster = cluster_id, local_figures_path = figures_path, FC_threshold = 0.25, p_value_threshold = 0.05, test_type = 'Wilcox_ChromVar_motif', ...)
+  plot <- volcano_plot(differential_activity_cluster, group1 = other_cluster_id, group2 = cluster_id, cluster = cluster_title, local_figures_path = figures_path, FC_threshold = 0.25, p_value_threshold = 0.05, test_type = 'Wilcox_ChromVar_motif', ...)
 
     # Create a list of motif sets to iterate over
     motif_sets <- list(
@@ -489,22 +505,31 @@ compare_motive_activity_pairwise <- function(seurat, cluster_id, other_cluster_i
     walk(motif_sets, function(motif_set) {
       motifs <- motif_set$motifs
       label <- motif_set$label
-      
+
+    available_motifs <- rownames(seurat@assays$ATAC@motifs@data)
+    motifs_to_plot <- intersect(motifs, available_motifs)
+
+    if (length(motifs_to_plot) == 0) {
+      warning("No valid motifs found to plot")
+      motif_plot <- create_no_data_plot()
+
+    } else {
       # Create motif plot
       motif_plot <- MotifPlot(
         object = seurat,
         motifs = motifs,
         assay = 'ATAC'
       ) + labs(title = paste0('Top Motif Activities ', label, ' in Cluster ', cluster_id))
-      
-    print(motif_plot)
-    ggsave(
-      filename = here::here(figures_path, paste0('motif_sequences_', label, '_cluster_', cluster_id, '_vs_', other_cluster_id, '.pdf')),
-      plot = motif_plot,
-      width = 12,
-      height = 8
-    )
-      
+
+      print(motif_plot)
+
+      ggsave(
+        filename = here::here(figures_path, paste0('motif_sequences_', label, '_cluster_', cluster_id, '_vs_', other_cluster_id, '.pdf')),
+        plot = motif_plot,
+        width = 12,
+        height = 8
+      )
+
       # Get motif names
       top_motif_names <- map(motifs, function(motif_id) {
         motif_matrix <- getMatrixByID(
@@ -551,6 +576,7 @@ compare_motive_activity_pairwise <- function(seurat, cluster_id, other_cluster_i
       width = 12,
       height = 10
     )
+    }
     })
   
     # Update differential_activity rownames with motif names

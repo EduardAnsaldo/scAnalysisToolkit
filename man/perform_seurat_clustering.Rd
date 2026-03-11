@@ -81,7 +81,7 @@ List with elements:
 \item{seurat}{Processed Seurat object with clusters}
 \item{resolution_plot}{Grid of UMAP plots for all resolutions}
 \item{detailed_plots}{List of detailed plots for selected resolution or NULL}
-\item{top_genes_plot}{Marker gene analysis results or NULL}
+\item{top_genes_results}{Marker gene analysis results or NULL}
 \item{dimensions}{Number of dimensions used}
 \item{resolutions}{Resolutions tested}
 \item{selected_resolution}{Resolution selected for detailed analysis}

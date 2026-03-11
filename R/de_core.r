@@ -248,9 +248,9 @@ DEG_FindMarkers_RNA_assay_de <- function(scRNAseq, comparison, group1, group2,
     counts_CPM <- scRNAseq_CPM |> GetAssayData(assay = 'RNA', layer = 'data') |>
                             as.data.frame() |>
                             rownames_to_column(var = 'gene') |>
-                            mutate(
-                                !!paste0('Avg_', group2) := !!as.name(group2),
-                                !!paste0('Avg_', group1) := !!as.name(group1)
+                            rename(
+                                !!paste0('Avg_', group2) := all_of(as.character(group2)),
+                                !!paste0('Avg_', group1) := all_of(as.character(group1))
                             )
 
     # Add gene annotations
@@ -360,19 +360,21 @@ DEG_FindMarkers_SCT_assay_de <- function(scRNAseq, comparison, group1, group2, i
                           assay = 'SCT', slot = 'data', test.use = 'wilcox',
                           recorrect_umi = !is_integrated_subset, min.pct = min_fraction)
 
+
     # Aggregate expression and calculate CPMs
     scRNAseq_CPM <- scRNAseq |> AggregateExpression(group.by = c(comparison),
                                                      assays = 'SCT',
                                                      slot = 'counts')
+
+
     # Calculating CPMs
     counts_CPM <- scRNAseq_CPM$SCT |>
         as.data.frame() |>
-        rename_with( ~ gsub("-", "_", .x, fixed = TRUE)) |>
         mutate(across(where(is.numeric), ~ .x / sum(.x) * 1e6)) |>
         rownames_to_column(var = 'gene') |>
-        mutate(
-            !!paste0('Avg_', group2) := !!as.name(group2),
-            !!paste0('Avg_', group1) := !!as.name(group1)
+        rename(
+            !!paste0('Avg_', group2) := all_of(as.character(group2) |> str_replace_all('_', '-')),
+            !!paste0('Avg_', group1) := all_of(as.character(group1)|> str_replace_all('_', '-'))
         )
 
     # Add gene annotations

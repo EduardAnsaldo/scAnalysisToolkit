@@ -7,7 +7,8 @@
 plot_deg_counts(
   deg_counts_df,
   figures_path,
-  title = "Differentially Expressed Genes by Cell Type",
+  title = NULL,
+  data_type = c("genes", "peaks", "motifs", "dorcs"),
   width = 10,
   height = 6,
   up_color = "#E64B35",

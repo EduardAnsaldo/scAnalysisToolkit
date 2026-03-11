@@ -653,7 +653,7 @@ analyze_figr_results <- function(figR.d,
       p3 <- CoveragePlot(
       seurat,
       region = gene,
-      group.by = 'seurat_clusters_atac',
+      group.by = cluster_ident,
       extend.upstream = 50000,
       extend.downstream = 50000
       )
@@ -768,7 +768,7 @@ plotfigRHeatmap_EA <- function(figR.d,
 #'   \itemize{
 #'     \item Gene names as row names
 #'     \item p_val: Raw p-values from differential testing
-#'     \item avg_diff: Average difference in activity between clusters
+#'     \item avg_log2FC: Average difference in activity between clusters
 #'     \item pct.1: Percentage of cells in cluster_id with detected activity
 #'     \item pct.2: Percentage of cells in other_cluster_id with detected activity
 #'     \item p_val_adj: Bonferroni-corrected p-values
@@ -779,23 +779,26 @@ plotfigRHeatmap_EA <- function(figR.d,
 #' \enumerate{
 #'   \item Sets the default assay to 'DORCs' and identities to specified column
 #'   \item Runs FindMarkers using Wilcoxon rank sum test on the DORCs assay
-#'   \item Identifies top upregulated genes (avg_diff > 0, padj < 0.05)
-#'   \item Identifies top downregulated genes (avg_diff < 0, padj < 0.05)
+#'   \item Identifies top upregulated genes (avg_log2FC > 0, padj < 0.05)
+#'   \item Identifies top downregulated genes (avg_log2FC < 0, padj < 0.05)
 #'   \item Generates a volcano plot of differential activity (saved to figures_path)
 #'   \item Creates side-by-side DORC and RNA expression plots for top upregulated genes
 #'   \item Creates side-by-side DORC and RNA expression plots for top downregulated genes
 #'   \item Saves all individual gene plots as PNG files to figures_path
 #' }
 #'
+#' @examples
+#' \dontrun{
 #' # View top differentially active genes
 #' head(results)
 #' }
+#'
 #'
 #' @seealso 
 #' \code{\link[Seurat]{FindMarkers}} for differential expression testing
 #' 
 #' @export
-compare_DORC_scores_pairwise <- function(seurat, dorcMat.s, umap.d, cluster_id, other_cluster_id, figures_path, identities='seurat_clusters_atac', topn=9,  ...) {
+compare_DORC_scores_pairwise <- function(seurat, dorcMat.s, umap.d, cluster_id, other_cluster_id, figures_path, identities='seurat_clusters_atac', topn=9,  cluster = NULL, ...) {
   
   # Set the default assay to  DORCs  for motif activity analysis
   # and update cell identities to the specified metadata column
@@ -809,16 +812,18 @@ compare_DORC_scores_pairwise <- function(seurat, dorcMat.s, umap.d, cluster_id, 
     ident.1 = cluster_id,
     ident.2 = other_cluster_id,
     assay = 'DORCs',
-    slot = 'data',
+    slot = 'counts',
     only.pos = FALSE,
-    fc.name = 'avg_diff'
+    # fc.name = 'avg_log2FC',
+    test.use = 'wilcox',
+    fc.slot = 'counts'
   )
 
-  # Extract top upregulated genes (positive avg_diff) with significant adjusted p-values
+  # Extract top upregulated genes (positive avg_log2FC) with significant adjusted p-values
   # Filter for positive fold change, significant p-value, sort by significance,
   # and select the top n genes
   top_motif_activities_up <- differential_activity |> 
-    filter(avg_diff > 0) |> 
+    filter(avg_log2FC > 0) |> 
     filter(p_val_adj < 0.05) |>
     arrange(p_val_adj) |>
     slice_head(n = topn) |>
@@ -826,11 +831,11 @@ compare_DORC_scores_pairwise <- function(seurat, dorcMat.s, umap.d, cluster_id, 
     pull(gene) |> 
     unique()
 
-  # Extract top downregulated genes (negative avg_diff) with significant adjusted p-values
+  # Extract top downregulated genes (negative avg_log2FC) with significant adjusted p-values
   # Filter for negative fold change, significant p-value, sort by significance,
   # and select the top n genes
   top_motif_activities_down <- differential_activity |> 
-    filter(avg_diff < 0) |> 
+    filter(avg_log2FC < 0) |> 
     filter(p_val_adj < 0.05) |>
     arrange(p_val_adj) |>
     slice_head(n = topn) |>
@@ -842,10 +847,11 @@ compare_DORC_scores_pairwise <- function(seurat, dorcMat.s, umap.d, cluster_id, 
   # Rename columns to match expected input format
   differential_activity_cluster <- differential_activity |> 
     rownames_to_column(var = 'genes') |>
-    rename(log2FoldChange = avg_diff, pvalue = p_val, padj = p_val_adj)
+    rename(log2FoldChange = avg_log2FC, pvalue = p_val, padj = p_val_adj)
 
+  cluster_title  <- ifelse(is.null(cluster), paste0(cluster_id, ' vs ', other_cluster_id), cluster)
   # Generate volcano plot showing differential activity between clusters
-  plot <- volcano_plot(differential_activity_cluster, group1 = other_cluster_id, group2 = cluster_id, cluster = cluster_id, local_figures_path = figures_path, FC_threshold = 0.25, p_value_threshold = 0.05, test_type = 'Wilcox_ATAC', ...)
+  plot <- volcano_plot(differential_activity_cluster, group1 = other_cluster_id, group2 = cluster_id, cluster = cluster_title, local_figures_path = figures_path, FC_threshold = 0.25, p_value_threshold = 0.05, test_type = 'Wilcox_ChromVar_motif', ...)
 
   #################### UP ####################
 

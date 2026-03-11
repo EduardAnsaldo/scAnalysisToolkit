@@ -39,7 +39,7 @@
 #'   \item{seurat}{Processed Seurat object with clusters}
 #'   \item{resolution_plot}{Grid of UMAP plots for all resolutions}
 #'   \item{detailed_plots}{List of detailed plots for selected resolution or NULL}
-#'   \item{top_genes_plot}{Marker gene analysis results or NULL}
+#'   \item{top_genes_results}{Marker gene analysis results or NULL}
 #'   \item{dimensions}{Number of dimensions used}
 #'   \item{resolutions}{Resolutions tested}
 #'   \item{selected_resolution}{Resolution selected for detailed analysis}
@@ -124,7 +124,7 @@ perform_seurat_clustering <- function(
 
     # If a specific resolution is selected, generate detailed plots
     detailed_plots <- NULL
-    top_genes_plot <- NULL
+    top_genes_results <- NULL
     if (!is.null(selected_resolution)) {
         Idents(seurat) <- paste0('SCT_snn_res.', selected_resolution)
         seurat[['seurat_clusters']] <- Idents(seurat)
@@ -164,7 +164,7 @@ perform_seurat_clustering <- function(
         walk(detailed_plots, print)
 
         # Top genes per cluster
-        top_genes_plot <- top_genes_per_cluster(
+        top_genes_results <- top_genes_per_cluster(
             seurat,
             n_genes_to_plot = n_genes_to_plot,
             object_annotations = object_annotations,
@@ -179,7 +179,7 @@ perform_seurat_clustering <- function(
         if (!is.null(figures_path)) {
             ggsave(
                 paste0(figures_path, 'DotPlot_Top', n_genes_to_plot, '_per_cluster_', object_annotations, '.pdf'),
-                plot = top_genes_plot$plot,
+                plot = top_genes_results$plot,
                 width = 8,
                 height = 14
             )
@@ -219,7 +219,7 @@ perform_seurat_clustering <- function(
         seurat = seurat,
         resolution_plot = resolution_plot,
         detailed_plots = detailed_plots,
-        top_genes_plot = top_genes_plot,
+        top_genes_results = top_genes_results,
         dimensions = dimensions,
         resolutions = resolutions,
         selected_resolution = selected_resolution
@@ -243,7 +243,9 @@ perform_seurat_clustering <- function(
 #' @param object_annotations Character; string to append to output file names. Default ''
 #' @param plot_grouping Character; type of plot to generate. "Samples" creates a grouped
 #'   bar plot with individual sample points (default), "Groups" creates a stacked bar plot
-#'   showing the composition of experimental groups within each cluster/cell type. Default "Samples"
+#'   showing the composition of experimental groups within each cluster/cell type, "grouping_var"
+#'   creates a stacked bar plot showing the composition of clusters/cell types within each
+#'   experimental group (same as "Groups" but with x-axis and fill variables switched). Default "Samples"
 #'
 #' @return Invisibly returns NULL. Creates output files:
 #'   \itemize{
@@ -312,8 +314,18 @@ extract_cell_counts <- function(seurat, grouping_var, figures_path, tables_path,
             theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
         ggsave(plot = plot2, filename =  paste0(englue('composition_of_groups_per_{{grouping_var}} '), object_annotations, '.pdf'), width = 10, height = 6, path = figures_path)
         print(plot2)
+    } else if (plot_grouping == "grouping_var") {
+        # Stacked bar plot showing composition of grouping_var within each Group (switched axes)
+        plot2 <- ggplot(seurat@meta.data, aes(x=Groups, fill={{grouping_var}})) +
+            geom_bar(position=position_fill()) +
+            scale_y_continuous(labels = scales::percent_format(), expand = expansion(mult = c(0, 0.01))) +
+            theme_classic() +
+            labs(x = 'Groups', y = 'Frequency (%)', title = englue('Composition of {{grouping_var}} per Group'), fill = englue('{{grouping_var}}')) +
+            theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+        ggsave(plot = plot2, filename =  paste0(englue('composition_of_{{grouping_var}}_per_group '), object_annotations, '.pdf'), width = 10, height = 6, path = figures_path)
+        print(plot2)
     } else {
-        stop("plot_grouping must be either 'Samples' or 'Groups'")
+        stop("plot_grouping must be either 'Samples', 'Groups', or 'grouping_var'")
     }
 }
 #' Process Multimodal Seurat Object with RNA and ATAC Data

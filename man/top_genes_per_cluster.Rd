@@ -13,6 +13,7 @@ top_genes_per_cluster(
   figures_path = "results/figures/",
   results_path = "results/",
   run_pathway_enrichment = NULL,
+  n_genes_for_enrichment = 100,
   filter_ig = FALSE,
   filter_tcr = FALSE,
   ...
@@ -38,6 +39,9 @@ Default ''}
 
 \item{run_pathway_enrichment}{Character vector; enrichment methods to run
 ('Metascape', 'ClusterProfiler', or NULL). Default NULL}
+
+\item{n_genes_for_enrichment}{Integer; number of top marker genes per cluster to use
+for pathway enrichment analysis. Default 100}
 
 \item{filter_ig}{Logical; whether to filter out immunoglobulin genes (Igh, Igl, Igk)
 from FindAllMarkers results. Default FALSE}

@@ -174,6 +174,8 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
         plot_title <- paste0(test_type, ' DEGs in ', str_replace(cluster,pattern = '_',replace = ' ') )
     }
 
+    x_axis_title <- ifelse(test_type == 'Wilcox_ChromVar_motif', paste('Z score difference (', group2, ' - ', group1, ')', sep=''), paste('Average log2 FC (', group2, '/', group1, ')', sep=''))
+
     # Set colors for the plot
     names(my_colors) <- c("DOWN", "UP", "NO")
 
@@ -272,7 +274,7 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
         geom_hline(yintercept=-1*log10(p_value_threshold), col="lavenderblush2", linetype=2, size=0.5)+
         theme(text=element_text(size=20), legend.position="none")+
         labs(title=plot_title,
-                    x=paste('Average log2 FC (', group2, '/', group1, ')', sep=''),
+                    x=x_axis_title,
                     y= '-Log10 Adj. p-value')+
         theme_classic(base_size = 28, base_line_size=1) +
         theme(legend.position="none",
@@ -305,7 +307,20 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
 #' @return A ggplot object
 #'
 #' @export
-plot_deg_counts <- function(deg_counts_df, figures_path, title = 'Differentially Expressed Genes by Cell Type', width = 10, height = 6, up_color = '#E64B35', down_color = '#4DBBD5') {
+plot_deg_counts <- function(deg_counts_df, figures_path, title = NULL, data_type = c('genes', 'peaks', 'motifs', 'dorcs'), width = 10, height = 6, up_color = '#E64B35', down_color = '#4DBBD5') {
+
+    # Validate data_type
+    data_type <- match.arg(data_type)
+
+    # Set default title based on data_type if not provided
+    if (is.null(title)) {
+        title <- switch(data_type,
+            genes = 'Differentially Expressed Genes by Cell Type',
+            peaks = 'Differentially Accessible Peaks by Cell Type',
+            motifs = 'Differential Motif Activities by Cell Type',
+            dorcs = 'Differential DORCs by Cell Type'
+        )
+    }
 
     # Validate input
     required_cols <- c('cell_type', 'UP_count', 'DOWN_count')

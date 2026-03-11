@@ -8,6 +8,7 @@ compare_motive_activity_pairwise(
   seurat,
   cluster_id,
   other_cluster_id,
+  cluster_title = NULL,
   figures_path,
   identities = "seurat_clusters_atac",
   reduction = "umap.wnn",

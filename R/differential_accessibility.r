@@ -100,7 +100,7 @@ top_peaks_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
             metascape_results <- Metascape_functional_analysis_cluster_identification(seurat, top100, identities = grouping_var, path=results_path, object_annotations = object_annotations)
         }
         if ('ClusterProfiler' %in% run_pathway_enrichment) {
-            ClusterProfiler_results <- GO_functional_analysis_cluster_identification(seurat, da_peaks, path=results_path, object_annotations = object_annotations, identities = grouping_var, top_gene_number = 100, ...)
+            ClusterProfiler_results <- pathway_functional_analysis_cluster_identification(seurat, da_peaks, path=results_path, object_annotations = object_annotations, identities = grouping_var, top_gene_number = 100, ...)
         }
 
     }

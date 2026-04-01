@@ -31,9 +31,9 @@ run_DEG_functional_analysis <- function(results,
   res <- lapply(method, function(m) {
     switch(m,
            ClusterProfiler = {
-             if (exists("GO_functional_analysis", mode = "function")) {
-               GO_functional_analysis(results = results, ...)
-             } else stop("GO_functional_analysis not found")
+             if (exists("pathway_functional_analysis", mode = "function")) {
+               pathway_functional_analysis(results = results, ...)
+             } else stop("pathway_functional_analysis not found")
            },
            Metascape = {
              if (exists("Metascape_functional_analysis", mode = "function")) {
@@ -81,9 +81,9 @@ run_overrepresentation_analysis <- function(genes,
   res <- lapply(method, function(m) {
     switch(m,
            ClusterProfiler = {
-             if (exists("GO_overrepresentation_analysis", mode = "function")) {
-               GO_overrepresentation_analysis(genes, ...)
-             } else stop("GO_overrepresentation_analysis_overrepresentation_analysis not found")
+             if (exists("pathway_overrepresentation_analysis", mode = "function")) {
+               pathway_overrepresentation_analysis(genes, ...)
+             } else stop("pathway_overrepresentation_analysis not found")
            },
            gProfiler2 = {
              if (exists("gProfiler2_overrepresentation_analysis", mode = "function")) {

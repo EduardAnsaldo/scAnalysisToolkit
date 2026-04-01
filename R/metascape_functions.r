@@ -90,6 +90,7 @@ if (nrow(enrichment_results) > 1) {
      #    print(plot2)
      ggsave(plot = plot2, filename = paste0(filename, '_Pathway_enrichment_analysis_metascape', '.pdf'), width = 6, height = 6, path = local_path)
      return(plot2)
+     
      } else {
           return(create_no_data_plot())
      }

@@ -297,7 +297,7 @@ top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
             metascape_results <- Metascape_functional_analysis_cluster_identification(seurat, top_for_enrichment, identities = 'seurat_clusters', path=results_path, object_annotations = object_annotations)
         }
         if ('ClusterProfiler' %in% run_pathway_enrichment) {
-            ClusterProfiler_results <- GO_functional_analysis_cluster_identification(seurat, seurat.markers, path=results_path, object_annotations = object_annotations, top_gene_number = n_genes_for_enrichment, ...)
+            ClusterProfiler_results <- pathway_functional_analysis_cluster_identification(seurat, seurat.markers, path=results_path, object_annotations = object_annotations, top_gene_number = n_genes_for_enrichment, ...)
         }
 
     }

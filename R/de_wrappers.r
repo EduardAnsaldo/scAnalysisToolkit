@@ -241,7 +241,8 @@ DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, clus
     return(c(
         all_count = de_results$all_count,
         UP_count = de_results$UP_count,
-        DOWN_count = de_results$DOWN_count
+        DOWN_count = de_results$DOWN_count,
+        results = de_results$results
     ))
 }
 
@@ -500,7 +501,8 @@ bulk_analysis <- function(counts_table, comparison = 'Groups', group1, group2, c
         return(c(
             all_count = de_results$all_count,
             UP_count = de_results$UP_count,
-            DOWN_count = de_results$DOWN_count
+            DOWN_count = de_results$DOWN_count,
+            results = de_results$results
         ))
     }
 
@@ -554,6 +556,7 @@ bulk_analysis <- function(counts_table, comparison = 'Groups', group1, group2, c
     return(c(
         all_count = de_results$all_count,
         UP_count = de_results$UP_count,
-        DOWN_count = de_results$DOWN_count
+        DOWN_count = de_results$DOWN_count,
+        results = de_results$results
     ))
 }

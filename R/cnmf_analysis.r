@@ -236,7 +236,7 @@ run_cnmf_results <- function (
         if ('ClusterProfiler' %in% run_pathway_enrichment) {
             all_genes <- Features(seurat[['RNA']]) |>unique()
             gene_list <- top_colnames |> as.list() |>  map(~ .x[!is.na(.x)])
-            over_representation_results <- GO_overrepresentation_analysis_multiple_lists(gene_list, all_genes, local_path_pathway_enrichment, ontology = 'ALL', minGSSize = 5, maxGSSize = 400, filename = '',  drop_levels = F, levels_to_drop = c(), simplify_function = min, simplify_by = 'p.adjust', simplify_terms = F, run_network = F, network_n_terms = 100, nterms_to_plot = 5, font_size = 8, ...)
+            over_representation_results <- pathway_overrepresentation_analysis_multiple_lists(gene_list, all_genes, local_path_pathway_enrichment, minGSSize = 5, maxGSSize = 400, filename = '', nterms_to_plot = 5, font_size = 8, ...)
         }
     }
 

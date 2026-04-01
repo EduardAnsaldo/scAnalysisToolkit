@@ -10,7 +10,10 @@ run_cellchat_analysis(
   species = "mouse",
   smooth_data = FALSE,
   subset_cell_groups = NULL,
+  subset_db = NULL,
   min_cells = 10,
+  method = "triMean",
+  trim = 0.1,
   use_parallel = TRUE,
   n_workers = 10,
   max_memory_mb = 4000,
@@ -26,9 +29,12 @@ run_cellchat_analysis(
 
 \item{species}{Character string, either "mouse" or "human"}
 
-\item{smooth_data}{Logical, whether to smooth data using PPI network}
+\item{smooth_data}{Logical, whether to smooth data using PPI networkw}
 
 \item{subset_cell_groups}{Character vector of cell groups to subset, or NULL for all}
+
+\item{subset_db}{Character string to filter database interactions, or NULL for all.
+Common values: "Cell-Cell Contact", "ECM-Receptor", "Secreted Signaling"}
 
 \item{min_cells}{Integer, minimum number of cells required for communication}
 

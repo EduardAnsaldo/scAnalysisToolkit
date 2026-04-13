@@ -17,6 +17,7 @@ DEG_FindMarkers_SCT_assay_de(
   min_fraction = 0.01,
   expression_threshold_for_gene_list = 20,
   minimum_cell_number = 30,
+  exclude_sex_chr_genes = FALSE,
   ...
 )
 }
@@ -46,6 +47,9 @@ subset objects. Default FALSE}
 Default 20}
 
 \item{minimum_cell_number}{Integer; minimum cells required per group. Default 30}
+
+\item{exclude_sex_chr_genes}{Logical; if TRUE, removes mouse sex chromosome genes
+from results to avoid false positives from sex imbalance. Default FALSE}
 
 \item{...}{Additional arguments (unused)}
 }

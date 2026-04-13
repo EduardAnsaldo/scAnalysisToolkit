@@ -12,7 +12,7 @@ scatterplot(
   FC_threshold,
   p_value_threshold,
   cluster = "all_clusters",
-  my_colors = c("green4", "darkorchid4", "gray"),
+  my_colors = c("#4DBBD5", "#E64B35", "gray"),
   max_overlaps = 15,
   label_size = 5,
   label_threshold = 10000,
@@ -39,8 +39,7 @@ padj, pvalue, Avg_group1, Avg_group2}
 
 \item{cluster}{Character; cluster or cell type identifier. Default 'all_clusters'}
 
-\item{my_colors}{Character vector of length 3; colors for DOWN, UP, NO.
-Default c('green4', 'darkorchid4', 'gray')}
+\item{my_colors}{Character vector of length 3; colors for DOWN, UP, NO.}
 
 \item{max_overlaps}{Integer; maximum label overlaps allowed. Default 15}
 

@@ -16,6 +16,7 @@ top_genes_per_cluster(
   n_genes_for_enrichment = 100,
   filter_ig = FALSE,
   filter_tcr = FALSE,
+  flip_axes = TRUE,
   ...
 )
 }

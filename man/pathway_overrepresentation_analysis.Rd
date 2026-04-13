@@ -12,7 +12,7 @@ pathway_overrepresentation_analysis(
   maxGSSize = 400,
   filename = "",
   group = "",
-  nterms_to_plot = 30,
+  nterms_to_plot = 12,
   font_size = 10,
   ...
 )

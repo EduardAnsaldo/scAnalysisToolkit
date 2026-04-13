@@ -22,9 +22,9 @@ DEG_FindMarkers_SCT_assay(
   distance_from_diagonal_threshold = 0.7,
   gene_lists_to_plot = NULL,
   expression_threshold_for_gene_list = 20,
-  colors = c("green4", "darkorchid4"),
   minimum_cell_number = 30,
   run_pathway_enrichment = NULL,
+  exclude_sex_chr_genes = FALSE,
   ...
 )
 }
@@ -65,12 +65,12 @@ for labeling in scatterplot. Default 0.7}
 \item{expression_threshold_for_gene_list}{Numeric; minimum expression for gene list
 filtering. Default 20}
 
-\item{colors}{Character vector of length 2; colors for DOWN and UP genes.
-Default c('green4', 'darkorchid4')}
-
 \item{minimum_cell_number}{Integer; minimum cells required per group. Default 30}
 
 \item{run_pathway_enrichment}{Character; method for pathway enrichment or NULL. Default NULL}
+
+\item{exclude_sex_chr_genes}{Logical; if TRUE, removes mouse sex chromosome genes
+from results to avoid false positives from sex imbalance. Default FALSE}
 
 \item{...}{Additional arguments passed to core analysis and visualization functions}
 }

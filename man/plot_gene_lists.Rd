@@ -10,7 +10,6 @@ plot_gene_lists(
   group1,
   group2,
   cluster,
-  my_colors,
   local_figures_path,
   FC_threshold,
   p_value_threshold,
@@ -32,8 +31,6 @@ plot_gene_lists(
 \item{group2}{Character; second comparison group}
 
 \item{cluster}{Character; cluster identifier}
-
-\item{my_colors}{Named character vector; colors for plot}
 
 \item{local_figures_path}{Character; path to save figures}
 

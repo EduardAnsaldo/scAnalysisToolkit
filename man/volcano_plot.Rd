@@ -14,7 +14,7 @@ volcano_plot(
   p_value_threshold,
   max_overlaps = 15,
   label_size = 5,
-  my_colors = c("green4", "darkorchid4", "gray"),
+  my_colors = c("#4DBBD5", "#E64B35", "gray"),
   test_type = c("Wilcox", "Pseudobulk", "Bulk", "Wilcox_ATAC",
     "Wilcox_ATAC_closest_genes", "Wilcox_ChromVar_motif"),
   genes_to_plot = NULL,
@@ -43,8 +43,7 @@ padj, pvalue}
 
 \item{label_size}{Numeric; size of gene labels. Default 5}
 
-\item{my_colors}{Character vector of length 3; colors for DOWN, UP, NO.
-Default c('green4', 'darkorchid4', 'gray')}
+\item{my_colors}{Character vector of length 3; colors for DOWN, UP, NO.}
 
 \item{test_type}{Character; type of test. Options: 'Wilcox', 'Pseudobulk', 'Bulk',
 'Wilcox_ATAC', 'Wilcox_ATAC_closest_genes'}

@@ -7,6 +7,8 @@
 plot_deg_counts(
   deg_counts_df,
   figures_path,
+  group2 = NULL,
+  group1 = NULL,
   title = NULL,
   data_type = c("genes", "peaks", "motifs", "dorcs"),
   width = 10,

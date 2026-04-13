@@ -57,7 +57,7 @@ run_cnmf_results <- function (
 
     # 1) optionally run cNMF consensus
     if (isTRUE(do_cnmf)) {
-        cmd <- paste("cnmf consensus --output-dir", data_dir,
+        cmd <- paste("conda run -n cNMF cnmf consensus --output-dir", data_dir,
                                  "--name", runname,
                                  "--components", k_used,
                                  "--local-density-threshold", local_density_threshold,
@@ -113,7 +113,10 @@ run_cnmf_results <- function (
 
 
     signature_violin_plot <- function (signature) {
-        plot1 <- VlnPlot(seurat, features = paste0(signature, ''), group.by = 'Groups', pt.size = 0) + labs(title = signature) + NoLegend()
+        plot1 <- VlnPlot(seurat, features = paste0(signature, ''), group.by = 'Groups', pt.size = 0) + labs(title = signature) + NoLegend() +
+            labs(x = NULL) +
+            stat_summary(fun.data = mean_sdl, fun.args = list(mult = 1), geom = "crossbar", width = 0.25, color = "black", fatten = 0.8, size = 0.4) +
+            stat_summary(fun = mean, geom = "point", color = "black", size = 1.5) 
         # print(plot1)
         ggsave(plot = plot1, filename = paste0('VlnPlot_', k_used, signature, '_by_group_', object_annotations, '.pdf'), path = output_path, width = 5, height = 4)
         return(plot1)
@@ -203,7 +206,8 @@ run_cnmf_results <- function (
             axis.text.y = element_text(),
             plot.title = element_text(hjust = 0.5, size = 14)
         ) +
-        labs(x = NULL, y = NULL, title = 'Top genes per\nGene Expression Program')
+        labs(x = NULL, y = NULL, title = 'Top genes per\nGene Expression Program') + 
+            coord_flip()
     print(heatmap_plot)
 
     # 10)  overrepresentation analysis per program
@@ -211,32 +215,36 @@ run_cnmf_results <- function (
         dir.create(local_path_pathway_enrichment, recursive = TRUE, showWarnings = FALSE)
         over_representation_results <- NULL
         # Run pathway enrichment analysis
+    
     if (!is.null(run_pathway_enrichment)) {
-        if ('Metascape' %in% run_pathway_enrichment) {
-            plot_list <- list()
-            for (gene_expression_program in colnames(top_colnames)) {
-                local_path_2 <- here::here(local_path_pathway_enrichment, gene_expression_program)
-                dir.create(local_path_2, recursive = TRUE, showWarnings = FALSE)
-                plot_list[[gene_expression_program]] <- Metascape_overrepresentation_analysis(top_colnames |> dplyr::pull(gene_expression_program),
-                            local_path = local_path_2,
-                            group = gene_expression_program,
-                            filename = paste0(gene_expression_program, '_'),
-                            grouping_var = 'GEP',
-                            nterms_to_plot_metascape = 20, ...)
-                }
-            }
-        plots <- wrap_plots(plot_list) &
-            theme(plot.title = element_text(size = 9, hjust = 0.5),
-                axis.text.y = element_text(size = 6),
-                axis.text.x = element_text(size = 6),
-                axis.title.x  = element_text(size = 7),
-            axis.title.y  = element_text(size = 7))
-        print(plots)
+        
+        # if ('Metascape' %in% run_pathway_enrichment) {
+        #     plot_list <- list()
+        #     for (gene_expression_program in colnames(top_colnames)) {
+        #         local_path_2 <- here::here(local_path_pathway_enrichment, gene_expression_program)
+        #         dir.create(local_path_2, recursive = TRUE, showWarnings = FALSE)
+        #         plot_list[[gene_expression_program]] <- Metascape_overrepresentation_analysis(top_colnames |> dplyr::pull(gene_expression_program),
+        #                     local_path = local_path_2,
+        #                     group = gene_expression_program,
+        #                     filename = paste0(gene_expression_program, '_'),
+        #                     grouping_var = 'GEP',
+        #                     nterms_to_plot_metascape = 20, ...)
+        #         }
+        #         plots <- wrap_plots(plot_list) &
+        #     theme(plot.title = element_text(size = 9, hjust = 0.5),
+        #         axis.text.y = element_text(size = 6),
+        #         axis.text.x = element_text(size = 6),
+        #         axis.title.x  = element_text(size = 7),
+        #     axis.title.y  = element_text(size = 7))
+        # print(plots)
+        #     }
 
+        
         if ('ClusterProfiler' %in% run_pathway_enrichment) {
             all_genes <- Features(seurat[['RNA']]) |>unique()
             gene_list <- top_colnames |> as.list() |>  map(~ .x[!is.na(.x)])
             over_representation_results <- pathway_overrepresentation_analysis_multiple_lists(gene_list, all_genes, local_path_pathway_enrichment, minGSSize = 5, maxGSSize = 400, filename = '', nterms_to_plot = 5, font_size = 8, ...)
+            print(over_representation_results$plot)
         }
     }
 

@@ -21,7 +21,7 @@
 #' @return Invisible NULL; creates CSV files and PDF plots
 #'
 #' @export
-pathway_overrepresentation_analysis <- function (significant_genes, all_genes, local_path, minGSSize = 5, maxGSSize = 400, filename = '', group = '', nterms_to_plot = 30, font_size = 10,  ...)  {
+pathway_overrepresentation_analysis <- function (significant_genes, all_genes, local_path, minGSSize = 5, maxGSSize = 400, filename = '', group = '', nterms_to_plot = 12, font_size = 10,  ...)  {
 
      set_enrichment_color_scale()
 
@@ -65,10 +65,10 @@ pathway_overrepresentation_analysis <- function (significant_genes, all_genes, l
                     qvalueCutoff = 0.25,
                     TERM2GENE = msigdbr_pathways)
 
-     enrichment_results_table <- as_tibble(enrichment_results)
+     enrichment_results_table <- as_tibble(enrichment_results) 
      write.csv(enrichment_results_table, here::here(local_path, paste0(filename,'Pathway_OverRepresentation_analysis_results.csv')))
 
-     colnames(enrichment_results_table) |> print()
+     # colnames(enrichment_results_table) |> print()
 
      # if (nrow(enrichment_results_table) > 1) {
      #      p1 <- enrichplot::dotplot(enrichment_results,
@@ -83,17 +83,22 @@ pathway_overrepresentation_analysis <- function (significant_genes, all_genes, l
      #      print(p1)
      # }
 
+
      if (nrow(enrichment_results_table) > 1) {
           p1 <- enrichment_results_table |>       
                mutate(log_q_value = -log10(qvalue)) |>
                slice_max(order_by = log_q_value, n = nterms_to_plot) |>
           ggplot(aes(x = log_q_value, y = fct_reorder(Description, log_q_value , .desc = F), fill = log_q_value)) +
                geom_col(width = 0.7) +
-               scale_fill_binned(palette = grDevices::hcl.colors(n = 6, 'YlOrRd', rev = T), breaks = c(2, 4, 6, 10, 20)) +
+               scale_fill_stepsn(
+                    colours = grDevices::hcl.colors(n = 6, 'YlOrRd', rev = TRUE),
+                    breaks  = c(2, 4, 6, 10, 20),
+                    limits  = c(0, 20)   # set explicit limits so boundary values don't fall outside
+                    ) + 
                labs(x = '-log10(p-value)', y = '', title = paste0(filename,'Pathways UP in ', group)) +
                theme_minimal() +
                scale_y_discrete(labels = function(x) stringr::str_trunc(x, 60)) + 
-               theme(axis.text.y = element_text(size = 9), title = element_text(size = 16), plot.title.position = 'plot', legend.position = 'none', axis.text.x = element_text(size = 10))
+               theme(axis.text.y = element_text(size = 8), title = element_text(size = 16), plot.title.position = 'plot', legend.position = 'none', axis.text.x = element_text(size = 8))
      #    print(plot2)
      ggsave(plot = p1, filename = paste0(filename, '_Pathway_enrichment_analysis_metascape', '.pdf'), width = 6, height = 6, path = local_path)
      print(p1)

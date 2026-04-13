@@ -173,6 +173,7 @@ perform_seurat_clustering <- function(
             results_path = results_path,
             run_pathway_enrichment = run_pathway_enrichment,
             filter_ig = filter_ig,
+            flip_axes = FALSE,
             filter_tcr = filter_tcr
         )
 

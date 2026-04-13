@@ -184,7 +184,7 @@ annotate_seurat_with_SingleR_Eduard <- function(
 #'   \item{top100}{Data frame; top 100 markers per cluster}
 #'
 #' @export
-top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = 'seurat_clusters', object_annotations = '', tables_path = 'results/tables/', figures_path = 'results/figures/', results_path = 'results/', run_pathway_enrichment = NULL, n_genes_for_enrichment = 100, filter_ig = FALSE, filter_tcr = FALSE, ...) {
+top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = 'seurat_clusters', object_annotations = '', tables_path = 'results/tables/', figures_path = 'results/figures/', results_path = 'results/', run_pathway_enrichment = NULL, n_genes_for_enrichment = 100, filter_ig = FALSE, filter_tcr = FALSE, flip_axes = TRUE, ...) {
 
     sequential_palette_dotplot <- grDevices::hcl.colors(n = 20,'YlGn',rev = T)
 
@@ -278,7 +278,7 @@ top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
     plot1 <- DotPlot_scCustom(seurat,
                     features = gene_list_plot,
                     colors_use = hcl.colors(12, palette = "RdBu", rev = TRUE),
-                    flip_axes = T,
+                    flip_axes = flip_axes,
                     dot.scale = 8,
                     dot.min = 0,
                     scale.min = 0,

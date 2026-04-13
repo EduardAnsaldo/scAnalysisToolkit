@@ -48,22 +48,6 @@ set_enrichment_color_scale <- function() {
     options(enrichplot.colours = color_scale)
 }
 
-#' Create Color Palette for Differential Expression Plots
-#'
-#' Generates a named color vector for DE visualizations with colors for
-#' downregulated, upregulated, and non-significant genes.
-#'
-#' @param colors Character vector of length 2 with colors for DOWN and UP.
-#'   Default c('green4', 'darkorchid4')
-#'
-#' @return Named character vector with colors for "DOWN", "UP", and "NO"
-#'
-create_deg_colors <- function(colors = c('green4', 'darkorchid4')) {
-    my_colors <- c(colors, "gray")
-    names(my_colors) <- c("DOWN", "UP", "NO")
-    return(my_colors)
-}
-
 #' Add Gene Labels Layer for DE Plots
 #'
 #' Creates a geom_text_repel layer for adding gene labels to scatterplots
@@ -97,9 +81,10 @@ add_gene_labels_layer <- function(label_column, diffexpressed, label_size = 5,
         max.time = 10,
         max.iter = 10000000,
         nudge_x = nudge_x,
+        
         nudge_y = nudge_y,
         fontface = 'italic',
-        aes(label = !!sym(label_column), segment.size = 0.3, segment.alpha = 0.4, segment.curvature = 0)
+        aes(label = !!sym(label_column), segment.size = 0.3, segment.alpha = 0.8, segment.curvature = 0)
     )
 }
 
@@ -189,7 +174,6 @@ run_standard_enrichment <- function(results, run_pathway_enrichment,
 #' @param group1 Character; first comparison group
 #' @param group2 Character; second comparison group
 #' @param cluster Character; cluster identifier
-#' @param my_colors Named character vector; colors for plot
 #' @param local_figures_path Character; path to save figures
 #' @param FC_threshold Numeric; fold change threshold
 #' @param p_value_threshold Numeric; p-value threshold
@@ -203,7 +187,7 @@ run_standard_enrichment <- function(results, run_pathway_enrichment,
 #' @return NULL (invisibly); creates plot files
 #'
 plot_gene_lists <- function(results, gene_lists_to_plot, group1, group2,
-                           cluster, my_colors, local_figures_path,
+                           cluster, local_figures_path,
                            FC_threshold, p_value_threshold, test_type,
                            max_overlaps = 15, label_size = 5,
                            label_threshold = 100000,
@@ -216,7 +200,7 @@ plot_gene_lists <- function(results, gene_lists_to_plot, group1, group2,
 
         scatterplot(genes_to_plot = genes_to_plot, gene_list_name = gene_list,
                    results = results, group1 = group1, group2 = group2,
-                   cluster = cluster, my_colors = my_colors,
+                   cluster = cluster, 
                    local_figures_path = local_figures_path,
                    FC_threshold = FC_threshold, p_value_threshold = p_value_threshold,
                    max_overlaps = max_overlaps, label_size = label_size,
@@ -226,7 +210,7 @@ plot_gene_lists <- function(results, gene_lists_to_plot, group1, group2,
 
         volcano_plot(genes_to_plot = genes_to_plot, gene_list_name = gene_list,
                     results = results, group1 = group1, group2 = group2,
-                    cluster = cluster, my_colors = my_colors,
+                    cluster = cluster, 
                     local_figures_path = local_figures_path,
                     FC_threshold = FC_threshold, p_value_threshold = p_value_threshold,
                     max_overlaps = max_overlaps, label_size = label_size,

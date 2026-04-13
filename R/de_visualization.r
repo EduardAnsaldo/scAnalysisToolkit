@@ -16,7 +16,6 @@
 #' @param p_value_threshold Numeric; adjusted p-value threshold for significance
 #' @param cluster Character; cluster or cell type identifier. Default 'all_clusters'
 #' @param my_colors Character vector of length 3; colors for DOWN, UP, NO.
-#'   Default c('green4', 'darkorchid4', 'gray')
 #' @param max_overlaps Integer; maximum label overlaps allowed. Default 15
 #' @param label_size Numeric; size of gene labels. Default 5
 #' @param label_threshold Numeric; expression threshold for secondary labels. Default 10000
@@ -30,7 +29,7 @@
 #' @return A ggplot object
 #'
 #' @export
-scatterplot <- function (results, group1, group2, local_figures_path, FC_threshold, p_value_threshold, cluster = 'all_clusters', my_colors = c('green4', 'darkorchid4', 'gray'), max_overlaps = 15, label_size = 5, label_threshold = 10000, distance_from_diagonal_threshold = 0.5, test_type = c('Wilcox', 'Pseudobulk', 'Bulk'), genes_to_plot = NULL, pt_size = 1.3, ...) {
+scatterplot <- function (results, group1, group2, local_figures_path, FC_threshold, p_value_threshold, cluster = 'all_clusters', my_colors = c('#4DBBD5', '#E64B35', 'gray'), max_overlaps = 15, label_size = 5, label_threshold = 10000, distance_from_diagonal_threshold = 0.5, test_type = c('Wilcox', 'Pseudobulk', 'Bulk'), genes_to_plot = NULL, pt_size = 1.3, ...) {
 
     # Set colors for the plot
     names(my_colors) <- c("DOWN", "UP", "NO")
@@ -147,7 +146,6 @@ scatterplot <- function (results, group1, group2, local_figures_path, FC_thresho
 #' @param max_overlaps Integer; maximum label overlaps allowed. Default 15
 #' @param label_size Numeric; size of gene labels. Default 5
 #' @param my_colors Character vector of length 3; colors for DOWN, UP, NO.
-#'   Default c('green4', 'darkorchid4', 'gray')
 #' @param test_type Character; type of test. Options: 'Wilcox', 'Pseudobulk', 'Bulk',
 #'   'Wilcox_ATAC', 'Wilcox_ATAC_closest_genes'
 #' @param genes_to_plot Character vector; specific genes to highlight. Default NULL
@@ -159,9 +157,8 @@ scatterplot <- function (results, group1, group2, local_figures_path, FC_thresho
 #' @return A ggplot object
 #'
 #' @export
-volcano_plot <- function (results, group1, group2, cluster, local_figures_path, FC_threshold, p_value_threshold, max_overlaps = 15, label_size = 5, my_colors = c('green4', 'darkorchid4', 'gray'), test_type = c('Wilcox', 'Pseudobulk', 'Bulk', 'Wilcox_ATAC', 'Wilcox_ATAC_closest_genes', 'Wilcox_ChromVar_motif'), genes_to_plot = NULL, pt_size = 1.5, p_value_max = 600, ...) {
+volcano_plot <- function (results, group1, group2, cluster, local_figures_path, FC_threshold, p_value_threshold, max_overlaps = 15, label_size = 5, my_colors = c('#4DBBD5', '#E64B35', 'gray'), test_type = c('Wilcox', 'Pseudobulk', 'Bulk', 'Wilcox_ATAC', 'Wilcox_ATAC_closest_genes', 'Wilcox_ChromVar_motif'), genes_to_plot = NULL, pt_size = 1.5, p_value_max = 600, ...) {
 
-    # determine plot title
     test_type <- match.arg(test_type)
 
     if (test_type == 'Wilcox_ATAC') {
@@ -176,13 +173,11 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
 
     x_axis_title <- ifelse(test_type == 'Wilcox_ChromVar_motif', paste('Z score difference (', group2, ' - ', group1, ')', sep=''), paste('Average log2 FC (', group2, '/', group1, ')', sep=''))
 
-    # Set colors for the plot
     names(my_colors) <- c("DOWN", "UP", "NO")
 
     nudge_x <- 0
     nudge_y <- 0
 
-    ## prepare for visualization
     results_volcano <- results |>
         drop_na(pvalue) |>
         mutate(
@@ -206,12 +201,10 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
         ) |>
         mutate(
             diffexpressed = factor(diffexpressed, levels = c('NO', 'DOWN', 'UP'))
-
         ) |>
         arrange(diffexpressed)
 
-      # Replace genes to label with provided gene list if applicable
-      if (!is.null(genes_to_plot)) {
+    if (!is.null(genes_to_plot)) {
         results_volcano <- results_volcano |>
             mutate(
                 genes_to_label_UP = ifelse((
@@ -225,9 +218,8 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
             )
             nudge_x <- 3
             nudge_y <- 3
-      }
+    }
 
-    # Remove non-significant genes that would bias the plot visualization
     initial_number_of_genes <- nrow(results_volcano)
     max_FC_up_significant <- results_volcano |> filter(diffexpressed != 'NO') |> dplyr::select(log2FoldChange) |> max(na.rm = T)
     min_FC_up_significant <- results_volcano |> filter(diffexpressed != 'NO') |> dplyr::select(log2FoldChange) |> min(na.rm = T)
@@ -237,15 +229,55 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
     if (max_FC_up_significant  < 3 | is.na(max_FC_up_significant)) {
         max_FC_up_significant <- 3
     }
-    results_volcano <- results_volcano |> filter(!(diffexpressed == 'NO' & (log2FoldChange < min_FC_up_significant | log2FoldChange > max_FC_up_significant))) |>
+    results_volcano <- results_volcano |>
+        filter(!(diffexpressed == 'NO' & (log2FoldChange < min_FC_up_significant | log2FoldChange > max_FC_up_significant))) |>
         arrange(diffexpressed)
     final_number_of_genes <- nrow(results_volcano)
     message('Removed ', initial_number_of_genes-final_number_of_genes, ' non-significant genes that would bias the plot visualization')
 
+    # Compute y position for arrows: just above the top of the data
+    y_max <- max(results_volcano$log10_pval, na.rm = TRUE)
+    arrow_y      <- y_max * 1.1   # vertical position of the arrow line
+    arrow_x_end  <- max_FC_up_significant * 0.75  # how far the arrow extends
+    arrow_label_y <- y_max * 1.15  # vertical position of the text label
+
     volcano_plot <- results_volcano |>
         arrange(desc(padj)) |>
-        ggplot(aes(x=log2FoldChange, y=log10_pval,  col=diffexpressed)) +
+        ggplot(aes(x=log2FoldChange, y=log10_pval, col=diffexpressed)) +
         geom_point(size=pt_size, stroke = 0) +
+
+        # ── UP arrow (right, group2 color) ──────────────────────────────────
+        annotate('segment',
+            x    = 0.2,          xend = arrow_x_end,
+            y    = arrow_y,    yend = arrow_y,
+            color = my_colors[['UP']],
+            linewidth = 0.8,
+            arrow = arrow(length = unit(0.25, 'cm'), type = 'closed')
+        ) +
+        annotate('text',
+            x     = arrow_x_end / 2,
+            y     = arrow_label_y,
+            label = paste0('UP in ', group2),
+            color = my_colors[['UP']],
+            size  = 3, fontface = 'bold', hjust = 0.5
+        ) +
+
+        # ── DOWN arrow (left, group1 color) ─────────────────────────────────
+        annotate('segment',
+            x    = -0.2,           xend = -arrow_x_end,
+            y    = arrow_y,     yend = arrow_y,
+            color = my_colors[['DOWN']],
+            linewidth = 0.8,
+            arrow = arrow(length = unit(0.25, 'cm'), type = 'closed')
+        ) +
+        annotate('text',
+            x     = -arrow_x_end / 2,
+            y     = arrow_label_y,
+            label = paste0('UP in ', group1),
+            color = my_colors[['DOWN']],
+            size  = 3, fontface = 'bold', hjust = 0.5
+        ) +
+
         geom_text_repel(
             size=label_size,
             box.padding = 0.35,
@@ -255,7 +287,7 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
             max.iter = 10000000,
             nudge_x = nudge_x,
             nudge_y = nudge_y,
-            aes(label = genes_to_label_UP,segment.size=0.5, segment.alpha=0.8, segment.curvature=0),
+            aes(label = genes_to_label_UP, segment.size=0.5, segment.alpha=0.8, segment.curvature=0),
             fontface = 'italic') +
         geom_text_repel(
             size=label_size,
@@ -268,22 +300,22 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
             nudge_y = nudge_y,
             fontface = 'italic',
             aes(label = genes_to_label_DOWN, segment.size=0.5, segment.alpha=0.8, segment.curvature=0)) +
-        scale_colour_manual(values=my_colors)+
+        scale_colour_manual(values=my_colors) +
         geom_vline(xintercept= FC_threshold, col="lavenderblush2", linetype=2, size=0.5) +
         geom_vline(xintercept=-FC_threshold, col="lavenderblush2", linetype=2, size=0.5) +
-        geom_hline(yintercept=-1*log10(p_value_threshold), col="lavenderblush2", linetype=2, size=0.5)+
-        theme(text=element_text(size=20), legend.position="none")+
+        geom_hline(yintercept=-1*log10(p_value_threshold), col="lavenderblush2", linetype=2, size=0.5) +
+        theme(text=element_text(size=20), legend.position="none") +
         labs(title=plot_title,
-                    x=x_axis_title,
-                    y= '-Log10 Adj. p-value')+
+             x=x_axis_title,
+             y='-Log10 Adj. p-value') +
         theme_classic(base_size = 28, base_line_size=1) +
         theme(legend.position="none",
-            title = element_text(size=15),
-            axis.text= element_text(size=10),
-            axis.title= element_text(size=13),
-            )         +
-            scale_y_continuous(n.breaks = 8, expand = expansion(mult = c(0.01, 0.1))) +
-            scale_x_continuous(n.breaks = 8)
+              title      = element_text(size=15),
+              axis.text  = element_text(size=10),
+              axis.title = element_text(size=13)) +
+        scale_y_continuous(n.breaks = 8, expand = expansion(mult = c(0, 0.1))) +  # <-- slightly more top expansion for arrows
+        scale_x_continuous(n.breaks = 8)
+
     ggsave(plot = volcano_plot, filename = paste0(test_type, '_volcano_in_', cluster, '.pdf'), path = local_figures_path)
     print(volcano_plot)
     return(volcano_plot)
@@ -307,7 +339,7 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
 #' @return A ggplot object
 #'
 #' @export
-plot_deg_counts <- function(deg_counts_df, figures_path, title = NULL, data_type = c('genes', 'peaks', 'motifs', 'dorcs'), width = 10, height = 6, up_color = '#E64B35', down_color = '#4DBBD5') {
+plot_deg_counts <- function(deg_counts_df, figures_path, group2 = NULL, group1 = NULL, title = NULL, data_type = c('genes', 'peaks', 'motifs', 'dorcs'), width = 10, height = 6, up_color = '#E64B35', down_color = '#4DBBD5') {
 
     # Validate data_type
     data_type <- match.arg(data_type)
@@ -340,24 +372,33 @@ plot_deg_counts <- function(deg_counts_df, figures_path, title = NULL, data_type
         ) |>
         mutate(direction = factor(direction, levels = c("DOWN_count", "UP_count")))
 
+    # labels
+        if (!is.null(group1) & !is.null(group2)) {
+            title <- paste0('Differential ', data_type, ' in ', group2, ' vs. ', group1)
+            labels  <- c("UP_count" = paste0("Up in ", group2), "DOWN_count" = paste0("Up in ", group1))
+        } else {
+            title <- paste0('Differential ', data_type, ' by Cell Type')
+            labels  <- c("UP_count" = "Upregulated", "DOWN_count" = "Downregulated")
+        }
+
     # Create plot
     p <- ggplot(deg_counts_long, aes(x = count, y = cell_type, fill = direction)) +
         geom_col(position = position_dodge(width = 0.8), width = 0.7) +
         scale_fill_manual(
             values = c("UP_count" = up_color, "DOWN_count" = down_color),
-            labels = c("UP_count" = "Upregulated", "DOWN_count" = "Downregulated")
+            labels = labels
         ) +
         scale_x_continuous(breaks = scales::breaks_extended(n = 10)) +
         labs(
             title = title,
-            x = "Number of DEGs",
+            x = paste("Number of Differential", data_type),
             y = "Cell Type",
             fill = "Direction"
         ) +
-        theme_minimal(base_size = 16) +
+        theme_classic(base_size = 16) +        
         theme(
             legend.position = "top",
-            legend.text = element_text(size = 14),
+            legend.text = element_text(swize = 14),
             legend.title = element_text(size = 15, face = "bold"),
             axis.text.x = element_text(size = 13),
             axis.text.y = element_text(size = 13),
@@ -372,5 +413,5 @@ plot_deg_counts <- function(deg_counts_df, figures_path, title = NULL, data_type
     ggsave(paste0(figures_path, '/DEG_counts_barplot.pdf'), plot = p, width = width, height = height)
     print(p)
 
-    return(p)
+    # return(p)
 }

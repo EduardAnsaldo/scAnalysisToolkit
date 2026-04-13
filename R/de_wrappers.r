@@ -140,8 +140,6 @@ pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clus
 #' @param gene_lists_to_plot Named list; custom gene lists to visualize. Default NULL
 #' @param expression_threshold_for_gene_list Numeric; minimum expression for gene list
 #'   filtering. Default 20
-#' @param colors Character vector of length 2; colors for DOWN and UP genes.
-#'   Default c('green4', 'darkorchid4')
 #' @param minimum_cell_number Integer; minimum cells required per group. Default 30
 #' @param run_pathway_enrichment Logical; whether to run pathway enrichment. Default TRUE
 #'
@@ -156,7 +154,7 @@ DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, clus
                                       max_overlaps = 15, label_size = 5, pathways_of_interest = NULL,
                                       label_threshold = 100000, distance_from_diagonal_threshold = 0.7,
                                       gene_lists_to_plot = NULL, expression_threshold_for_gene_list = 20,
-                                      colors = c('green4', 'darkorchid4'), minimum_cell_number = 30,
+                                      minimum_cell_number = 30,
                                       run_pathway_enrichment = TRUE) {
 
     local_figures_path <- here::here(path, 'figures')
@@ -164,9 +162,6 @@ DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, clus
 
     group1 <- fixed(group1)
     group2 <- fixed(group2)
-
-    # Set colors for the plot
-    my_colors <- create_deg_colors(colors)
 
     # Run core DE analysis
     de_results <- DEG_FindMarkers_RNA_assay_de(
@@ -192,7 +187,7 @@ DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, clus
 
     # Generate scatter and volcano plots
     scatterplot(results = de_results$results, group1 = group1, group2 = group2,
-               cluster = cluster, my_colors = my_colors,
+               cluster = cluster,
                local_figures_path = local_figures_path,
                FC_threshold = FC_threshold, p_value_threshold = p_value_threshold,
                max_overlaps = max_overlaps, label_size = label_size,
@@ -201,7 +196,7 @@ DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, clus
                test_type = 'Wilcox')
 
     volcano_plot(results = de_results$results, group1 = group1, group2 = group2,
-                cluster = cluster, my_colors = my_colors,
+                cluster = cluster,
                 local_figures_path = local_figures_path,
                 FC_threshold = FC_threshold, p_value_threshold = p_value_threshold,
                 max_overlaps = max_overlaps, label_size = label_size,
@@ -227,7 +222,6 @@ DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, clus
         group1 = group1,
         group2 = group2,
         cluster = cluster,
-        my_colors = my_colors,
         local_figures_path = local_figures_path,
         FC_threshold = FC_threshold,
         p_value_threshold = p_value_threshold,
@@ -273,10 +267,10 @@ DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, clus
 #' @param gene_lists_to_plot Named list; custom gene lists to visualize. Default NULL
 #' @param expression_threshold_for_gene_list Numeric; minimum expression for gene list
 #'   filtering. Default 20
-#' @param colors Character vector of length 2; colors for DOWN and UP genes.
-#'   Default c('green4', 'darkorchid4')
 #' @param minimum_cell_number Integer; minimum cells required per group. Default 30
 #' @param run_pathway_enrichment Character; method for pathway enrichment or NULL. Default NULL
+#' @param exclude_sex_chr_genes Logical; if TRUE, removes mouse sex chromosome genes
+#'   from results to avoid false positives from sex imbalance. Default FALSE
 #' @param ... Additional arguments passed to core analysis and visualization functions
 #'
 #' @return List with elements:
@@ -293,17 +287,15 @@ DEG_FindMarkers_SCT_assay <- function(scRNAseq, comparison, group1, group2, is_i
                                       p_value_threshold = 0.05, min_fraction = 0.01, max_overlaps = 15, label_size = 5,
                                       pathways_of_interest = NULL, label_threshold = 100000,
                                       distance_from_diagonal_threshold = 0.7, gene_lists_to_plot = NULL,
-                                      expression_threshold_for_gene_list = 20, colors = c('green4', 'darkorchid4'),
-                                      minimum_cell_number = 30, run_pathway_enrichment = NULL, ...) {
+                                      expression_threshold_for_gene_list = 20,
+                                      minimum_cell_number = 30, run_pathway_enrichment = NULL,
+                                      exclude_sex_chr_genes = FALSE, ...) {
 
     local_figures_path <- here::here(path, 'figures')
     dir.create(local_figures_path, showWarnings = FALSE, recursive = TRUE)
 
     group1 <- fixed(group1)
     group2 <- fixed(group2)
-
-    # Set colors for the plot
-    my_colors <- create_deg_colors(colors)
 
     # Run core DE analysis
     de_results <- DEG_FindMarkers_SCT_assay_de(
@@ -319,6 +311,7 @@ DEG_FindMarkers_SCT_assay <- function(scRNAseq, comparison, group1, group2, is_i
         min_fraction = min_fraction,
         expression_threshold_for_gene_list = expression_threshold_for_gene_list,
         minimum_cell_number = minimum_cell_number,
+        exclude_sex_chr_genes = exclude_sex_chr_genes,
         ...
     )
 
@@ -337,7 +330,6 @@ DEG_FindMarkers_SCT_assay <- function(scRNAseq, comparison, group1, group2, is_i
         group1 = group1,
         group2 = group2,
         cluster = cluster,
-        my_colors = my_colors,
         local_figures_path = local_figures_path,
         FC_threshold = FC_threshold,
         p_value_threshold = p_value_threshold,
@@ -354,7 +346,6 @@ DEG_FindMarkers_SCT_assay <- function(scRNAseq, comparison, group1, group2, is_i
         group1 = group1,
         group2 = group2,
         cluster = cluster,
-        my_colors = my_colors,
         local_figures_path = local_figures_path,
         FC_threshold = FC_threshold,
         p_value_threshold = p_value_threshold,
@@ -394,7 +385,6 @@ DEG_FindMarkers_SCT_assay <- function(scRNAseq, comparison, group1, group2, is_i
                 group1 = group1,
                 group2 = group2,
                 cluster = cluster,
-                my_colors = my_colors,
                 local_figures_path = local_figures_path,
                 FC_threshold = FC_threshold,
                 p_value_threshold = p_value_threshold,
@@ -412,7 +402,6 @@ DEG_FindMarkers_SCT_assay <- function(scRNAseq, comparison, group1, group2, is_i
                 group1 = group1,
                 group2 = group2,
                 cluster = cluster,
-                my_colors = my_colors,
                 local_figures_path = local_figures_path,
                 FC_threshold = FC_threshold,
                 p_value_threshold = p_value_threshold,
@@ -541,7 +530,6 @@ bulk_analysis <- function(counts_table, comparison = 'Groups', group1, group2, c
         group1 = group1,
         group2 = group2,
         cluster = cluster,
-        my_colors = create_deg_colors(),
         local_figures_path = local_figures_path,
         FC_threshold = FC_threshold,
         p_value_threshold = p_value_threshold,

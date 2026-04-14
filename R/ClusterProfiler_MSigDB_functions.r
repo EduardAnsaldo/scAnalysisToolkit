@@ -33,6 +33,11 @@ pathway_overrepresentation_analysis <- function (significant_genes, all_genes, l
 
      # Convert gene symbols to Entrez IDs
      significant_genes_ids <- clusterProfiler::bitr(significant_genes, fromType="SYMBOL", toType=c("ENTREZID"), OrgDb="org.Mm.eg.db")
+     failed_ids <- setdiff(significant_genes, significant_genes_ids$SYMBOL)
+          if (length(failed_ids) > 0) {
+               message("Warning: The following gene symbols could not be mapped to Entrez IDs and will be excluded from enrichment analysis:")
+               print(failed_ids)
+          }
      all_genes_ids <- clusterProfiler::bitr(all_genes, fromType="SYMBOL", toType=c("ENTREZID"), OrgDb="org.Mm.eg.db")
 
      significant_genes_entrez <- significant_genes_ids$ENTREZID
@@ -65,7 +70,9 @@ pathway_overrepresentation_analysis <- function (significant_genes, all_genes, l
                     qvalueCutoff = 0.25,
                     TERM2GENE = msigdbr_pathways)
 
-     enrichment_results_table <- as_tibble(enrichment_results) 
+     
+     enrichment_results_table <- as_tibble(enrichment_results)
+     
      write.csv(enrichment_results_table, here::here(local_path, paste0(filename,'Pathway_OverRepresentation_analysis_results.csv')))
 
      # colnames(enrichment_results_table) |> print()
@@ -359,6 +366,11 @@ pathway_overrepresentation_analysis_multiple_lists <- function (gene_list, all_g
      # Convert gene symbols to Entrez IDs for each gene list
      gene_list_entrez <- lapply(gene_list, function(genes) {
           ids <- clusterProfiler::bitr(genes, fromType="SYMBOL", toType=c("ENTREZID"), OrgDb="org.Mm.eg.db")
+          failed_ids <- setdiff(genes, ids$SYMBOL)
+          if (length(failed_ids) > 0) {
+               message("Warning: The following gene symbols could not be mapped to Entrez IDs and will be excluded from enrichment analysis:")
+               print(failed_ids)
+          }
           return(ids$ENTREZID)
      })
 

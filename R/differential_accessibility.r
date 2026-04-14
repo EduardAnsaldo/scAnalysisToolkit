@@ -383,8 +383,6 @@ run_differential_accessibility <- function(seurat, comparison, group1, group2, i
 #'   Default is 'umap.wnn'
 #' @param topn Numeric. Number of top motifs to display for up and down-regulated
 #'   activities. Default is 9
-#' @param JASPARConnect A JASPAR database connection object for retrieving motif
-#'   information and sequence logos
 #' @param sequential_palette Color palette for feature plots
 #' @param ... Additional arguments passed to volcano_plot function
 #'
@@ -425,7 +423,6 @@ run_differential_accessibility <- function(seurat, comparison, group1, group2, i
 #'   seurat = my_seurat,
 #'   cluster_id = 1,
 #'   other_cluster_id = 2,
-#'   JASPARConnect = jaspar_db,
 #'   sequential_palette = viridis::viridis(100)
 #' )
 #' }
@@ -433,7 +430,10 @@ run_differential_accessibility <- function(seurat, comparison, group1, group2, i
 #' @export
 
 # Custom function, to be incorporated into the package later
-compare_motive_activity_pairwise <- function(seurat, cluster_id, other_cluster_id, cluster_title = NULL, figures_path, identities='seurat_clusters_atac', reduction = 'umap.wnn', topn=9, JASPARConnect, sequential_palette , ...) {
+compare_motive_activity_pairwise <- function(seurat, cluster_id, other_cluster_id, cluster_title = NULL, figures_path, identities='seurat_clusters_atac', reduction = 'umap.wnn', topn=9, sequential_palette , ...) {
+
+  JASPAR2024 <- JASPAR2024()
+  JASPARConnect <- RSQLite::dbConnect(RSQLite::SQLite(), db(JASPAR2024))
 
   if (is.null(cluster_title)) {
     cluster_title <- paste("Cluster", cluster_id, "vs", other_cluster_id)
@@ -591,5 +591,8 @@ compare_motive_activity_pairwise <- function(seurat, cluster_id, other_cluster_i
             return(motif_matrix@name)
           })) |> 
       column_to_rownames(var = 'motif_id')      
+
+  dbDisconnect(JASPARConnect)
+
   return(differential_activity)
 }

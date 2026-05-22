@@ -19,6 +19,16 @@
 #' @param results_path Character; path for pathway enrichment results. Default 'results/'
 #' @param run_pathway_enrichment Character vector; enrichment methods to run
 #'   ('Metascape', 'ClusterProfiler', or NULL). Default NULL
+#' @param peak_to_gene Data frame; optional peak-to-gene mapping from correlation
+#'   analysis (e.g., LinkPeaks). Must contain columns 'PeakRanges' (genomic coordinates)
+#'   and 'Gene' (gene symbol). If multiple genes map to the same peak, the one with
+#'   highest absolute 'rObs' is used. Peaks mapped via peak_to_gene are flagged as
+#'   having a correlated gene; unmapped peaks are excluded from pathway enrichment.
+#'   Default NULL (uses Signac::ClosestFeature for all peaks)
+#' @param closest_feature_fallback Logical; when peak_to_gene is provided, whether
+#'   to use Signac::ClosestFeature to assign gene names to unmapped peaks for
+#'   visualization. These peaks are still excluded from pathway enrichment.
+#'   Default FALSE (unmapped peaks retain the peak coordinate as their name)
 #' @param ... Additional arguments passed to ClusterProfiler analysis
 #'
 #' @return List with elements:
@@ -28,7 +38,7 @@
 #'   \item{da_results}{Data frame; all differential accessibility results}
 #'
 #' @export
-top_peaks_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = 'seurat_clusters_atac', object_annotations = '', tables_path = 'results/tables/', figures_path = 'results/figures/', results_path = 'results/', run_pathway_enrichment = NULL, ...) {
+top_peaks_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = 'seurat_clusters_atac', object_annotations = '', tables_path = 'results/tables/', figures_path = 'results/figures/', results_path = 'results/', run_pathway_enrichment = NULL, peak_to_gene = NULL, closest_feature_fallback = FALSE, ...) {
 
     # Set the identity class for clustering
     Idents(seurat) <- grouping_var
@@ -37,11 +47,53 @@ top_peaks_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
 
     da_peaks <- FindAllMarkers(seurat, test.use = 'LR', only.pos = TRUE, min.pct = 0.1, logfc.threshold = 0.25, latent.vars = 'nCount_ATAC')
 
-    genes <- Signac::ClosestFeature(seurat, rownames(da_peaks))
-    da_peaks <- left_join(da_peaks, genes, by = c('gene' = 'query_region'))
-    da_peaks <- da_peaks |>
-        select(-tx_id, -gene_id) |>
-        rename(peak = gene, gene = gene_name)
+    if (!is.null(peak_to_gene)) {
+        # Use peak_to_gene dataframe to map peaks to correlated genes
+        # If a peak maps to multiple genes, use the one with highest correlation
+        # Convert PeakRanges from colon format (chr1:start-end) to dash format (chr1-start-end)
+        # to match Seurat's peak naming convention
+        peak_gene_map <- peak_to_gene |>
+            mutate(PeakRanges = str_replace(PeakRanges, ':', '-')) |>
+            arrange(desc(abs(rObs))) |>
+            distinct(PeakRanges, .keep_all = TRUE) |>
+            select(PeakRanges, Gene)
+
+        da_peaks <- da_peaks |>
+            rename(peak = gene) |>
+            left_join(peak_gene_map, by = c('peak' = 'PeakRanges'))
+
+        # For peaks without a correlated gene, optionally fall back to ClosestFeature
+        unmapped_peaks <- da_peaks |> filter(is.na(Gene) | Gene == '')
+        if (closest_feature_fallback && nrow(unmapped_peaks) > 0) {
+            closest_genes <- Signac::ClosestFeature(seurat, unmapped_peaks$peak)
+            da_peaks <- da_peaks |>
+                left_join(closest_genes |> select(query_region, gene_name),
+                          by = c('peak' = 'query_region')) |>
+                mutate(
+                    has_correlated_gene = !is.na(Gene) & Gene != '',
+                    gene = case_when(
+                        has_correlated_gene ~ Gene,
+                        !is.na(gene_name) ~ gene_name,
+                        TRUE ~ peak
+                    )
+                ) |>
+                select(-Gene, -gene_name)
+        } else {
+            da_peaks <- da_peaks |>
+                mutate(
+                    has_correlated_gene = !is.na(Gene) & Gene != '',
+                    gene = ifelse(has_correlated_gene, Gene, peak)
+                ) |>
+                select(-Gene)
+        }
+    } else {
+        genes <- Signac::ClosestFeature(seurat, rownames(da_peaks))
+        da_peaks <- left_join(da_peaks, genes, by = c('gene' = 'query_region'))
+        da_peaks <- da_peaks |>
+            select(-tx_id, -gene_id) |>
+            rename(peak = gene, gene = gene_name) |>
+            mutate(has_correlated_gene = TRUE)
+    }
 
 
     #Add gene annotations:
@@ -84,26 +136,36 @@ top_peaks_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
     write.table(top10,file=here::here(tables_path, paste0('top10_peaks', '_',object_annotations, ".tsv")), sep="\t",row.names = FALSE)
 
     top100_genes_per_cluster <- top100 |>
-        group_by(cluster) |>
-        summarise(genes = str_flatten_comma(gene))
+        ungroup() |>
+        filter(has_correlated_gene) |>
+        group_by(cluster, .drop = TRUE) |>
+        summarise(genes = str_flatten_comma(gene), .groups = 'drop')
 
     write.table(top100_genes_per_cluster,
                 file = here::here(tables_path, paste0('top100_peak_gene_names_per_cluster_', object_annotations, ".tsv")),
-                sep = "\t", row.names = FALSE, quote = FALSE)
+                sep = "\t", row.names = TRUE)
 
 
     metascape_results <- NULL
     ClusterProfiler_results <- NULL
         # Run pathway enrichment analysis
     if (!is.null(run_pathway_enrichment)) {
+        # Filter out peaks without correlated genes for enrichment
+        top100_for_enrichment <- top100 |> ungroup() |> filter(has_correlated_gene)
+        da_peaks_for_enrichment <- da_peaks |> ungroup() |> filter(has_correlated_gene)
+
         if ('Metascape' %in% run_pathway_enrichment) {
-            metascape_results <- Metascape_functional_analysis_cluster_identification(seurat, top100, identities = grouping_var, path=results_path, object_annotations = object_annotations)
+            metascape_results <- Metascape_functional_analysis_cluster_identification(seurat, top100_for_enrichment, identities = grouping_var, path=results_path, object_annotations = object_annotations)
         }
         if ('ClusterProfiler' %in% run_pathway_enrichment) {
-            ClusterProfiler_results <- pathway_functional_analysis_cluster_identification(seurat, da_peaks, path=results_path, object_annotations = object_annotations, identities = grouping_var, top_gene_number = 100, ...)
+            ClusterProfiler_results <- pathway_functional_analysis_cluster_identification(seurat, da_peaks_for_enrichment, path=results_path, object_annotations = object_annotations, identities = grouping_var, top_gene_number = Inf, ...)
         }
 
     }
+
+    # Remove internal tracking column before returning
+    da_peaks <- da_peaks |> select(-has_correlated_gene)
+    topn <- topn |> select(-has_correlated_gene)
 
     return(list(ClusterProfiler_results = ClusterProfiler_results, metascape_results = metascape_results, topn = topn, da_results =  da_peaks ) )
 
@@ -127,6 +189,16 @@ top_peaks_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
 #' @param p_value_threshold Numeric; adjusted p-value threshold. Default 0.05
 #' @param min_fraction Numeric; minimum fraction of cells with accessible peak. Default 0.05
 #' @param minimum_cell_number Integer; minimum cells required per group. Default 30
+#' @param peak_to_gene Data frame; optional peak-to-gene mapping from correlation
+#'   analysis (e.g., LinkPeaks). Must contain columns 'PeakRanges' (genomic coordinates)
+#'   and 'Gene' (gene symbol). If multiple genes map to the same peak, the one with
+#'   highest absolute 'rObs' is used. Peaks mapped via peak_to_gene are flagged as
+#'   having a correlated gene; unmapped peaks are excluded from pathway enrichment.
+#'   Default NULL (uses Signac::ClosestFeature for all peaks)
+#' @param closest_feature_fallback Logical; when peak_to_gene is provided, whether
+#'   to use Signac::ClosestFeature to assign gene names to unmapped peaks for
+#'   visualization. These peaks are still excluded from pathway enrichment.
+#'   Default FALSE (unmapped peaks retain the peak coordinate as their name)
 #' @param ... Additional arguments (unused)
 #'
 #' @return List with elements:
@@ -139,7 +211,8 @@ top_peaks_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
 run_differential_accessibility_FindMarkers <- function(seurat, comparison, group1, group2,
                                          cluster = 'all_clusters', path = './', FC_threshold = 0.3,
                                          p_value_threshold = 0.05, min_fraction = 0.05,
-                                         minimum_cell_number = 30, ...) {
+                                         minimum_cell_number = 30, peak_to_gene = NULL,
+                                         closest_feature_fallback = FALSE, ...) {
 
     # Set Paths
     gene_lists_path <- here::here(path, 'gene_lists')
@@ -175,15 +248,50 @@ run_differential_accessibility_FindMarkers <- function(seurat, comparison, group
                           assay = 'ATAC', slot = 'data', test.use = 'LR', latent.vars = 'nCount_ATAC', min.pct = min_fraction, only.pos = F, logfc.threshold = FC_threshold)
 
 
-    closest_genes <- Signac::ClosestFeature(seurat, rownames(results))
+    if (!is.null(peak_to_gene)) {
+        peak_gene_map <- peak_to_gene |>
+            mutate(PeakRanges = str_replace(PeakRanges, ':', '-')) |>
+            arrange(desc(abs(rObs))) |>
+            distinct(PeakRanges, .keep_all = TRUE) |>
+            select(PeakRanges, Gene)
 
+        results <- results |>
+            rownames_to_column('peak') |>
+            left_join(peak_gene_map, by = c('peak' = 'PeakRanges'))
 
-    results <- results  |>
-        rownames_to_column('gene') |>
-        left_join(closest_genes, by = c('gene' = 'query_region'))
-    results <- results |>
-        select(-tx_id, -gene_id) |>
-        rename(peak = gene, genes = gene_name)
+        unmapped_peaks <- results |> filter(is.na(Gene) | Gene == '')
+        if (closest_feature_fallback && nrow(unmapped_peaks) > 0) {
+            closest_genes <- Signac::ClosestFeature(seurat, unmapped_peaks$peak)
+            results <- results |>
+                left_join(closest_genes |> select(query_region, gene_name),
+                          by = c('peak' = 'query_region')) |>
+                mutate(
+                    has_correlated_gene = !is.na(Gene) & Gene != '',
+                    genes = case_when(
+                        has_correlated_gene ~ Gene,
+                        !is.na(gene_name) ~ gene_name,
+                        TRUE ~ peak
+                    )
+                ) |>
+                select(-Gene, -gene_name)
+        } else {
+            results <- results |>
+                mutate(
+                    has_correlated_gene = !is.na(Gene) & Gene != '',
+                    genes = ifelse(has_correlated_gene, Gene, peak)
+                ) |>
+                select(-Gene)
+        }
+    } else {
+        closest_genes <- Signac::ClosestFeature(seurat, rownames(results))
+        results <- results |>
+            rownames_to_column('gene') |>
+            left_join(closest_genes, by = c('gene' = 'query_region'))
+        results <- results |>
+            select(-tx_id, -gene_id) |>
+            rename(peak = gene, genes = gene_name) |>
+            mutate(has_correlated_gene = TRUE)
+    }
 
     #Add gene annotations:
     results <- results |>
@@ -252,6 +360,16 @@ run_differential_accessibility_FindMarkers <- function(seurat, comparison, group
 #'   Default c('green4', 'darkorchid4')
 #' @param minimum_cell_number Integer; minimum cells required per group. Default 30
 #' @param run_pathway_enrichment Character; method for pathway enrichment or NULL. Default NULL
+#' @param peak_to_gene Data frame; optional peak-to-gene mapping from correlation
+#'   analysis (e.g., LinkPeaks). Must contain columns 'PeakRanges' (genomic coordinates)
+#'   and 'Gene' (gene symbol). If multiple genes map to the same peak, the one with
+#'   highest absolute 'rObs' is used. Peaks mapped via peak_to_gene are flagged as
+#'   having a correlated gene; unmapped peaks are excluded from pathway enrichment.
+#'   Default NULL (uses Signac::ClosestFeature for all peaks)
+#' @param closest_feature_fallback Logical; when peak_to_gene is provided, whether
+#'   to use Signac::ClosestFeature to assign gene names to unmapped peaks for
+#'   visualization. These peaks are still excluded from pathway enrichment.
+#'   Default FALSE (unmapped peaks retain the peak coordinate as their name)
 #' @param ... Additional arguments passed to core analysis and visualization functions
 #'
 #' @return List with elements:
@@ -267,7 +385,8 @@ run_differential_accessibility <- function(seurat, comparison, group1, group2, i
                                       pathways_of_interest = NULL, label_threshold = 100000,
                                       gene_lists_to_plot = NULL,
                                       colors = c('green4', 'darkorchid4'),
-                                      minimum_cell_number = 30, run_pathway_enrichment = NULL, ...) {
+                                      minimum_cell_number = 30, run_pathway_enrichment = NULL,
+                                      peak_to_gene = NULL, closest_feature_fallback = FALSE, ...) {
 
     local_figures_path <- here::here(path, 'figures')
     dir.create(local_figures_path, showWarnings = FALSE, recursive = TRUE)
@@ -291,6 +410,8 @@ run_differential_accessibility <- function(seurat, comparison, group1, group2, i
         p_value_threshold = p_value_threshold,
         min_fraction = min_fraction,
         minimum_cell_number = minimum_cell_number,
+        peak_to_gene = peak_to_gene,
+        closest_feature_fallback = closest_feature_fallback,
         ...
     )
 
@@ -341,10 +462,11 @@ run_differential_accessibility <- function(seurat, comparison, group1, group2, i
         ...
     )
 
-    # Overrepresentation analysis
+    # Overrepresentation analysis — use only correlated-gene peaks for enrichment
+    results_for_enrichment <- da_results$results |> filter(has_correlated_gene)
 
     run_DEG_functional_analysis(
-        results = da_results$results,
+        results = results_for_enrichment,
         method = run_pathway_enrichment,
         grouping_var = cluster,
         path = path,
@@ -356,6 +478,9 @@ run_differential_accessibility <- function(seurat, comparison, group1, group2, i
         comparison = comparison,
         ...
     )
+
+    # Remove internal tracking column before returning
+    da_results$results <- da_results$results |> select(-has_correlated_gene)
 
     return(list(
         all_count = da_results$all_count,

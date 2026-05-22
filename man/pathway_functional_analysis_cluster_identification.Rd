@@ -10,6 +10,7 @@ pathway_functional_analysis_cluster_identification(
   path = "./",
   object_annotations = "",
   top_gene_number = 50,
+  per_cluster = FALSE,
   ...
 )
 }
@@ -27,11 +28,16 @@ Default ''}
 \item{top_gene_number}{Integer; number of top marker genes per cluster to use
 for enrichment analysis. Default 50}
 
+\item{per_cluster}{Logical; if TRUE, runs pathway_overrepresentation_analysis
+independently for each cluster and combines individual plots (similar to
+Metascape_functional_analysis_cluster_identification). If FALSE (default),
+runs all clusters simultaneously via compareCluster. Default FALSE}
+
 \item{...}{Additional arguments passed to pathway_overrepresentation_analysis_multiple_lists
-(e.g., minGSSize, maxGSSize)}
+or pathway_overrepresentation_analysis (e.g., minGSSize, maxGSSize, nterms_to_plot)}
 }
 \value{
-ggplot object; dot plot showing enriched pathways across clusters
+ggplot or patchwork object; enriched pathways across clusters
 }
 \description{
 Performs pathway enrichment analysis using MSigDB collections on marker genes from

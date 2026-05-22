@@ -25,7 +25,9 @@ perform_seurat_clustering(
   singler_database = "ImmGen",
   filter_ig = FALSE,
   filter_tcr = FALSE,
-  quiet_vdj = FALSE
+  quiet_vdj = FALSE,
+  integrate_rna = FALSE,
+  integration_column = "Origin"
 )
 }
 \arguments{
@@ -75,6 +77,14 @@ gene analysis. Default FALSE}
 
 \item{quiet_vdj}{Logical; whether to remove VDJ genes (Igh, Igk, Igl, Tra, Trb, Trd, Trg)
 from variable features after SCTransform. Default FALSE}
+
+\item{integrate_rna}{Logical; whether to perform Harmony integration on the RNA
+assay. When TRUE, the RNA assay is split by \code{integration_column}, and after
+SCTransform and PCA, layers are integrated using HarmonyIntegration. Downstream
+steps then use the 'harmony' reduction instead of 'pca'. Default FALSE}
+
+\item{integration_column}{Character; metadata column to split the RNA assay by
+for integration. Default "Origin"}
 }
 \value{
 List with elements:

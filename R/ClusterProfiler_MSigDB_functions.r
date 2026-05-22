@@ -18,7 +18,7 @@
 #' @param font_size Numeric; font size for plots. Default 8
 #' @param ... Additional arguments (unused)
 #'
-#' @return Invisible NULL; creates CSV files and PDF plots
+#' @return ggplot object; bar plot of enriched pathways (or no-data plot if insufficient genes/results)
 #'
 #' @export
 pathway_overrepresentation_analysis <- function (significant_genes, all_genes, local_path, minGSSize = 5, maxGSSize = 400, filename = '', group = '', nterms_to_plot = 12, font_size = 10,  ...)  {
@@ -27,8 +27,7 @@ pathway_overrepresentation_analysis <- function (significant_genes, all_genes, l
 
      if (length(significant_genes) <= 4) {
           p1 <- create_no_data_plot()
-          print(p1)
-          return(invisible(NULL))
+          return(p1)
      }
 
      # Convert gene symbols to Entrez IDs
@@ -36,7 +35,7 @@ pathway_overrepresentation_analysis <- function (significant_genes, all_genes, l
      failed_ids <- setdiff(significant_genes, significant_genes_ids$SYMBOL)
           if (length(failed_ids) > 0) {
                message("Warning: The following gene symbols could not be mapped to Entrez IDs and will be excluded from enrichment analysis:")
-               print(failed_ids)
+               message(paste(failed_ids, collapse = ", "))
           }
      all_genes_ids <- clusterProfiler::bitr(all_genes, fromType="SYMBOL", toType=c("ENTREZID"), OrgDb="org.Mm.eg.db")
 
@@ -45,8 +44,7 @@ pathway_overrepresentation_analysis <- function (significant_genes, all_genes, l
 
      if (length(significant_genes_entrez) <= 4) {
           p1 <- create_no_data_plot()
-          print(p1)
-          return(invisible(NULL))
+          return(p1)
      }
 
      # Create TERM2GENE database from MSigDB pathway collections
@@ -108,11 +106,10 @@ pathway_overrepresentation_analysis <- function (significant_genes, all_genes, l
                theme(axis.text.y = element_text(size = 8), title = element_text(size = 16), plot.title.position = 'plot', legend.position = 'none', axis.text.x = element_text(size = 8))
      #    print(plot2)
      ggsave(plot = p1, filename = paste0(filename, '_Pathway_enrichment_analysis_metascape', '.pdf'), width = 6, height = 6, path = local_path)
-     print(p1)
      } else {
           p1 <- create_no_data_plot()
-          print(p1)
      }
+     return(p1)
 }
 
 #' Pathway Gene Set Enrichment Analysis using MSigDB
@@ -207,7 +204,8 @@ pathway_GSEA_analysis <- function (results, local_path, group, minGSSize = 5, ma
 #' @param top_n_genes Integer or NULL; number of top genes to use for ORA. If NULL, uses all significant genes. Default NULL
 #' @param ... Additional arguments passed to pathway_overrepresentation_analysis
 #'
-#' @return Invisible NULL; creates output directories with enrichment results
+#' @return List with two elements: plot_up (ggplot for upregulated genes) and
+#'   plot_down (ggplot for downregulated genes)
 #'
 #' @details
 #' Uses MSigDB pathway collections: Hallmark (MH), BIOCARTA, REACTOME, WIKIPATHWAYS,
@@ -236,7 +234,8 @@ cluster <- grouping_var
 
       ######################## ORA ########################
 
-      pathway_overrepresentation_analysis(significant_genes, all_genes, local_path, group = group2, ...)
+      plot_up <- pathway_overrepresentation_analysis(significant_genes, all_genes, local_path, group = group2, ...)
+      print(plot_up)
 
       #################### GSEA ####################
      if (run_GSEA) {
@@ -261,15 +260,15 @@ cluster <- grouping_var
 
       ######################## ORA ########################
 
-      pathway_overrepresentation_analysis(significant_genes, all_genes, local_path, group = group1, ...)
-
+      plot_down <- pathway_overrepresentation_analysis(significant_genes, all_genes, local_path, group = group1, ...)
+      print(plot_down)
 
       #################### GSEA ####################
       if (run_GSEA) {
       pathway_GSEA_analysis(results, local_path, group1, ...)
       }
 
-      return()
+      return(list(plot_up = plot_up, plot_down = plot_down))
 }
 
 #' Pathway Functional Analysis for Cluster Identification using MSigDB
@@ -288,10 +287,14 @@ cluster <- grouping_var
 #'   Default ''
 #' @param top_gene_number Integer; number of top marker genes per cluster to use
 #'   for enrichment analysis. Default 50
+#' @param per_cluster Logical; if TRUE, runs pathway_overrepresentation_analysis
+#'   independently for each cluster and combines individual plots (similar to
+#'   Metascape_functional_analysis_cluster_identification). If FALSE (default),
+#'   runs all clusters simultaneously via compareCluster. Default FALSE
 #' @param ... Additional arguments passed to pathway_overrepresentation_analysis_multiple_lists
-#'   (e.g., minGSSize, maxGSSize)
+#'   or pathway_overrepresentation_analysis (e.g., minGSSize, maxGSSize, nterms_to_plot)
 #'
-#' @return ggplot object; dot plot showing enriched pathways across clusters
+#' @return ggplot or patchwork object; enriched pathways across clusters
 #'
 #' @details
 #' This function:
@@ -307,13 +310,63 @@ cluster <- grouping_var
 #' assay as the background/universe for statistical testing.
 #'
 #' @export
-pathway_functional_analysis_cluster_identification <- function (scRNAseq, results, path='./', object_annotations = '', top_gene_number = 50, ...) {
+pathway_functional_analysis_cluster_identification <- function (scRNAseq, results, path='./', object_annotations = '', top_gene_number = 50, per_cluster = FALSE, ...) {
 
     set_enrichment_color_scale()
      local_path <- create_analysis_directory(here::here(path, paste0('Cluster_identification_functional_analysis_Pathway_', object_annotations)))
 
-     all_genes <- Features(scRNAseq[['RNA']]) |>unique()
+     all_genes <- Features(scRNAseq[['RNA']]) |> unique()
 
+    if (per_cluster) {
+        # Run enrichment independently for each cluster
+        results <- results |>
+            mutate(cluster = if (all(!is.na(suppressWarnings(as.numeric(as.character(unique(cluster))))))) {
+                fct_inseq(cluster)
+            } else {
+                factor(cluster)
+            })
+
+        plot_list <- list()
+        for (cl in levels(results$cluster)) {
+            name <- paste0('Cluster_', cl)
+            local_path_cluster <- create_analysis_directory(here::here(local_path, name))
+
+            significant_results_cluster <- results |>
+                filter(cluster == !!cl) |>
+                arrange(p_val_adj, desc(avg_log2FC)) |>
+                slice_head(n = top_gene_number) |>
+                pull(gene) |>
+                unique()
+
+            plot_list[[cl]] <- pathway_overrepresentation_analysis(
+                significant_genes = significant_results_cluster,
+                all_genes = all_genes,
+                local_path = local_path_cluster,
+                filename = name,
+                group = cl,
+                ...
+            )
+        }
+
+        # Filter out NULL entries from clusters with too few genes
+        plot_list <- purrr::compact(plot_list)
+
+        if (length(plot_list) == 0) {
+            plots <- create_no_data_plot()
+        } else {
+            plots <- wrap_plots(plot_list) +
+                plot_annotation(title = 'Cluster identification - Pathway functional analysis') &
+                theme(plot.title = element_text(size = 9, hjust = 0.5),
+                      axis.text.y = element_text(size = 8),
+                      axis.text.x = element_text(size = 8),
+                      axis.title.x = element_text(size = 8),
+                      axis.title.y = element_text(size = 8))
+        }
+        print(plots)
+        return(plots)
+    }
+
+    # Default behavior: run all clusters simultaneously with compareCluster
     gene_lists <- results |>
         group_by(cluster) |>
         arrange(p_val_adj, desc(avg_log2FC), .by_group = TRUE) |>
@@ -338,7 +391,7 @@ pathway_functional_analysis_cluster_identification <- function (scRNAseq, result
 #' Performs pathway overrepresentation analysis on multiple gene lists using
 #' clusterProfiler's compareCluster with enricher and MSigDB pathway collections.
 #' Compares enriched pathways across multiple groups/clusters simultaneously and
-#' generates a comparative dot plot visualization.
+#' generates a comparative dotwot visualization.
 #'
 #' @param gene_list Named list; each element contains gene symbols for a group/cluster
 #' @param all_genes Character vector; background/universe gene symbols
@@ -359,7 +412,7 @@ pathway_functional_analysis_cluster_identification <- function (scRNAseq, result
 #' pathways across all provided gene lists.
 #'
 #' @export
-pathway_overrepresentation_analysis_multiple_lists <- function (gene_list, all_genes, local_path, minGSSize = 5, maxGSSize = 400, filename = '', nterms_to_plot = 5, font_size = 8, grouping_var = '', ...)  {
+pathway_overrepresentation_analysis_multiple_lists <- function (gene_list, all_genes, local_path, minGSSize = 5, maxGSSize = 400, filename = '', nterms_to_plot = 5, font_size = 8, grouping_var = '', wrap_length = 60, ...)  {
 
      set_enrichment_color_scale()
 
@@ -369,7 +422,7 @@ pathway_overrepresentation_analysis_multiple_lists <- function (gene_list, all_g
           failed_ids <- setdiff(genes, ids$SYMBOL)
           if (length(failed_ids) > 0) {
                message("Warning: The following gene symbols could not be mapped to Entrez IDs and will be excluded from enrichment analysis:")
-               print(failed_ids)
+               message(failed_ids)
           }
           return(ids$ENTREZID)
      })
@@ -403,6 +456,13 @@ pathway_overrepresentation_analysis_multiple_lists <- function (gene_list, all_g
           TERM2GENE = msigdbr_pathways
      )
 
+     if (is.null(enrichment_results) || nrow(as.data.frame(enrichment_results)) == 0) {
+          message("No significant enrichment results found.")
+          p1 <- create_no_data_plot()
+          print(p1)
+          return(list(plot = p1, results = NULL))
+     }
+
      enrichment_results <- enrichment_results |>
           mutate(Cluster = if (all(!is.na(suppressWarnings(as.numeric(levels(factor(Cluster))))))) {
                fct_inseq(Cluster)
@@ -417,11 +477,14 @@ pathway_overrepresentation_analysis_multiple_lists <- function (gene_list, all_g
           p1 <- enrichplot::dotplot(enrichment_results,
                showCategory=nterms_to_plot,
                title = paste0(filename,'Pathway Overrepresentation analysis'),
-               label_format = 60,
+               label_format = wrap_length,
                font.size = font_size) +
                labs(x = grouping_var) +
                theme(axis.text.x = element_text(angle = 45, hjust = 1))
           ggsave(plot = p1, filename = paste0(filename, 'Pathway_overrepresentation_analysis_dotplot.pdf'), width = 10, height = 18, path = local_path)
+     } else {
+          p1 <- create_no_data_plot()
+          print(p1)
      }
      return(list(plot = p1, results = enrichment_results))
 }

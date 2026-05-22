@@ -34,6 +34,12 @@
 #'   gene analysis. Default FALSE
 #' @param quiet_vdj Logical; whether to remove VDJ genes (Igh, Igk, Igl, Tra, Trb, Trd, Trg)
 #'   from variable features after SCTransform. Default FALSE
+#' @param integrate_rna Logical; whether to perform Harmony integration on the RNA
+#'   assay. When TRUE, the RNA assay is split by `integration_column`, and after
+#'   SCTransform and PCA, layers are integrated using HarmonyIntegration. Downstream
+#'   steps then use the 'harmony' reduction instead of 'pca'. Default FALSE
+#' @param integration_column Character; metadata column to split the RNA assay by
+#'   for integration. Default "Origin"
 #'
 #' @return List with elements:
 #'   \item{seurat}{Processed Seurat object with clusters}
@@ -66,7 +72,9 @@ perform_seurat_clustering <- function(
     singler_database = 'ImmGen',
     filter_ig = FALSE,
     filter_tcr = FALSE,
-    quiet_vdj = FALSE
+    quiet_vdj = FALSE,
+    integrate_rna = FALSE,
+    integration_column = "Origin"
 ) {
     # Filter object
     if (!is.null(filter_variable)) {
@@ -81,8 +89,21 @@ perform_seurat_clustering <- function(
         print(p1)
     }
 
+    # Determine which reduction to use for downstream steps
+    rna_reduction <- if (integrate_rna) "harmony" else "pca"
+
+    # Optionally split RNA assay for integration
+    if (integrate_rna) {
+        if (length(Layers(seurat[["RNA"]], search = "counts")) > 1) {
+            message("RNA assay is already split — skipping split step")
+        } else {
+            message("Splitting RNA assay by '", integration_column, "' for integration...")
+            seurat[["RNA"]] <- split(seurat[["RNA"]], f = seurat[[integration_column, drop = TRUE]])
+        }
+    }
+
     # Normalize RNA data with SCTransform
-    seurat <- SCTransform(seurat, verbose = verbose)
+    seurat <- SCTransform(seurat, verbose = verbose, assay = 'RNA')
 
     # Optionally quiet VDJ genes from variable features
     if (quiet_vdj) {
@@ -96,7 +117,17 @@ perform_seurat_clustering <- function(
     }
 
     # Dimensionality reduction
-    seurat <- RunPCA(seurat, npcs = npcs, verbose = verbose)
+    seurat <- RunPCA(seurat, npcs = npcs, verbose = verbose, assay = 'SCT')
+
+    # Integrate with Harmony if requested
+    if (integrate_rna) {
+        message("Integrating RNA layers with Harmony...")
+        seurat <- IntegrateLayers(seurat, method = HarmonyIntegration,
+                                  normalization.method = 'SCT',
+                                  orig.reduction = 'pca',
+                                  new.reduction = 'harmony',
+                                  verbose = verbose)
+    }
 
     # Plot elbow plot if requested
     if (plot_elbow) {
@@ -104,10 +135,10 @@ perform_seurat_clustering <- function(
     }
 
     # Run UMAP
-    seurat <- RunUMAP(seurat, dims = 1:dimensions, verbose = verbose, seed.use = seed)
+    seurat <- RunUMAP(seurat, dims = 1:dimensions, verbose = verbose, seed.use = seed, reduction = rna_reduction)
 
     # Find neighbors and clusters
-    seurat <- FindNeighbors(seurat, dims = 1:dimensions, verbose = verbose)
+    seurat <- FindNeighbors(seurat, dims = 1:dimensions, verbose = verbose, reduction = rna_reduction)
     seurat <- FindClusters(seurat, resolution = resolutions, verbose = verbose, algorithm = 4, random.seed = seed)
 
     # Create UMAP plots for each resolution
@@ -367,6 +398,13 @@ extract_cell_counts <- function(seurat, grouping_var, figures_path, tables_path,
 #'   for ATAC data. Default: 40
 #' @param random_seed Integer seed for reproducibility in clustering algorithms.
 #'   Default: 3514
+#' @param integrate_rna Logical indicating whether to perform Harmony integration
+#'   on the RNA assay. When TRUE, the RNA assay is split by `integration_column`,
+#'   and after SCTransform and PCA, layers are integrated using HarmonyIntegration.
+#'   Downstream RNA steps then use the 'harmony' reduction instead of 'pca'.
+#'   Default: FALSE
+#' @param integration_column Character string specifying the metadata column to
+#'   split the RNA assay by for integration. Default: "Origin"
 #' @param remove_ig Logical indicating whether to filter out immunoglobulin-related
 #'   features from both RNA and ATAC data. Default: FALSE
 #' @param generate_plots Logical indicating whether to generate and save final
@@ -423,6 +461,13 @@ extract_cell_counts <- function(seurat, grouping_var, figures_path, tables_path,
 #'   skip_preprocessing = TRUE
 #' )
 #' 
+#' # With Harmony integration on RNA, splitting by sample origin
+#' result <- process_multimodal_seurat(
+#'   seurat_obj,
+#'   integrate_rna = TRUE,
+#'   integration_column = "Origin"
+#' )
+#'
 #' # After examining clustering, specify resolutions and skip earlier steps
 #' result <- process_multimodal_seurat(
 #'   seurat_obj,
@@ -452,6 +497,9 @@ process_multimodal_seurat <- function(
   resolutions_RNA = c(0.375, 0.4, 0.475, 0.5, 0.55, 0.6, 0.625, 0.75, 1),
   resolutions_ATAC = c(0.1, 0.25, 0.3, 0.325, 0.375, 0.5, 0.625, 0.75, 1),
   resolutions_WNN = c(0.1, 0.25, 0.375, 0.5, 0.625, 0.75, 1, 1.25, 1.5),
+  # Integration parameters
+  integrate_rna = FALSE,
+  integration_column = "Origin",
   # Other parameters
   npcs = 50,
   ndims_lsi = 40,
@@ -483,12 +531,26 @@ process_multimodal_seurat <- function(
     stop("Genome must be one of: ", paste(names(ig_regions), collapse = ", "))
   }
   
+  # Determine which reduction to use for RNA downstream steps
+  rna_reduction <- if (integrate_rna) "harmony" else "pca"
+
   # ========== RNA Processing ==========
   if (!skip_preprocessing) {
     message("Processing RNA data...")
     DefaultAssay(seurat) <- 'RNA'
-    seurat <- SCTransform(seurat)
-    
+
+    if (integrate_rna) {
+      # Only split if not already split (more than one counts layer means already split)
+      if (length(Layers(seurat[["RNA"]], search = "counts")) > 1) {
+        message("RNA assay is already split — skipping split step")
+      } else {
+        message("Splitting RNA assay by '", integration_column, "' for integration...")
+        seurat[["RNA"]] <- split(seurat[["RNA"]], f = seurat[[integration_column, drop = TRUE]])
+      }
+    }
+
+    seurat <- SCTransform(seurat, assay = 'RNA')
+
     if (remove_ig) {
       message("Variable features before filtering: ", length(VariableFeatures(seurat)))
       VariableFeatures(seurat) <- VariableFeatures(seurat)[!str_detect(VariableFeatures(seurat), "Igh|Igl|Igk")]
@@ -496,11 +558,20 @@ process_multimodal_seurat <- function(
     } else {
       message("Variable features (Ig filtering disabled): ", length(VariableFeatures(seurat)))
     }
-    
-    seurat <- RunPCA(seurat, npcs = npcs)
-    
+
+    seurat <- RunPCA(seurat, npcs = npcs, assay = 'SCT')
+
+    if (integrate_rna) {
+      message("Integrating RNA layers with Harmony...")
+      seurat <- IntegrateLayers(seurat, method = HarmonyIntegration,
+                                normalization.method = 'SCT',
+                                orig.reduction = 'pca',
+                                new.reduction = 'harmony',
+                                verbose = TRUE)
+    }
+
     # Always show elbow plot
-    p <- ElbowPlot(seurat, reduction = 'pca', ndims = npcs) + 
+    p <- ElbowPlot(seurat, reduction = 'pca', ndims = npcs) +
       labs(title = "RNA PCA Elbow Plot")
     print(p)
   } else {
@@ -560,8 +631,8 @@ process_multimodal_seurat <- function(
   if (!skip_umap_and_neighbors) {
     message("\nUsing ", dimensions_RNA, " dimensions for RNA")
     DefaultAssay(seurat) <- 'RNA'
-    seurat <- RunUMAP(seurat, reduction = 'pca', dims = 1:dimensions_RNA, 
-              assay = 'SCT', reduction.name = 'umap.rna', 
+    seurat <- RunUMAP(seurat, reduction = rna_reduction, dims = 1:dimensions_RNA,
+              assay = 'SCT', reduction.name = 'umap.rna',
               reduction.key = 'rnaUMAP_')
   } else {
     message("\nSkipping RNA UMAP generation (already completed)")
@@ -586,8 +657,8 @@ process_multimodal_seurat <- function(
     message("\nClustering RNA data...")
     DefaultAssay(seurat) <- 'RNA'
     Idents(seurat) <- 'Groups'
-    seurat <- FindNeighbors(seurat, reduction = 'pca', dims = 1:dimensions_RNA)
-    seurat <- FindClusters(seurat, graph.name = 'SCT_snn', resolution = resolutions_RNA, 
+    seurat <- FindNeighbors(seurat, reduction = rna_reduction, dims = 1:dimensions_RNA)
+    seurat <- FindClusters(seurat, graph.name = 'SCT_snn', resolution = resolutions_RNA,
                 verbose = FALSE, algorithm = 4, random.seed = random_seed)
   } else {
     message("\nSkipping RNA neighbor finding (already completed)")
@@ -661,7 +732,7 @@ process_multimodal_seurat <- function(
     message("\nPerforming Weighted Nearest Neighbor Analysis...")
     seurat <- FindMultiModalNeighbors(
       seurat,
-      reduction.list = list("pca", "lsi"),
+      reduction.list = list(rna_reduction, "lsi"),
       dims.list = list(1:dimensions_RNA, 2:dimensions_ATAC),
       verbose = TRUE
     )
@@ -721,10 +792,10 @@ process_multimodal_seurat <- function(
     print(p1)
     ggsave(file = paste0(figures_path, object_annotations, '_RNA_UMAP_R', resolution_RNA, '.pdf'))
     
-    p2 <- DimPlot(seurat, reduction = "umap.rna", group.by = 'Groups', label = TRUE, shuffle = TRUE) + 
+    p2 <- DimPlot(seurat, reduction = "umap.rna", group.by = 'Samples', label = TRUE, shuffle = TRUE) + 
       labs(title = paste0('RNA UMAP R ', resolution_RNA), subtitle = 'RNA Leiden Clusters')
     print(p2)
-    ggsave(file = paste0(figures_path, object_annotations, '_RNA_UMAP_R', resolution_RNA, '_by_groups.pdf'))
+    ggsave(file = paste0(figures_path, object_annotations, '_RNA_UMAP_R', resolution_RNA, '_by_samples.pdf'))
     
     # ATAC plots
     Idents(seurat) <- 'seurat_clusters_atac'
@@ -734,10 +805,10 @@ process_multimodal_seurat <- function(
     print(p3)
     ggsave(file = paste0(figures_path, object_annotations, '_ATAC_UMAP_R', resolution_ATAC, '.pdf'))
     
-    p4 <- DimPlot(seurat, reduction = "umap.atac", group.by = 'Groups', label = TRUE, shuffle = TRUE) + 
+    p4 <- DimPlot(seurat, reduction = "umap.atac", group.by = 'Samples', label = TRUE, shuffle = TRUE) + 
       labs(title = paste0('ATAC UMAP R ', resolution_ATAC), subtitle = 'ATAC Leiden Clusters')
     print(p4)
-    ggsave(file = paste0(figures_path, object_annotations, '_ATAC_UMAP_R', resolution_ATAC, '_by_groups.pdf'))
+    ggsave(file = paste0(figures_path, object_annotations, '_ATAC_UMAP_R', resolution_ATAC, '_by_samples.pdf'))
     
     # WNN plots
     Idents(seurat) <- 'seurat_clusters_wnn'
@@ -747,10 +818,10 @@ process_multimodal_seurat <- function(
     print(p5)
     ggsave(file = paste0(figures_path, object_annotations, '_WNN_UMAP_R', resolution_WNN, '.pdf'))
     
-    p6 <- DimPlot(seurat, reduction = "umap.wnn", group.by = 'Groups', label = TRUE, shuffle = TRUE) + 
+    p6 <- DimPlot(seurat, reduction = "umap.wnn", group.by = 'Samples', label = TRUE, shuffle = TRUE) + 
       labs(title = paste0('WNN (joint) UMAP R ', resolution_WNN), subtitle = 'WNN Leiden Clusters')
     print(p6)
-    ggsave(file = paste0(figures_path, object_annotations, '_WNN_UMAP_R', resolution_WNN, '_by_groups.pdf'))
+    ggsave(file = paste0(figures_path, object_annotations, '_WNN_UMAP_R', resolution_WNN, '_by_samples.pdf'))
     
     # Split plots
     Idents(seurat) <- 'seurat_clusters_rna'
@@ -778,3 +849,4 @@ process_multimodal_seurat <- function(
   message("\n=== COMPLETE: All processing finished ===")
   return(list(seurat = seurat, stage = "complete"))
 }
+

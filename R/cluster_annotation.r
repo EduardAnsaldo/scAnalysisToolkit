@@ -184,7 +184,7 @@ annotate_seurat_with_SingleR_Eduard <- function(
 #'   \item{top100}{Data frame; top 100 markers per cluster}
 #'
 #' @export
-top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = 'seurat_clusters', object_annotations = '', tables_path = 'results/tables/', figures_path = 'results/figures/', results_path = 'results/', run_pathway_enrichment = NULL, n_genes_for_enrichment = 100, filter_ig = FALSE, filter_tcr = FALSE, flip_axes = TRUE, ...) {
+top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = 'seurat_clusters', object_annotations = '', tables_path = 'results/tables/', figures_path = 'results/figures/', results_path = 'results/', run_pathway_enrichment = NULL, n_genes_for_enrichment = 100, filter_ig = FALSE, filter_tcr = FALSE, flip_axes = TRUE, dot_scale = 8, ...) {
 
     sequential_palette_dotplot <- grDevices::hcl.colors(n = 20,'YlGn',rev = T)
 
@@ -275,11 +275,13 @@ top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
     gene_list_plot <- topn |> pull(gene)
 
     gene_list_plot <- gene_list_plot |> unique() |> rev()
-    plot1 <- DotPlot_scCustom(seurat,
+
+    if (flip_axes) {
+        plot1 <- DotPlot_scCustom(seurat,
                     features = gene_list_plot,
                     colors_use = hcl.colors(12, palette = "RdBu", rev = TRUE),
-                    flip_axes = flip_axes,
-                    dot.scale = 8,
+                    flip_axes = TRUE,
+                    dot.scale = dot_scale,
                     dot.min = 0,
                     scale.min = 0,
                     scale.max = 80,
@@ -287,7 +289,26 @@ top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
                     y_lab_rotate = F) +
         theme(axis.text.x = element_text(size = 14),
             axis.text.y = element_text(size = 14),
-            legend.title = element_text(size = 18))
+            legend.title = element_text(size = 18))    
+    } else {
+        gene_list_plot <- gene_list_plot |> rev()
+        seurat@meta.data[[grouping_var]] <- fct_rev(seurat@meta.data[[grouping_var]])
+        Idents(seurat) <- grouping_var
+
+        plot1 <- DotPlot_scCustom(seurat,
+                        features = gene_list_plot,
+                        colors_use = hcl.colors(12, palette = "RdBu", rev = TRUE),
+                        flip_axes = FALSE,
+                        dot.scale = dot_scale,
+                        dot.min = 0,
+                        scale.min = 0,
+                        scale.max = 80,
+                        x_lab_rotate = T,
+                        y_lab_rotate = F) +
+            theme(axis.text.x = element_text(size = 14),
+                axis.text.y = element_text(size = 14),
+                legend.title = element_text(size = 18))
+    }
 
     metascape_results <- NULL
     ClusterProfiler_results <- NULL

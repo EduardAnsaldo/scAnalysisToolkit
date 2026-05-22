@@ -17,6 +17,7 @@ top_genes_per_cluster(
   filter_ig = FALSE,
   filter_tcr = FALSE,
   flip_axes = TRUE,
+  dot_scale = 8,
   ...
 )
 }

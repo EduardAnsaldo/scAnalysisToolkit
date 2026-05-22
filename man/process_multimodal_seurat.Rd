@@ -16,6 +16,8 @@ process_multimodal_seurat(
   resolutions_RNA = c(0.375, 0.4, 0.475, 0.5, 0.55, 0.6, 0.625, 0.75, 1),
   resolutions_ATAC = c(0.1, 0.25, 0.3, 0.325, 0.375, 0.5, 0.625, 0.75, 1),
   resolutions_WNN = c(0.1, 0.25, 0.375, 0.5, 0.625, 0.75, 1, 1.25, 1.5),
+  integrate_rna = FALSE,
+  integration_column = "Origin",
   npcs = 50,
   ndims_lsi = 40,
   random_seed = 3514,
@@ -61,6 +63,15 @@ clustering. Default: c(0.1, 0.25, 0.3, 0.325, 0.375, 0.5, 0.625, 0.75, 1)}
 
 \item{resolutions_WNN}{Numeric vector of resolution values to explore for WNN
 clustering. Default: c(0.1, 0.25, 0.375, 0.5, 0.625, 0.75, 1, 1.25, 1.5)}
+
+\item{integrate_rna}{Logical indicating whether to perform Harmony integration
+on the RNA assay. When TRUE, the RNA assay is split by \code{integration_column},
+and after SCTransform and PCA, layers are integrated using HarmonyIntegration.
+Downstream RNA steps then use the 'harmony' reduction instead of 'pca'.
+Default: FALSE}
+
+\item{integration_column}{Character string specifying the metadata column to
+split the RNA assay by for integration. Default: "Origin"}
 
 \item{npcs}{Integer specifying the number of principal components to compute
 for RNA PCA. Default: 50}
@@ -137,6 +148,13 @@ result <- process_multimodal_seurat(
   dimensions_RNA = 30,
   dimensions_ATAC = 25,
   skip_preprocessing = TRUE
+)
+
+# With Harmony integration on RNA, splitting by sample origin
+result <- process_multimodal_seurat(
+  seurat_obj,
+  integrate_rna = TRUE,
+  integration_column = "Origin"
 )
 
 # After examining clustering, specify resolutions and skip earlier steps

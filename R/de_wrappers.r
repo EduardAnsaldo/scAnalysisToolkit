@@ -30,6 +30,7 @@
 #'   \item{results}{Data frame; complete DE results}
 #'   \item{scatterplot}{ggplot; scatterplot object}
 #'   \item{volcanoplot}{ggplot; volcano plot object}
+#'   \item{enrichment}{Enrichment analysis results (plot_up and plot_down), or NULL}
 #'
 #' @export
 pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clusters',
@@ -94,7 +95,7 @@ pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clus
     )
 
     # Overrepresentation analysis
-    run_DEG_functional_analysis(
+    enrichment_output <- run_DEG_functional_analysis(
         results = de_results$results,
         method = run_pathway_enrichment,
         grouping_var = cluster,
@@ -112,7 +113,8 @@ pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clus
         DOWN_count = de_results$DOWN_count,
         results = de_results$results,
         scatterplot = scatterplot_output,
-        volcanoplot = volcanoplot_output
+        volcanoplot = volcanoplot_output,
+        enrichment = enrichment_output
     ))
 }
 
@@ -143,10 +145,12 @@ pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clus
 #' @param minimum_cell_number Integer; minimum cells required per group. Default 30
 #' @param run_pathway_enrichment Logical; whether to run pathway enrichment. Default TRUE
 #'
-#' @return Named vector with elements:
+#' @return List with elements:
 #'   \item{all_count}{Integer; number of significant DEGs}
 #'   \item{UP_count}{Integer; number of upregulated genes}
 #'   \item{DOWN_count}{Integer; number of downregulated genes}
+#'   \item{results}{Data frame; complete DE results}
+#'   \item{enrichment}{Enrichment analysis results (plot_up and plot_down), or NULL}
 #'
 #' @export
 DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clusters',
@@ -203,7 +207,7 @@ DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, clus
                 label_threshold = label_threshold, test_type = 'Wilcox')
 
     # Overrepresentation analysis
-    run_DEG_functional_analysis(
+    enrichment_output <- run_DEG_functional_analysis(
         results = de_results$results,
         method = run_pathway_enrichment,
         grouping_var = cluster,
@@ -232,11 +236,12 @@ DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, clus
         distance_from_diagonal_threshold = distance_from_diagonal_threshold
     )
 
-    return(c(
+    return(list(
         all_count = de_results$all_count,
         UP_count = de_results$UP_count,
         DOWN_count = de_results$DOWN_count,
-        results = de_results$results
+        results = de_results$results,
+        enrichment = enrichment_output
     ))
 }
 
@@ -280,6 +285,7 @@ DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, clus
 #'   \item{results}{Data frame; complete DE results}
 #'   \item{scatterplot}{ggplot; scatterplot object}
 #'   \item{volcanoplot}{ggplot; volcano plot object}
+#'   \item{enrichment}{Enrichment analysis results (plot_up and plot_down), or NULL}
 #'
 #' @export
 DEG_FindMarkers_SCT_assay <- function(scRNAseq, comparison, group1, group2, is_integrated_subset = FALSE,
@@ -357,7 +363,7 @@ DEG_FindMarkers_SCT_assay <- function(scRNAseq, comparison, group1, group2, is_i
     )
 
     # Overrepresentation analysis
-    run_DEG_functional_analysis(
+    enrichment_output <- run_DEG_functional_analysis(
         results = de_results$results,
         method = run_pathway_enrichment,
         grouping_var = cluster,
@@ -419,7 +425,8 @@ DEG_FindMarkers_SCT_assay <- function(scRNAseq, comparison, group1, group2, is_i
         DOWN_count = de_results$DOWN_count,
         results = de_results$results,
         scatterplot = scatterplot_output,
-        volcanoplot = volcanoplot_output
+        volcanoplot = volcanoplot_output,
+        enrichment = enrichment_output
     ))
 }
 
@@ -511,7 +518,7 @@ bulk_analysis <- function(counts_table, comparison = 'Groups', group1, group2, c
                 label_threshold = label_threshold, test_type = 'Bulk', ...)
 
     # Overrepresentation analysis
-    run_DEG_functional_analysis(
+    enrichment_output <- run_DEG_functional_analysis(
         results = de_results$results,
         method = run_pathway_enrichment,
         grouping_var = cluster,
@@ -541,10 +548,11 @@ bulk_analysis <- function(counts_table, comparison = 'Groups', group1, group2, c
         ...
     )
 
-    return(c(
+    return(list(
         all_count = de_results$all_count,
         UP_count = de_results$UP_count,
         DOWN_count = de_results$DOWN_count,
-        results = de_results$results
+        results = de_results$results,
+        enrichment = enrichment_output
     ))
 }

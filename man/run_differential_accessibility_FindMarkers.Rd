@@ -15,6 +15,8 @@ run_differential_accessibility_FindMarkers(
   p_value_threshold = 0.05,
   min_fraction = 0.05,
   minimum_cell_number = 30,
+  peak_to_gene = NULL,
+  closest_feature_fallback = FALSE,
   ...
 )
 }
@@ -38,6 +40,18 @@ run_differential_accessibility_FindMarkers(
 \item{min_fraction}{Numeric; minimum fraction of cells with accessible peak. Default 0.05}
 
 \item{minimum_cell_number}{Integer; minimum cells required per group. Default 30}
+
+\item{peak_to_gene}{Data frame; optional peak-to-gene mapping from correlation
+analysis (e.g., LinkPeaks). Must contain columns 'PeakRanges' (genomic coordinates)
+and 'Gene' (gene symbol). If multiple genes map to the same peak, the one with
+highest absolute 'rObs' is used. Peaks mapped via peak_to_gene are flagged as
+having a correlated gene; unmapped peaks are excluded from pathway enrichment.
+Default NULL (uses Signac::ClosestFeature for all peaks)}
+
+\item{closest_feature_fallback}{Logical; when peak_to_gene is provided, whether
+to use Signac::ClosestFeature to assign gene names to unmapped peaks for
+visualization. These peaks are still excluded from pathway enrichment.
+Default FALSE (unmapped peaks retain the peak coordinate as their name)}
 
 \item{...}{Additional arguments (unused)}
 }

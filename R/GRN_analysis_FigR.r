@@ -1,3 +1,110 @@
+#' Convert a Signac/Seurat ChromatinAssay to a SummarizedExperiment
+#'
+#' Extracts peak (ATAC) information from a Seurat object containing a Signac
+#' \code{ChromatinAssay} and packages it into a \code{SummarizedExperiment}
+#' suitable for downstream use with FigR and related Bioconductor workflows.
+#'
+#' @param obj A \code{Seurat} object containing a Signac \code{ChromatinAssay}
+#'   with peak-level ATAC data.
+#' @param assayName Character. Name of the assay slot in \code{obj} that holds
+#'   the peak (ATAC) information. Defaults to \code{"peaks"}.
+#' @param fetchRawCounts Logical. If \code{TRUE} (default), pulls raw peak
+#'   counts from the \code{counts} slot. If \code{FALSE}, pulls normalized
+#'   values from the \code{data} slot. When using normalized values with FigR,
+#'   set \code{normalizeATACmat = FALSE} in \code{runGenePeakcorr()} and
+#'   \code{getDORCScores()} to avoid double normalization.
+#' @param reductions Character vector of dimensionality reduction names (e.g., "lsi", "umap") 
+#'   to pull from the Seurat object and include as reduced dimensions in the output \code{SummarizedExperiment}. 
+#'   If \code{NULL} (default), all available reductions will be included.
+#'
+#' @return A \code{SummarizedExperiment} object where:
+#'   \itemize{
+#'     \item \code{assay(se, "counts")} contains the peak × cell matrix.
+#'     \item \code{rowRanges(se)} contains the peak genomic coordinates.
+#'     \item \code{colData(se)} contains the cell-level metadata from
+#'           \code{obj@meta.data}.
+#'   }
+#'
+#' @details
+#' The function uses \code{Seurat::GetAssayData()} rather than direct slot
+#' access for cross-version compatibility (Seurat v4 and v5). The assay must
+#' be a Signac \code{ChromatinAssay} because peak genomic ranges are pulled
+#' from its \code{@ranges} slot.
+#'
+#' @examples
+#' \dontrun{
+#'   se <- SE_from_Signac(seurat_obj, assayName = "peaks")
+#'   se <- SE_from_Signac(seurat_obj, assayName = "ATAC", fetchRawCounts = FALSE)
+#' }
+#'
+#' @importFrom SummarizedExperiment SummarizedExperiment
+#' @importFrom S4Vectors DataFrame
+#' @export
+#' @importFrom SingleCellExperiment SingleCellExperiment reducedDims<-
+#' @importFrom S4Vectors DataFrame SimpleList
+#' @export
+SE_from_Signac <- function(obj,
+                           assayName = "peaks",
+                           fetchRawCounts = TRUE,
+                           reductions = NULL) {
+
+  if (!inherits(obj, "Seurat")) stop("`obj` must be a Seurat object.")
+  if (!assayName %in% names(obj@assays)) {
+    stop("Assay '", assayName, "' not found. Available: ",
+         paste(names(obj@assays), collapse = ", "))
+  }
+
+  assayObj <- obj@assays[[assayName]]
+  if (!inherits(assayObj, "ChromatinAssay")) {
+    stop("Assay '", assayName, "' is not a Signac ChromatinAssay.")
+  }
+
+  message("Pulling info from assay container: ", assayName)
+
+  peakRanges <- assayObj@ranges
+
+  if (fetchRawCounts) {
+    message("Using raw peak counts.")
+    peakCounts <- Seurat::GetAssayData(obj, assay = assayName, slot = "counts")
+  } else {
+    message("WARNING: pulling normalized counts; set `normalizeATACmat = FALSE` ",
+            "in FigR functions to avoid double normalization.")
+    peakCounts <- Seurat::GetAssayData(obj, assay = assayName, slot = "data")
+  }
+
+  cellMeta <- S4Vectors::DataFrame(obj@meta.data)
+  if (!identical(colnames(peakCounts), rownames(cellMeta))) {
+    warning("Reordering metadata to match counts.")
+    cellMeta <- cellMeta[colnames(peakCounts), , drop = FALSE]
+  }
+
+  # Default: grab all reductions on the Seurat object
+  if (is.null(reductions)) {
+    reductions <- names(obj@reductions)
+  }
+
+  redList <- S4Vectors::SimpleList()
+  for (r in reductions) {
+    if (!r %in% names(obj@reductions)) {
+      warning("Reduction '", r, "' not found in Seurat object; skipping.")
+      next
+    }
+    emb <- Seurat::Embeddings(obj, reduction = r)
+    # Align rows to cells in the SE
+    emb <- emb[colnames(peakCounts), , drop = FALSE]
+    redList[[r]] <- emb
+  }
+
+  SCE <- SingleCellExperiment::SingleCellExperiment(
+    assays    = list(counts = peakCounts),
+    rowRanges = peakRanges,
+    colData   = cellMeta,
+    reducedDims = redList
+  )
+
+  return(SCE)
+}
+
 #' Convert JASPAR Motif ID to Gene Symbol
 #'
 #' Retrieves the gene symbol name from a JASPAR motif ID by querying the JASPAR2024 database.
@@ -851,7 +958,7 @@ compare_DORC_scores_pairwise <- function(seurat, dorcMat.s, umap.d, cluster_id, 
 
   cluster_title  <- ifelse(is.null(cluster), paste0(cluster_id, ' vs ', other_cluster_id), cluster)
   # Generate volcano plot showing differential activity between clusters
-  plot <- volcano_plot(differential_activity_cluster, group1 = other_cluster_id, group2 = cluster_id, cluster = cluster_title, local_figures_path = figures_path, FC_threshold = 0.25, p_value_threshold = 0.05, test_type = 'Wilcox_ChromVar_motif', ...)
+  plot <- volcano_plot(differential_activity_cluster, group1 = other_cluster_id, group2 = cluster_id, cluster = cluster_title, local_figures_path = figures_path, FC_threshold = 0.25, p_value_threshold = 0.05, test_type = 'Wilcox_DORC', ...)
 
   #################### UP ####################
 

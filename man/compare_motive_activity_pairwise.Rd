@@ -13,7 +13,6 @@ compare_motive_activity_pairwise(
   identities = "seurat_clusters_atac",
   reduction = "umap.wnn",
   topn = 9,
-  JASPARConnect,
   sequential_palette,
   ...
 )
@@ -33,9 +32,6 @@ Default is 'umap.wnn'}
 
 \item{topn}{Numeric. Number of top motifs to display for up and down-regulated
 activities. Default is 9}
-
-\item{JASPARConnect}{A JASPAR database connection object for retrieving motif
-information and sequence logos}
 
 \item{sequential_palette}{Color palette for feature plots}
 
@@ -86,7 +82,6 @@ diff_motifs <- compare_motive_activity_pairwise(
   seurat = my_seurat,
   cluster_id = 1,
   other_cluster_id = 2,
-  JASPARConnect = jaspar_db,
   sequential_palette = viridis::viridis(100)
 )
 }

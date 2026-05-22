@@ -29,7 +29,7 @@
 #' @return A ggplot object
 #'
 #' @export
-scatterplot <- function (results, group1, group2, local_figures_path, FC_threshold, p_value_threshold, cluster = 'all_clusters', my_colors = c('#4DBBD5', '#E64B35', 'gray'), max_overlaps = 15, label_size = 5, label_threshold = 10000, distance_from_diagonal_threshold = 0.5, test_type = c('Wilcox', 'Pseudobulk', 'Bulk'), genes_to_plot = NULL, pt_size = 1.3, ...) {
+scatterplot <- function (results, group1, group2, local_figures_path, FC_threshold, p_value_threshold, cluster = 'all_clusters', my_colors = c('#023FA5', '#8E063B', 'gray'), max_overlaps = 15, label_size = 5, label_threshold = 10000, distance_from_diagonal_threshold = 0.5, test_type = c('Wilcox', 'Pseudobulk', 'Bulk'), genes_to_plot = NULL, pt_size = 1.3, ...) {
 
     # Set colors for the plot
     names(my_colors) <- c("DOWN", "UP", "NO")
@@ -147,22 +147,28 @@ scatterplot <- function (results, group1, group2, local_figures_path, FC_thresho
 #' @param label_size Numeric; size of gene labels. Default 5
 #' @param my_colors Character vector of length 3; colors for DOWN, UP, NO.
 #' @param test_type Character; type of test. Options: 'Wilcox', 'Pseudobulk', 'Bulk',
-#'   'Wilcox_ATAC', 'Wilcox_ATAC_closest_genes'
+#'   'Wilcox_ATAC', 'Wilcox_ATAC_closest_genes', 'Wilcox_DORC', 'Wilcox_ChromVar_motif'. Default 'Wilcox'
 #' @param genes_to_plot Character vector; specific genes to highlight. Default NULL
 #' @param pt_size Numeric; point size. Default 1.5
 #' @param p_value_max Numeric; maximum -log10 p-value for capping extremely small
 #'   p-values in visualization. Default 600
+#' @param nudge_x Numeric or NULL; horizontal nudge for gene labels. If NULL,
+#'   defaults to 0 (or 3 when genes_to_plot is provided). Default NULL
+#' @param nudge_y Numeric or NULL; vertical nudge for gene labels. If NULL,
+#'   defaults to 0 (or 3 when genes_to_plot is provided). Default NULL
 #' @param ... Additional arguments passed to plotting functions
 #'
 #' @return A ggplot object
 #'
 #' @export
-volcano_plot <- function (results, group1, group2, cluster, local_figures_path, FC_threshold, p_value_threshold, max_overlaps = 15, label_size = 5, my_colors = c('#4DBBD5', '#E64B35', 'gray'), test_type = c('Wilcox', 'Pseudobulk', 'Bulk', 'Wilcox_ATAC', 'Wilcox_ATAC_closest_genes', 'Wilcox_ChromVar_motif'), genes_to_plot = NULL, pt_size = 1.5, p_value_max = 600, ...) {
+volcano_plot <- function (results, group1, group2, cluster, local_figures_path, FC_threshold, p_value_threshold, max_overlaps = 15, label_size = 5, my_colors = c('#023FA5', '#8E063B', 'gray'), test_type = c('Wilcox', 'Pseudobulk', 'Bulk', 'Wilcox_ATAC', 'Wilcox_DORC', 'Wilcox_ATAC_closest_genes', 'Wilcox_ChromVar_motif'), genes_to_plot = NULL, pt_size = 1.5, p_value_max = 600, nudge_x = NULL, nudge_y = NULL, ...) {
 
     test_type <- match.arg(test_type)
 
     if (test_type == 'Wilcox_ATAC') {
         plot_title <- paste0('Differentially Accessible Regions in ', str_replace(cluster,pattern = '_',replace = ' ') )
+    } else if (test_type == 'Wilcox_DORC') {
+        plot_title <- paste0('Differential DORCs in ', str_replace(cluster,pattern = '_',replace = ' ') )
     } else if (test_type == 'Wilcox_ATAC_closest_genes') {
         plot_title <- paste0('Genes Closest to Differentially Accessible Regions in ', str_replace(cluster,pattern = '_',replace = ' ') )
     } else if (test_type == 'Wilcox_ChromVar_motif') {
@@ -175,8 +181,8 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
 
     names(my_colors) <- c("DOWN", "UP", "NO")
 
-    nudge_x <- 0
-    nudge_y <- 0
+    if (is.null(nudge_x)) nudge_x <- 0
+    if (is.null(nudge_y)) nudge_y <- 0
 
     results_volcano <- results |>
         drop_na(pvalue) |>
@@ -216,8 +222,8 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
                     genes, NA
                 )
             )
-            nudge_x <- 3
-            nudge_y <- 3
+            if (nudge_x == 0) nudge_x <- 3
+            if (nudge_y == 0) nudge_y <- 3
     }
 
     initial_number_of_genes <- nrow(results_volcano)
@@ -339,7 +345,7 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
 #' @return A ggplot object
 #'
 #' @export
-plot_deg_counts <- function(deg_counts_df, figures_path, group2 = NULL, group1 = NULL, title = NULL, data_type = c('genes', 'peaks', 'motifs', 'dorcs'), width = 10, height = 6, up_color = '#E64B35', down_color = '#4DBBD5') {
+plot_deg_counts <- function(deg_counts_df, figures_path, group2 = NULL, group1 = NULL, title = NULL, data_type = c('genes', 'peaks', 'motifs', 'dorcs'), width = 10, height = 6, up_color = '#8E063B', down_color = '#023FA5') {
 
     # Validate data_type
     data_type <- match.arg(data_type)

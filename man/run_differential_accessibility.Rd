@@ -23,6 +23,8 @@ run_differential_accessibility(
   colors = c("green4", "darkorchid4"),
   minimum_cell_number = 30,
   run_pathway_enrichment = NULL,
+  peak_to_gene = NULL,
+  closest_feature_fallback = FALSE,
   ...
 )
 }
@@ -64,6 +66,18 @@ Default c('green4', 'darkorchid4')}
 \item{minimum_cell_number}{Integer; minimum cells required per group. Default 30}
 
 \item{run_pathway_enrichment}{Character; method for pathway enrichment or NULL. Default NULL}
+
+\item{peak_to_gene}{Data frame; optional peak-to-gene mapping from correlation
+analysis (e.g., LinkPeaks). Must contain columns 'PeakRanges' (genomic coordinates)
+and 'Gene' (gene symbol). If multiple genes map to the same peak, the one with
+highest absolute 'rObs' is used. Peaks mapped via peak_to_gene are flagged as
+having a correlated gene; unmapped peaks are excluded from pathway enrichment.
+Default NULL (uses Signac::ClosestFeature for all peaks)}
+
+\item{closest_feature_fallback}{Logical; when peak_to_gene is provided, whether
+to use Signac::ClosestFeature to assign gene names to unmapped peaks for
+visualization. These peaks are still excluded from pathway enrichment.
+Default FALSE (unmapped peaks retain the peak coordinate as their name)}
 
 \item{...}{Additional arguments passed to core analysis and visualization functions}
 }

@@ -45,7 +45,7 @@ List with two elements: plot (ggplot object) and results (enrichment results)
 Performs pathway overrepresentation analysis on multiple gene lists using
 clusterProfiler's compareCluster with enricher and MSigDB pathway collections.
 Compares enriched pathways across multiple groups/clusters simultaneously and
-generates a comparative dot plot visualization.
+generates a comparative dotwot visualization.
 }
 \details{
 Uses MSigDB pathway collections: Hallmark (MH), BIOCARTA, REACTOME, WIKIPATHWAYS,

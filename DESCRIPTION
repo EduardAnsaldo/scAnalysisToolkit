@@ -55,7 +55,8 @@ Imports:
     tidyr,
     utils,
     viridis,
-Depends: 
+    zoo,
+Depends:
     R (>= 4.5)
 URL: https://github.com/EduardAnsaldo/scAnalysisToolkit
 BugReports: https://github.com/EduardAnsaldo/scAnalysisToolkit/issues

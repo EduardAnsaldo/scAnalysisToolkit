@@ -62,10 +62,12 @@ filtering. Default 20}
 \item{run_pathway_enrichment}{Logical; whether to run pathway enrichment. Default TRUE}
 }
 \value{
-Named vector with elements:
+List with elements:
 \item{all_count}{Integer; number of significant DEGs}
 \item{UP_count}{Integer; number of upregulated genes}
 \item{DOWN_count}{Integer; number of downregulated genes}
+\item{results}{Data frame; complete DE results}
+\item{enrichment}{Enrichment analysis results (plot_up and plot_down), or NULL}
 }
 \description{
 Orchestrates a full Wilcoxon differential expression analysis workflow for the

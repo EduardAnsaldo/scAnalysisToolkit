@@ -191,7 +191,7 @@ top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
     # Set the identity class for clustering
     Idents(seurat) <- grouping_var
 
-    seurat.markers <- FindAllMarkers(seurat, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+    seurat.markers <- FindAllMarkers(seurat, only.pos = TRUE, min.pct = 0.1, logfc.threshold = 0.25)
 
     # Filter out Ig genes if requested
     if (filter_ig) {

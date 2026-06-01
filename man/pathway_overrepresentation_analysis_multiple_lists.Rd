@@ -14,6 +14,7 @@ pathway_overrepresentation_analysis_multiple_lists(
   nterms_to_plot = 5,
   font_size = 8,
   grouping_var = "",
+  wrap_length = 60,
   ...
 )
 }

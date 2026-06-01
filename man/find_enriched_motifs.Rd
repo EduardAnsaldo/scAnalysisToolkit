@@ -8,7 +8,7 @@ find_enriched_motifs(
   seurat_object,
   da_results,
   cluster_id,
-  pct_threshold = 0.1,
+  pct_threshold = 0.05,
   log2fc_threshold = 1,
   n_motifs_to_plot = 10
 )

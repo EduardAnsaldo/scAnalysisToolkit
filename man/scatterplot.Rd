@@ -12,7 +12,7 @@ scatterplot(
   FC_threshold,
   p_value_threshold,
   cluster = "all_clusters",
-  my_colors = c("#4DBBD5", "#E64B35", "gray"),
+  my_colors = c("#023FA5", "#8E063B", "gray"),
   max_overlaps = 15,
   label_size = 5,
   label_threshold = 10000,

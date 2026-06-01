@@ -82,6 +82,7 @@ List with elements:
 \item{results}{Data frame; complete DE results}
 \item{scatterplot}{ggplot; scatterplot object}
 \item{volcanoplot}{ggplot; volcano plot object}
+\item{enrichment}{Enrichment analysis results (plot_up and plot_down), or NULL}
 }
 \description{
 Orchestrates a full Wilcoxon differential expression analysis workflow for

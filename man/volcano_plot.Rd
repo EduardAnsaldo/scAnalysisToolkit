@@ -14,12 +14,14 @@ volcano_plot(
   p_value_threshold,
   max_overlaps = 15,
   label_size = 5,
-  my_colors = c("#4DBBD5", "#E64B35", "gray"),
-  test_type = c("Wilcox", "Pseudobulk", "Bulk", "Wilcox_ATAC",
+  my_colors = c("#023FA5", "#8E063B", "gray"),
+  test_type = c("Wilcox", "Pseudobulk", "Bulk", "Wilcox_ATAC", "Wilcox_DORC",
     "Wilcox_ATAC_closest_genes", "Wilcox_ChromVar_motif"),
   genes_to_plot = NULL,
   pt_size = 1.5,
   p_value_max = 600,
+  nudge_x = NULL,
+  nudge_y = NULL,
   ...
 )
 }
@@ -46,7 +48,7 @@ padj, pvalue}
 \item{my_colors}{Character vector of length 3; colors for DOWN, UP, NO.}
 
 \item{test_type}{Character; type of test. Options: 'Wilcox', 'Pseudobulk', 'Bulk',
-'Wilcox_ATAC', 'Wilcox_ATAC_closest_genes'}
+'Wilcox_ATAC', 'Wilcox_ATAC_closest_genes', 'Wilcox_DORC', 'Wilcox_ChromVar_motif'. Default 'Wilcox'}
 
 \item{genes_to_plot}{Character vector; specific genes to highlight. Default NULL}
 
@@ -54,6 +56,12 @@ padj, pvalue}
 
 \item{p_value_max}{Numeric; maximum -log10 p-value for capping extremely small
 p-values in visualization. Default 600}
+
+\item{nudge_x}{Numeric or NULL; horizontal nudge for gene labels. If NULL,
+defaults to 0 (or 3 when genes_to_plot is provided). Default NULL}
+
+\item{nudge_y}{Numeric or NULL; vertical nudge for gene labels. If NULL,
+defaults to 0 (or 3 when genes_to_plot is provided). Default NULL}
 
 \item{...}{Additional arguments passed to plotting functions}
 }

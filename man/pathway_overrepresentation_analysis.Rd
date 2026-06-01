@@ -39,7 +39,7 @@ pathway_overrepresentation_analysis(
 \item{...}{Additional arguments (unused)}
 }
 \value{
-Invisible NULL; creates CSV files and PDF plots
+ggplot object; bar plot of enriched pathways (or no-data plot if insufficient genes/results)
 }
 \description{
 Performs pathway overrepresentation analysis using clusterProfiler's enricher

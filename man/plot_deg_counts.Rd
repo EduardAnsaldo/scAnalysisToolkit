@@ -13,8 +13,8 @@ plot_deg_counts(
   data_type = c("genes", "peaks", "motifs", "dorcs"),
   width = 10,
   height = 6,
-  up_color = "#E64B35",
-  down_color = "#4DBBD5"
+  up_color = "#8E063B",
+  down_color = "#023FA5"
 )
 }
 \arguments{

@@ -7,7 +7,7 @@
 plot_pathways_heatmap(
   genes_to_plot,
   seurat,
-  pathway_name,
+  title,
   color_palette = grDevices::hcl.colors(n = 20, "RdBu", rev = T),
   grouping_var = "Samples"
 )
@@ -17,7 +17,7 @@ plot_pathways_heatmap(
 
 \item{seurat}{Seurat object with gene expression data}
 
-\item{pathway_name}{Character; title for the heatmap}
+\item{title}{Character; title for the heatmap}
 
 \item{color_palette}{Character vector; diverging color palette for heatmap.
 Default grDevices::hcl.colors(n = 20,'RdBu',rev = T)}

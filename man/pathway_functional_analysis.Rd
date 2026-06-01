@@ -40,7 +40,8 @@ log2FoldChange, padj}
 \item{...}{Additional arguments passed to pathway_overrepresentation_analysis}
 }
 \value{
-Invisible NULL; creates output directories with enrichment results
+List with two elements: plot_up (ggplot for upregulated genes) and
+plot_down (ggplot for downregulated genes)
 }
 \description{
 Wrapper function that performs comprehensive pathway enrichment analysis on differential

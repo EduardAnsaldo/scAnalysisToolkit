@@ -20,6 +20,8 @@ process_multimodal_seurat(
   integration_column = "Origin",
   npcs = 50,
   ndims_lsi = 40,
+  k_param = 20,
+  n_neighbors = 30,
   random_seed = 3514,
   remove_ig = FALSE,
   genome = "GRCm39",
@@ -78,6 +80,15 @@ for RNA PCA. Default: 50}
 
 \item{ndims_lsi}{Integer specifying the number of LSI dimensions to compute
 for ATAC data. Default: 40}
+
+\item{k_param}{Integer specifying the number of nearest neighbors (k) for the
+KNN graphs used in clustering. Applied to the RNA and ATAC \code{FindNeighbors}
+steps (\code{k.param}) and to the WNN \code{FindMultiModalNeighbors} step (\code{k.nn}).
+Default: 20}
+
+\item{n_neighbors}{Integer specifying the number of neighbors for the RNA and
+ATAC UMAP embeddings (passed to RunUMAP's \code{n.neighbors}). The WNN UMAP uses the
+precomputed weighted neighbor graph and is unaffected. Default: 30}
 
 \item{random_seed}{Integer seed for reproducibility in clustering algorithms.
 Default: 3514}

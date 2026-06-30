@@ -19,5 +19,10 @@ Useful links:
 \author{
 \strong{Maintainer}: Eduard Ansaldo \email{EAnsaldo@scripps.edu}
 
+Authors:
+\itemize{
+  \item Eduard Ansaldo \email{EAnsaldo@scripps.edu}
+}
+
 }
 \keyword{internal}

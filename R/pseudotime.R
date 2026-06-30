@@ -41,6 +41,9 @@
 #'                    vector of colors, or a ggplot Scale object).
 #' @param palette_direction +1 or -1.
 #' @param pseudotime_palette Palette for the pseudotime annotation bar.
+#' @param legend_title Optional title for the heatmap fill legend. If NULL
+#'                    (default), an automatic label is built from `normalize`
+#'                    (and `loess_smooth`).
 #'
 #' @return A ggplot object (or a patchwork if show_pseudotime_bar = TRUE).
 #'
@@ -63,7 +66,8 @@ plot_pseudotime_heatmap <- function(seurat_obj,
                                     show_pseudotime_bar = TRUE,
                                     palette = NULL,
                                     palette_direction = 1,
-                                    pseudotime_palette = "magma") {
+                                    pseudotime_palette = "magma",
+                                    legend_title = NULL) {
 
   normalize  <- match.arg(normalize)
   gene_order <- match.arg(gene_order)
@@ -250,6 +254,7 @@ plot_pseudotime_heatmap <- function(seurat_obj,
   if (loess_smooth) {
     fill_label <- paste0(fill_label, sprintf("\nloess α=%g", loess_span))
   }
+  if (!is.null(legend_title)) fill_label <- legend_title
 
   fill_scale <- make_fill_scale(
     palette   = palette,

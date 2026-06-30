@@ -14,6 +14,7 @@ CoveragePlot_custom(
   assay_atac = "ATAC",
   extend_upstream = 20000,
   extend_downstream = 20000,
+  annotation_font_size = 1.5,
   add_links = FALSE,
   gene_symbol = FALSE,
   expression_feature = NULL,
@@ -55,6 +56,11 @@ region upstream of \code{region}. Defaults to \code{20000}.}
 \item{extend_downstream}{Integer. Number of bases to extend the plotted
 region downstream of \code{region}. Defaults to \code{20000}.}
 
+\item{annotation_font_size}{Numeric. Font size of the gene/transcript name
+labels on the gene annotation track, passed to \code{AnnotationPlot_custom()}.
+Note this is in ggplot2's geom text-size units (mm-based), not points.
+Defaults to \code{1.5}.}
+
 \item{add_links}{Logical. If \code{TRUE}, a \code{LinkPlot} track is added showing
 peak-to-gene links stored in \code{Links(seurat[[assay_atac]])}. Defaults to
 \code{FALSE}.}
@@ -79,7 +85,7 @@ order: coverage, peak, gene annotation, link. Length 4 by default
 link track when \code{add_links = FALSE}) are dropped automatically.}
 
 \item{widths}{Numeric vector of length 2 giving the relative widths of
-the track panel and the expression panel, passed to \code{\link[Signac:CombineTracks]{Signac::CombineTracks()}}.
+the track panel and the expression panel, passed to \code{\link[Signac:CombineTracks]{CombineTracks()}}.
 Defaults to \code{c(10, 1)}.}
 }
 \value{

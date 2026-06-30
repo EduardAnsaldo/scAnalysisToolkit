@@ -150,18 +150,27 @@ scatterplot <- function (results, group1, group2, local_figures_path, FC_thresho
 #'   'Wilcox_ATAC', 'Wilcox_ATAC_closest_genes', 'Wilcox_DORC', 'Wilcox_ChromVar_motif'. Default 'Wilcox'
 #' @param genes_to_plot Character vector; specific genes to highlight. Default NULL
 #' @param pt_size Numeric; point size. Default 1.5
-#' @param p_value_max Numeric; maximum -log10 p-value for capping extremely small
-#'   p-values in visualization. Default 600
+#' @param pval_cap Numeric; cap applied to the data's -log10 adjusted p-values to
+#'   avoid infinities (padj is floored at 10^-pval_cap). This clips the plotted
+#'   point values, not the displayed axis range. Must stay below ~307 so the
+#'   floor 10^-pval_cap does not underflow to 0 in double precision. Default 300
+#' @param y_axis_max Numeric or NULL; upper limit of the y-axis (-log10 adjusted
+#'   p-value). If NULL, the axis is scaled to the data maximum. Useful for keeping
+#'   a consistent y-axis range across multiple plots. Default NULL
 #' @param nudge_x Numeric or NULL; horizontal nudge for gene labels. If NULL,
 #'   defaults to 0 (or 3 when genes_to_plot is provided). Default NULL
 #' @param nudge_y Numeric or NULL; vertical nudge for gene labels. If NULL,
 #'   defaults to 0 (or 3 when genes_to_plot is provided). Default NULL
+#' @param label_line_width Numeric; line width of the leader segments connecting
+#'   gene labels to their points (the geom_text_repel `segment.size`). Default 0.5
+#' @param dashed_line_width Numeric; line width of the dashed fold-change and
+#'   p-value threshold guide lines. Default 0.5
 #' @param ... Additional arguments passed to plotting functions
 #'
 #' @return A ggplot object
 #'
 #' @export
-volcano_plot <- function (results, group1, group2, cluster, local_figures_path, FC_threshold, p_value_threshold, max_overlaps = 15, label_size = 5, my_colors = c('#023FA5', '#8E063B', 'gray'), test_type = c('Wilcox', 'Pseudobulk', 'Bulk', 'Wilcox_ATAC', 'Wilcox_DORC', 'Wilcox_ATAC_closest_genes', 'Wilcox_ChromVar_motif'), genes_to_plot = NULL, pt_size = 1.5, p_value_max = 600, nudge_x = NULL, nudge_y = NULL, ...) {
+volcano_plot <- function (results, group1, group2, cluster, local_figures_path, FC_threshold, p_value_threshold, max_overlaps = 15, label_size = 5, my_colors = c('#023FA5', '#8E063B', 'gray'), test_type = c('Wilcox', 'Pseudobulk', 'Bulk', 'Wilcox_ATAC', 'Wilcox_DORC', 'Wilcox_ATAC_closest_genes', 'Wilcox_ChromVar_motif'), genes_to_plot = NULL, pt_size = 1.5, pval_cap = 300, y_axis_max = NULL, nudge_x = NULL, nudge_y = NULL, label_line_width = 0.5, dashed_line_width = 0.5, ...) {
 
     test_type <- match.arg(test_type)
 
@@ -177,7 +186,7 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
         plot_title <- paste0(test_type, ' DEGs in ', str_replace(cluster,pattern = '_',replace = ' ') )
     }
 
-    x_axis_title <- ifelse(test_type == 'Wilcox_ChromVar_motif', paste('Z score difference (', group2, ' - ', group1, ')', sep=''), paste('Average log2 FC (', group2, '/', group1, ')', sep=''))
+    x_axis_title <- ifelse(test_type == 'Wilcox_ChromVar_motif', paste('Mean Z score difference (', group2, ' - ', group1, ')', sep=''), paste('Average log2 FC (', group2, '/', group1, ')', sep=''))
 
     names(my_colors) <- c("DOWN", "UP", "NO")
 
@@ -187,7 +196,7 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
     results_volcano <- results |>
         drop_na(pvalue) |>
         mutate(
-            log10_pval = log10(padj+10^-p_value_max)*-1) |>
+            log10_pval = -log10(pmax(padj, 10^-pval_cap))) |>
         mutate(
             genes_to_label_UP = ifelse(
                 (log2FoldChange >= FC_threshold) &
@@ -229,11 +238,13 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
     initial_number_of_genes <- nrow(results_volcano)
     max_FC_up_significant <- results_volcano |> filter(diffexpressed != 'NO') |> dplyr::select(log2FoldChange) |> max(na.rm = T)
     min_FC_up_significant <- results_volcano |> filter(diffexpressed != 'NO') |> dplyr::select(log2FoldChange) |> min(na.rm = T)
-    if (min_FC_up_significant > -3 | is.na(min_FC_up_significant)) {
-        min_FC_up_significant <- -3
+    # ChromVar (Z-score) plots use a tighter x-axis extent (±2) than other modalities (±3)
+    axis_limit <- if (test_type == 'Wilcox_ChromVar_motif') 2 else 3
+    if (min_FC_up_significant > -axis_limit | is.na(min_FC_up_significant)) {
+        min_FC_up_significant <- -axis_limit
     }
-    if (max_FC_up_significant  < 3 | is.na(max_FC_up_significant)) {
-        max_FC_up_significant <- 3
+    if (max_FC_up_significant  < axis_limit | is.na(max_FC_up_significant)) {
+        max_FC_up_significant <- axis_limit
     }
     results_volcano <- results_volcano |>
         filter(!(diffexpressed == 'NO' & (log2FoldChange < min_FC_up_significant | log2FoldChange > max_FC_up_significant))) |>
@@ -241,11 +252,15 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
     final_number_of_genes <- nrow(results_volcano)
     message('Removed ', initial_number_of_genes-final_number_of_genes, ' non-significant genes that would bias the plot visualization')
 
-    # Compute y position for arrows: just above the top of the data
-    y_max <- max(results_volcano$log10_pval, na.rm = TRUE)
-    arrow_y      <- y_max * 1.1   # vertical position of the arrow line
-    arrow_x_end  <- max_FC_up_significant * 0.75  # how far the arrow extends
-    arrow_label_y <- y_max * 1.15  # vertical position of the text label
+    FC_max_abs <- max(c(max_FC_up_significant, abs(min_FC_up_significant)))
+
+    # Compute y position for arrows: above the plotting area (in the top margin)
+    y_max <- if (!is.null(y_axis_max)) y_axis_max else max(results_volcano$log10_pval, na.rm = TRUE)
+    arrow_y      <- y_max * 1.02   # vertical position of the arrow line (above panel)
+    x_axis_span  <- max_FC_up_significant - min_FC_up_significant  # total length of the x axis
+    arrow_x_start <- x_axis_span * 0.1   # gap from centre to arrow start, proportional to axis length
+    arrow_x_end  <- FC_max_abs * 0.85  # how far the arrow extends
+    arrow_label_y <- y_max * 1.04  # vertical position of the text label (above the arrow)
 
     volcano_plot <- results_volcano |>
         arrange(desc(padj)) |>
@@ -254,34 +269,34 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
 
         # ── UP arrow (right, group2 color) ──────────────────────────────────
         annotate('segment',
-            x    = 0.2,          xend = arrow_x_end,
+            x    = arrow_x_start,          xend = arrow_x_end,
             y    = arrow_y,    yend = arrow_y,
             color = my_colors[['UP']],
-            linewidth = 0.8,
-            arrow = arrow(length = unit(0.25, 'cm'), type = 'closed')
+            linewidth = label_line_width,
+            arrow = arrow(length = unit(label_line_width/2, 'cm'), type = 'closed', angle = 20)
         ) +
         annotate('text',
             x     = arrow_x_end / 2,
             y     = arrow_label_y,
             label = paste0('UP in ', group2),
             color = my_colors[['UP']],
-            size  = 3, fontface = 'bold', hjust = 0.5
+            size  = label_size, fontface = 'bold', hjust = 0.5
         ) +
 
         # ── DOWN arrow (left, group1 color) ─────────────────────────────────
         annotate('segment',
-            x    = -0.2,           xend = -arrow_x_end,
+            x    = -arrow_x_start,           xend = -arrow_x_end,
             y    = arrow_y,     yend = arrow_y,
             color = my_colors[['DOWN']],
-            linewidth = 0.8,
-            arrow = arrow(length = unit(0.25, 'cm'), type = 'closed')
+            linewidth = label_line_width,
+            arrow = arrow(length = unit(label_line_width/2, 'cm'), type = 'closed', angle = 20)
         ) +
         annotate('text',
             x     = -arrow_x_end / 2,
             y     = arrow_label_y,
             label = paste0('UP in ', group1),
             color = my_colors[['DOWN']],
-            size  = 3, fontface = 'bold', hjust = 0.5
+            size  = label_size, fontface = 'bold', hjust = 0.5
         ) +
 
         geom_text_repel(
@@ -293,7 +308,7 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
             max.iter = 10000000,
             nudge_x = nudge_x,
             nudge_y = nudge_y,
-            aes(label = genes_to_label_UP, segment.size=0.5, segment.alpha=0.8, segment.curvature=0),
+            aes(label = genes_to_label_UP, segment.size=label_line_width, segment.alpha=0.8, segment.curvature=0),
             fontface = 'italic') +
         geom_text_repel(
             size=label_size,
@@ -305,11 +320,11 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
             nudge_x = -1*nudge_x,
             nudge_y = nudge_y,
             fontface = 'italic',
-            aes(label = genes_to_label_DOWN, segment.size=0.5, segment.alpha=0.8, segment.curvature=0)) +
+            aes(label = genes_to_label_DOWN, segment.size=label_line_width, segment.alpha=0.8, segment.curvature=0)) +
         scale_colour_manual(values=my_colors) +
-        geom_vline(xintercept= FC_threshold, col="lavenderblush2", linetype=2, size=0.5) +
-        geom_vline(xintercept=-FC_threshold, col="lavenderblush2", linetype=2, size=0.5) +
-        geom_hline(yintercept=-1*log10(p_value_threshold), col="lavenderblush2", linetype=2, size=0.5) +
+        geom_vline(xintercept= FC_threshold, col="lavenderblush2", linetype=2, size=dashed_line_width) +
+        geom_vline(xintercept=-FC_threshold, col="lavenderblush2", linetype=2, size=dashed_line_width) +
+        geom_hline(yintercept=-1*log10(p_value_threshold), col="lavenderblush2", linetype=2, size=dashed_line_width) +
         theme(text=element_text(size=20), legend.position="none") +
         labs(title=plot_title,
              x=x_axis_title,
@@ -317,9 +332,12 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
         theme_classic(base_size = 28, base_line_size=1) +
         theme(legend.position="none",
               title      = element_text(size=15),
+              plot.title = element_text(size=15, margin = margin(b = 40)),  # <-- gap below title leaves room for arrows above the panel
               axis.text  = element_text(size=10),
-              axis.title = element_text(size=13)) +
-        scale_y_continuous(n.breaks = 8, expand = expansion(mult = c(0, 0.1))) +  # <-- slightly more top expansion for arrows
+              axis.title = element_text(size=13),
+              plot.margin = margin(t = 20, r = 5, b = 5, l = 5)) +
+        coord_cartesian(ylim = c(0, y_max), clip = 'off') +  # <-- pin panel to data so arrows render outside (above) the panel
+        scale_y_continuous(n.breaks = 8, expand = expansion(mult = c(0.02, 0.02))) +  # <-- panel ends at the data; arrows sit above it
         scale_x_continuous(n.breaks = 8)
 
     ggsave(plot = volcano_plot, filename = paste0(test_type, '_volcano_in_', cluster, '.pdf'), path = local_figures_path)
@@ -404,7 +422,7 @@ plot_deg_counts <- function(deg_counts_df, figures_path, group2 = NULL, group1 =
         theme_classic(base_size = 16) +        
         theme(
             legend.position = "top",
-            legend.text = element_text(swize = 14),
+            legend.text = element_text(size = 14),
             legend.title = element_text(size = 15, face = "bold"),
             axis.text.x = element_text(size = 13),
             axis.text.y = element_text(size = 13),

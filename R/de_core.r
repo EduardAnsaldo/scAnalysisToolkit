@@ -192,7 +192,10 @@ pseudobulk_de <- function(scRNAseq, comparison, group1, group2, cluster = 'all_c
 #' @param path Character; output directory path. Default './'
 #' @param FC_threshold Numeric; log2 fold change threshold for filtering. Default 0.3
 #' @param p_value_threshold Numeric; adjusted p-value threshold. Default 0.05
+#' @param min_fraction Numeric; minimum fraction of cells expressing a gene. Default 0.01
 #' @param minimum_cell_number Integer; minimum cells required per group. Default 30
+#' @param exclude_sex_chr_genes Logical; if TRUE, removes mouse sex chromosome genes
+#'   from results to avoid false positives from sex imbalance. Default FALSE
 #' @param ... Additional arguments (unused)
 #'
 #' @return List with elements:
@@ -205,7 +208,8 @@ pseudobulk_de <- function(scRNAseq, comparison, group1, group2, cluster = 'all_c
 DEG_FindMarkers_RNA_assay_de <- function(scRNAseq, comparison, group1, group2,
                                          cluster = 'all_clusters', path = './',
                                          FC_threshold = 0.3, p_value_threshold = 0.05,
-                                         minimum_cell_number = 30, ...) {
+                                         min_fraction = 0.01, minimum_cell_number = 30,
+                                         exclude_sex_chr_genes = FALSE, ...) {
 
     # Set Paths
     gene_lists_path <- here::here(path, 'gene_lists')
@@ -236,7 +240,8 @@ DEG_FindMarkers_RNA_assay_de <- function(scRNAseq, comparison, group1, group2,
 
     # Run FindMarkers
     results <- FindMarkers(object = scRNAseq, ident.1 = group1, ident.2 = group2,
-                          assay = 'RNA', slot = 'data', test.use = 'wilcox')
+                          assay = 'RNA', slot = 'data', test.use = 'wilcox',
+                          min.pct = min_fraction)
 
     # Calculate CPMs
     scRNAseq_CPM <- scRNAseq |> AggregateExpression(group.by = c(comparison),
@@ -265,6 +270,21 @@ DEG_FindMarkers_RNA_assay_de <- function(scRNAseq, comparison, group1, group2,
                     left_join(y = unique(annotations[, c('gene_name', 'description')]),
                              by = c('genes' = 'gene_name')) |>
                     left_join(y = counts_CPM, by = c('genes' = 'gene'))
+
+    # Remove sex chromosome genes if requested
+    if (exclude_sex_chr_genes) {
+        sex_chr_genes <- c(
+            # Y chromosome genes (male-specific)
+            'Ddx3y', 'Eif2s3y', 'Kdm5d', 'Uty', 'Zfy1', 'Zfy2',
+            # X chromosome genes (enriched in females)
+            'Xist', 'Tsix', 'Ddx3x', 'Eif2s3x', 'Kdm5c', 'Kdm6a'
+        )
+        n_removed <- sum(results$genes %in% sex_chr_genes)
+        if (n_removed > 0) {
+            message('Removing ', n_removed, ' sex chromosome genes from results')
+        }
+        results <- results |> filter(!genes %in% sex_chr_genes)
+    }
 
     # Filter results
     results_filtered <- filter(results,
@@ -316,7 +336,7 @@ DEG_FindMarkers_RNA_assay_de <- function(scRNAseq, comparison, group1, group2,
 #' @param minimum_cell_number Integer; minimum cells required per group. Default 30
 #' @param exclude_sex_chr_genes Logical; if TRUE, removes mouse sex chromosome genes
 #'   from results to avoid false positives from sex imbalance. Default FALSE
-#' @param ... Additional arguments (unused)
+#' @param ... Additional arguments (unused)   
 #'
 #' @return List with elements:
 #'   \item{all_count}{Integer; number of significant DEGs}

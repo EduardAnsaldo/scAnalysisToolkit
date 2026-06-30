@@ -8,8 +8,10 @@ perform_seurat_clustering(
   seurat,
   npcs = 100,
   dimensions = 30,
+  k_param = 20,
+  n_neighbors = 30,
   resolutions = c(0.05, 0.1, 0.15, 0.25, 0.375, 0.5),
-  filter_variable = FALSE,
+  filter_variable = NULL,
   keep_values = NULL,
   plot_elbow = TRUE,
   seed = 3514L,
@@ -27,7 +29,8 @@ perform_seurat_clustering(
   filter_tcr = FALSE,
   quiet_vdj = FALSE,
   integrate_rna = FALSE,
-  integration_column = "Origin"
+  integration_column = "Origin",
+  vars_to_regress = NULL
 )
 }
 \arguments{
@@ -36,6 +39,12 @@ perform_seurat_clustering(
 \item{npcs}{Integer; number of principal components to compute. Default 100}
 
 \item{dimensions}{Integer; number of dimensions to use for UMAP and clustering. Default 30}
+
+\item{k_param}{Integer; number of nearest neighbors (k) for the KNN graph used in
+clustering (passed to FindNeighbors' \code{k.param}). Default 20}
+
+\item{n_neighbors}{Integer; number of neighbors for the UMAP embedding (passed to
+RunUMAP's \code{n.neighbors}). Default 30}
 
 \item{resolutions}{Numeric vector; clustering resolutions to test. Default c(0.05, 0.1, 0.15, 0.25, 0.375, 0.5)}
 
@@ -85,6 +94,10 @@ steps then use the 'harmony' reduction instead of 'pca'. Default FALSE}
 
 \item{integration_column}{Character; metadata column to split the RNA assay by
 for integration. Default "Origin"}
+
+\item{vars_to_regress}{Character vector or NULL; metadata variable(s) to regress
+out during SCTransform normalization (passed to SCTransform's \code{vars.to.regress},
+e.g. 'percent.mt' or cell-cycle scores). Default NULL (no regression)}
 }
 \value{
 List with elements:

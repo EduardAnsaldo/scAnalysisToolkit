@@ -618,6 +618,10 @@ AnnotationPlot_custom <- function(
 #'   region upstream of `region`. Defaults to `20000`.
 #' @param extend_downstream Integer. Number of bases to extend the plotted
 #'   region downstream of `region`. Defaults to `20000`.
+#' @param annotation_font_size Numeric. Font size of the gene/transcript name
+#'   labels on the gene annotation track, passed to `AnnotationPlot_custom()`.
+#'   Note this is in ggplot2's geom text-size units (mm-based), not points.
+#'   Defaults to `1.5`.
 #' @param add_links Logical. If `TRUE`, a `LinkPlot` track is added showing
 #'   peak-to-gene links stored in `Links(seurat[[assay_atac]])`. Defaults to
 #'   `FALSE`.
@@ -708,6 +712,7 @@ CoveragePlot_custom <- function(seurat,
                                 assay_atac = "ATAC",
                                 extend_upstream = 20000,
                                 extend_downstream = 20000,
+                                annotation_font_size = 1.5,
                                 add_links = FALSE,
                                 gene_symbol = FALSE,
                                 expression_feature = NULL,
@@ -810,7 +815,8 @@ CoveragePlot_custom <- function(seurat,
     object            = seurat,
     region            = coord_region,
     extend.upstream   = extend_upstream,
-    extend.downstream = extend_downstream
+    extend.downstream = extend_downstream,
+    annotation_font_size = annotation_font_size
   )
 
   peak_plot <- PeakPlot(
@@ -1121,7 +1127,8 @@ create_tracks_patchwork2 <- function(seurat,
 
   # Build one combined track plot for a single region
   build_combined_plot <- function(region_input, col_idx, ncol_total,
-                                  expr_feature = NULL, region_idx = NULL) {
+                                  expr_feature = NULL, region_idx = NULL,
+                                  keep_x_axis_title = TRUE) {
 
     is_first_col <- col_idx == 1
     coord_region <- resolve_region(region_input)
@@ -1252,6 +1259,13 @@ create_tracks_patchwork2 <- function(seurat,
     r_margin <- if (is_rightmost) 1 else 0
     combined <- combined & theme(plot.margin = margin(1, r_margin, 1, l_margin))
 
+    # Drop the repeated genome-position x-axis title unless this composite is on
+    # the bottom row (keep its tick labels/axis line). Applied while `combined`
+    # is still a live patchwork so the theme survives nesting in the outer grid.
+    if (!keep_x_axis_title) {
+      combined <- combined & theme(axis.title.x = element_blank())
+    }
+
     # Add per-track title if requested, then freeze the inner patchwork so
     # the annotation survives nesting inside the outer wrap_plots()
     if (add_track_titles || !is.null(track_titles)) {
@@ -1284,8 +1298,12 @@ create_tracks_patchwork2 <- function(seurat,
   combined_plots <- lapply(seq_along(regions), function(i) {
     col_idx <- ((i - 1) %% ncol) + 1
     ef <- if (!is.null(expression_features)) expression_features[[i]] else NULL
+    # Keep the x-axis title only on the bottom-most composite in each column
+    # (i.e. no plot one full row below it).
+    keep_x_title <- (i + ncol) > n
     build_combined_plot(regions[[i]], col_idx = col_idx, ncol_total = ncol,
-                        expr_feature = ef, region_idx = i)
+                        expr_feature = ef, region_idx = i,
+                        keep_x_axis_title = keep_x_title)
   })
 
   # Gray dashed vertical separator between columns (zero margins)

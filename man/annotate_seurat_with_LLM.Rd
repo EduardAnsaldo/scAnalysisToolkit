@@ -51,7 +51,7 @@ A companion \verb{<label_col>_confidence} column is also added. Default 'llm_cel
 Default 25.}
 
 \item{assay}{Character; assay used for marker computation. Default NULL
-(uses \code{\link[Seurat:reexports]{Seurat::DefaultAssay()}}).}
+(uses \code{\link[Seurat:DefaultAssay]{Seurat::DefaultAssay()}}).}
 
 \item{use_pubmed}{Logical; retrieve PubMed abstracts for grounding. Default TRUE.}
 

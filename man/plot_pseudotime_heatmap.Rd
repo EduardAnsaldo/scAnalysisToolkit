@@ -21,7 +21,8 @@ plot_pseudotime_heatmap(
   show_pseudotime_bar = TRUE,
   palette = NULL,
   palette_direction = 1,
-  pseudotime_palette = "magma"
+  pseudotime_palette = "magma",
+  legend_title = NULL
 )
 }
 \arguments{
@@ -71,6 +72,10 @@ vector of colors, or a ggplot Scale object).}
 \item{palette_direction}{+1 or -1.}
 
 \item{pseudotime_palette}{Palette for the pseudotime annotation bar.}
+
+\item{legend_title}{Optional title for the heatmap fill legend. If NULL
+(default), an automatic label is built from \code{normalize}
+(and \code{loess_smooth}).}
 }
 \value{
 A ggplot object (or a patchwork if show_pseudotime_bar = TRUE).

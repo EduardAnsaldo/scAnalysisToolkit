@@ -13,6 +13,7 @@ pseudobulk(
   path = "./",
   FC_threshold = 0.3,
   p_value_threshold = 0.05,
+  max_overlaps = 15,
   expression_threshold_for_gene_list = 20,
   minimum_cell_number = 10,
   run_pathway_enrichment = NULL,
@@ -36,6 +37,8 @@ pseudobulk(
 \item{FC_threshold}{Numeric; log2 fold change threshold for filtering. Default 0.3}
 
 \item{p_value_threshold}{Numeric; adjusted p-value threshold. Default 0.05}
+
+\item{max_overlaps}{Integer; maximum label overlaps in plots. Default 15}
 
 \item{expression_threshold_for_gene_list}{Numeric; minimum average normalized counts
 for filtering gene lists. Default 20}

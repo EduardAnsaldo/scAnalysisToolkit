@@ -13,6 +13,7 @@ DEG_FindMarkers_RNA_assay(
   path = "./",
   FC_threshold = 0.3,
   p_value_threshold = 0.05,
+  min_fraction = 0.01,
   max_overlaps = 15,
   label_size = 5,
   pathways_of_interest = NULL,
@@ -21,7 +22,9 @@ DEG_FindMarkers_RNA_assay(
   gene_lists_to_plot = NULL,
   expression_threshold_for_gene_list = 20,
   minimum_cell_number = 30,
-  run_pathway_enrichment = TRUE
+  run_pathway_enrichment = NULL,
+  exclude_sex_chr_genes = FALSE,
+  ...
 )
 }
 \arguments{
@@ -41,6 +44,8 @@ DEG_FindMarkers_RNA_assay(
 
 \item{p_value_threshold}{Numeric; adjusted p-value threshold. Default 0.05}
 
+\item{min_fraction}{Numeric; minimum fraction of cells expressing a gene. Default 0.01}
+
 \item{max_overlaps}{Integer; maximum label overlaps in plots. Default 15}
 
 \item{label_size}{Numeric; size of gene labels in plots. Default 5}
@@ -59,7 +64,10 @@ filtering. Default 20}
 
 \item{minimum_cell_number}{Integer; minimum cells required per group. Default 30}
 
-\item{run_pathway_enrichment}{Logical; whether to run pathway enrichment. Default TRUE}
+\item{run_pathway_enrichment}{Character; method for pathway enrichment or NULL. Default NULL}
+
+\item{exclude_sex_chr_genes}{Logical; if TRUE, removes mouse sex chromosome genes
+from results to avoid false positives from sex imbalance. Default FALSE}
 }
 \value{
 List with elements:

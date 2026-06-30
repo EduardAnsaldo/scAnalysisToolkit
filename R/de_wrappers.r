@@ -15,6 +15,7 @@
 #' @param path Character; output directory path. Default './'
 #' @param FC_threshold Numeric; log2 fold change threshold for filtering. Default 0.3
 #' @param p_value_threshold Numeric; adjusted p-value threshold. Default 0.05
+#' @param max_overlaps Integer; maximum label overlaps in plots. Default 15
 #' @param expression_threshold_for_gene_list Numeric; minimum average normalized counts
 #'   for filtering gene lists. Default 20
 #' @param minimum_cell_number Integer; minimum cells required per group. Default 10
@@ -35,6 +36,7 @@
 #' @export
 pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clusters',
                        path = './', FC_threshold = 0.3, p_value_threshold = 0.05,
+                       max_overlaps = 15,
                        expression_threshold_for_gene_list = 20, minimum_cell_number = 10,
                        run_pathway_enrichment = NULL, genes_to_exclude = c(), ...) {
 
@@ -78,6 +80,7 @@ pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clus
         FC_threshold = FC_threshold,
         p_value_threshold = p_value_threshold,
         cluster = cluster,
+        max_overlaps = max_overlaps,
         test_type = 'Pseudobulk',
         ...
     )
@@ -90,6 +93,7 @@ pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clus
         local_figures_path = local_figures_path,
         FC_threshold = FC_threshold,
         p_value_threshold = p_value_threshold,
+        max_overlaps = max_overlaps,
         test_type = 'Pseudobulk',
         ...
     )
@@ -133,6 +137,7 @@ pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clus
 #' @param path Character; output directory path. Default './'
 #' @param FC_threshold Numeric; log2 fold change threshold for filtering. Default 0.3
 #' @param p_value_threshold Numeric; adjusted p-value threshold. Default 0.05
+#' @param min_fraction Numeric; minimum fraction of cells expressing a gene. Default 0.01
 #' @param max_overlaps Integer; maximum label overlaps in plots. Default 15
 #' @param label_size Numeric; size of gene labels in plots. Default 5
 #' @param pathways_of_interest Character vector; specific pathways to analyze. Default NULL
@@ -143,7 +148,9 @@ pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clus
 #' @param expression_threshold_for_gene_list Numeric; minimum expression for gene list
 #'   filtering. Default 20
 #' @param minimum_cell_number Integer; minimum cells required per group. Default 30
-#' @param run_pathway_enrichment Logical; whether to run pathway enrichment. Default TRUE
+#' @param run_pathway_enrichment Character; method for pathway enrichment or NULL. Default NULL
+#' @param exclude_sex_chr_genes Logical; if TRUE, removes mouse sex chromosome genes
+#'   from results to avoid false positives from sex imbalance. Default FALSE
 #'
 #' @return List with elements:
 #'   \item{all_count}{Integer; number of significant DEGs}
@@ -155,11 +162,13 @@ pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clus
 #' @export
 DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clusters',
                                       path = './', FC_threshold = 0.3, p_value_threshold = 0.05,
+                                      min_fraction = 0.01,
                                       max_overlaps = 15, label_size = 5, pathways_of_interest = NULL,
                                       label_threshold = 100000, distance_from_diagonal_threshold = 0.7,
                                       gene_lists_to_plot = NULL, expression_threshold_for_gene_list = 20,
                                       minimum_cell_number = 30,
-                                      run_pathway_enrichment = TRUE) {
+                                      run_pathway_enrichment = NULL,
+                                      exclude_sex_chr_genes = FALSE, ...) {
 
     local_figures_path <- here::here(path, 'figures')
     dir.create(local_figures_path, showWarnings = FALSE, recursive = TRUE)
@@ -177,7 +186,10 @@ DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, clus
         path = path,
         FC_threshold = FC_threshold,
         p_value_threshold = p_value_threshold,
-        minimum_cell_number = minimum_cell_number
+        min_fraction = min_fraction,
+        minimum_cell_number = minimum_cell_number,
+        exclude_sex_chr_genes = exclude_sex_chr_genes,
+        ...
     )
 
     # Check if analysis was successful
@@ -197,14 +209,14 @@ DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, clus
                max_overlaps = max_overlaps, label_size = label_size,
                label_threshold = label_threshold,
                distance_from_diagonal_threshold = distance_from_diagonal_threshold,
-               test_type = 'Wilcox')
+               test_type = 'Wilcox', ...)
 
     volcano_plot(results = de_results$results, group1 = group1, group2 = group2,
                 cluster = cluster,
                 local_figures_path = local_figures_path,
                 FC_threshold = FC_threshold, p_value_threshold = p_value_threshold,
                 max_overlaps = max_overlaps, label_size = label_size,
-                label_threshold = label_threshold, test_type = 'Wilcox')
+                label_threshold = label_threshold, test_type = 'Wilcox', ...)
 
     # Overrepresentation analysis
     enrichment_output <- run_DEG_functional_analysis(
@@ -215,8 +227,7 @@ DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, clus
         FC_threshold = FC_threshold,
         p_value_threshold = p_value_threshold,
         group1 = group1,
-        group2 = group2,
-        ...
+        group2 = group2
     )
 
     # Plot specific gene lists
@@ -330,36 +341,43 @@ DEG_FindMarkers_SCT_assay <- function(scRNAseq, comparison, group1, group2, is_i
         ))
     }
 
-    # Generate scatter and volcano plots
-    scatterplot_output <- scatterplot(
-        results = de_results$results,
-        group1 = group1,
-        group2 = group2,
-        cluster = cluster,
-        local_figures_path = local_figures_path,
-        FC_threshold = FC_threshold,
-        p_value_threshold = p_value_threshold,
-        max_overlaps = max_overlaps,
-        label_size = label_size,
-        label_threshold = label_threshold,
-        distance_from_diagonal_threshold = distance_from_diagonal_threshold,
-        test_type = 'Wilcox',
-        ...
+    # Generate scatter and volcano plots. Guarded with tryCatch so a plotting
+    # failure cannot prevent the UP/DOWN counts from being returned.
+    scatterplot_output <- tryCatch(
+        scatterplot(
+            results = de_results$results,
+            group1 = group1,
+            group2 = group2,
+            cluster = cluster,
+            local_figures_path = local_figures_path,
+            FC_threshold = FC_threshold,
+            p_value_threshold = p_value_threshold,
+            max_overlaps = max_overlaps,
+            label_size = label_size,
+            label_threshold = label_threshold,
+            distance_from_diagonal_threshold = distance_from_diagonal_threshold,
+            test_type = 'Wilcox',
+            ...
+        ),
+        error = function(e) { warning('scatterplot failed for ', cluster, ': ', conditionMessage(e)); NULL }
     )
 
-    volcanoplot_output <- volcano_plot(
-        results = de_results$results,
-        group1 = group1,
-        group2 = group2,
-        cluster = cluster,
-        local_figures_path = local_figures_path,
-        FC_threshold = FC_threshold,
-        p_value_threshold = p_value_threshold,
-        max_overlaps = max_overlaps,
-        label_size = label_size,
-        label_threshold = label_threshold,
-        test_type = 'Wilcox',
-        ...
+    volcanoplot_output <- tryCatch(
+        volcano_plot(
+            results = de_results$results,
+            group1 = group1,
+            group2 = group2,
+            cluster = cluster,
+            local_figures_path = local_figures_path,
+            FC_threshold = FC_threshold,
+            p_value_threshold = p_value_threshold,
+            max_overlaps = max_overlaps,
+            label_size = label_size,
+            label_threshold = label_threshold,
+            test_type = 'Wilcox',
+            ...
+        ),
+        error = function(e) { warning('volcano_plot failed for ', cluster, ': ', conditionMessage(e)); NULL }
     )
 
     # Overrepresentation analysis
@@ -377,47 +395,23 @@ DEG_FindMarkers_SCT_assay <- function(scRNAseq, comparison, group1, group2, is_i
         ...
     )
 
-    # Plotting individual genes of interest
-    if (!is.null(gene_lists_to_plot)) {
-        for (gene_list in names(gene_lists_to_plot)) {
-            genes_to_plot <- gene_lists_to_plot[[gene_list]]
-            print(genes_to_plot)
-
-            # Generate scatter and volcano plots for gene lists
-            results_scatter <- scatterplot(
-                genes_to_plot = genes_to_plot,
-                gene_list_name = gene_list,
-                results = de_results$results,
-                group1 = group1,
-                group2 = group2,
-                cluster = cluster,
-                local_figures_path = local_figures_path,
-                FC_threshold = FC_threshold,
-                p_value_threshold = p_value_threshold,
-                max_overlaps = 15,
-                label_size = label_size,
-                label_threshold = label_threshold,
-                distance_from_diagonal_threshold = distance_from_diagonal_threshold,
-                test_type = 'Wilcox'
-            )
-
-            volcano_plot(
-                genes_to_plot = genes_to_plot,
-                gene_list_name = gene_list,
-                results_scatter = results_scatter,
-                group1 = group1,
-                group2 = group2,
-                cluster = cluster,
-                local_figures_path = local_figures_path,
-                FC_threshold = FC_threshold,
-                p_value_threshold = p_value_threshold,
-                max_overlaps = 15,
-                label_size = label_size,
-                label_threshold = label_threshold,
-                test_type = 'Wilcox'
-            )
-        }
-    }
+    # Plot specific gene lists
+    plot_gene_lists(
+        results = de_results$results,
+        gene_lists_to_plot = gene_lists_to_plot,
+        group1 = group1,
+        group2 = group2,
+        cluster = cluster,
+        local_figures_path = local_figures_path,
+        FC_threshold = FC_threshold,
+        p_value_threshold = p_value_threshold,
+        test_type = 'Wilcox',
+        max_overlaps = max_overlaps,
+        label_size = label_size,
+        label_threshold = label_threshold,
+        distance_from_diagonal_threshold = distance_from_diagonal_threshold,
+        ...
+    )
 
     return(list(
         all_count = de_results$all_count,

@@ -13,7 +13,9 @@ DEG_FindMarkers_RNA_assay_de(
   path = "./",
   FC_threshold = 0.3,
   p_value_threshold = 0.05,
+  min_fraction = 0.01,
   minimum_cell_number = 30,
+  exclude_sex_chr_genes = FALSE,
   ...
 )
 }
@@ -34,7 +36,12 @@ DEG_FindMarkers_RNA_assay_de(
 
 \item{p_value_threshold}{Numeric; adjusted p-value threshold. Default 0.05}
 
+\item{min_fraction}{Numeric; minimum fraction of cells expressing a gene. Default 0.01}
+
 \item{minimum_cell_number}{Integer; minimum cells required per group. Default 30}
+
+\item{exclude_sex_chr_genes}{Logical; if TRUE, removes mouse sex chromosome genes
+from results to avoid false positives from sex imbalance. Default FALSE}
 
 \item{...}{Additional arguments (unused)}
 }

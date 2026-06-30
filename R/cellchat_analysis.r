@@ -292,12 +292,7 @@ run_cellchat_analysis <- function(seurat,
 #' out$gg.obj
 #' }
 #'
-#' @importFrom ggplot2 ggplot aes geom_point
-#'   scale_fill_manual scale_color_manual
-#'   scale_fill_viridis_c scale_color_viridis_c
-#'   scale_size_continuous labs
-#'   theme_classic theme element_text element_rect element_line element_blank
-#'   unit
+#' @importFrom ggplot2 ggplot aes geom_point scale_fill_manual scale_color_manual scale_fill_viridis_c scale_color_viridis_c scale_size_continuous labs theme_classic theme element_text element_rect element_line element_blank unit
 #' @importFrom rlang .data
 #' @importFrom methods .hasSlot
 #'

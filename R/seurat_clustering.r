@@ -11,6 +11,10 @@
 #' @param seurat Seurat object to cluster
 #' @param npcs Integer; number of principal components to compute. Default 100
 #' @param dimensions Integer; number of dimensions to use for UMAP and clustering. Default 30
+#' @param k_param Integer; number of nearest neighbors (k) for the KNN graph used in
+#'   clustering (passed to FindNeighbors' `k.param`). Default 20
+#' @param n_neighbors Integer; number of neighbors for the UMAP embedding (passed to
+#'   RunUMAP's `n.neighbors`). Default 30
 #' @param resolutions Numeric vector; clustering resolutions to test. Default c(0.05, 0.1, 0.15, 0.25, 0.375, 0.5)
 #' @param filter_variable Character or FALSE; metadata column to filter by. Default FALSE
 #' @param keep_values Character vector; values to keep when filtering. Default NULL
@@ -40,6 +44,9 @@
 #'   steps then use the 'harmony' reduction instead of 'pca'. Default FALSE
 #' @param integration_column Character; metadata column to split the RNA assay by
 #'   for integration. Default "Origin"
+#' @param vars_to_regress Character vector or NULL; metadata variable(s) to regress
+#'   out during SCTransform normalization (passed to SCTransform's `vars.to.regress`,
+#'   e.g. 'percent.mt' or cell-cycle scores). Default NULL (no regression)
 #'
 #' @return List with elements:
 #'   \item{seurat}{Processed Seurat object with clusters}
@@ -55,8 +62,10 @@ perform_seurat_clustering <- function(
     seurat,
     npcs = 100,
     dimensions = 30,
+    k_param = 20,
+    n_neighbors = 30,
     resolutions = c(0.05, 0.1, 0.15, 0.25, 0.375, 0.5),
-    filter_variable = FALSE,
+    filter_variable = NULL,
     keep_values = NULL,
     plot_elbow = TRUE,
     seed = 3514L,
@@ -74,7 +83,8 @@ perform_seurat_clustering <- function(
     filter_tcr = FALSE,
     quiet_vdj = FALSE,
     integrate_rna = FALSE,
-    integration_column = "Origin"
+    integration_column = "Origin",
+    vars_to_regress = NULL
 ) {
     # Filter object
     if (!is.null(filter_variable)) {
@@ -103,7 +113,8 @@ perform_seurat_clustering <- function(
     }
 
     # Normalize RNA data with SCTransform
-    seurat <- SCTransform(seurat, verbose = verbose, assay = 'RNA')
+    seurat <- SCTransform(seurat, verbose = verbose, assay = 'RNA',
+                          vars.to.regress = vars_to_regress)
 
     # Optionally quiet VDJ genes from variable features
     if (quiet_vdj) {
@@ -135,10 +146,10 @@ perform_seurat_clustering <- function(
     }
 
     # Run UMAP
-    seurat <- RunUMAP(seurat, dims = 1:dimensions, verbose = verbose, seed.use = seed, reduction = rna_reduction)
+    seurat <- RunUMAP(seurat, dims = 1:dimensions, n.neighbors = n_neighbors, verbose = verbose, seed.use = seed, reduction = rna_reduction)
 
     # Find neighbors and clusters
-    seurat <- FindNeighbors(seurat, dims = 1:dimensions, verbose = verbose, reduction = rna_reduction)
+    seurat <- FindNeighbors(seurat, dims = 1:dimensions, k.param = k_param, verbose = verbose, reduction = rna_reduction)
     seurat <- FindClusters(seurat, resolution = resolutions, verbose = verbose, algorithm = 4, random.seed = seed)
 
     # Create UMAP plots for each resolution
@@ -193,6 +204,12 @@ perform_seurat_clustering <- function(
 
         detailed_plots <- list(cluster_plot = p1, group_split_plot = p2, groups_plot = p3)
         walk(detailed_plots, print)
+
+        # If multiple SCT models exist (e.g. after integration), recorrect SCT
+        # counts across models before differential expression
+        if (length(slot(seurat[['SCT']], 'SCTModel.list')) > 1) {
+            seurat <- PrepSCTFindMarkers(seurat, verbose = verbose)
+        }
 
         # Top genes per cluster
         top_genes_results <- top_genes_per_cluster(
@@ -396,6 +413,13 @@ extract_cell_counts <- function(seurat, grouping_var, figures_path, tables_path,
 #'   for RNA PCA. Default: 50
 #' @param ndims_lsi Integer specifying the number of LSI dimensions to compute
 #'   for ATAC data. Default: 40
+#' @param k_param Integer specifying the number of nearest neighbors (k) for the
+#'   KNN graphs used in clustering. Applied to the RNA and ATAC `FindNeighbors`
+#'   steps (`k.param`) and to the WNN `FindMultiModalNeighbors` step (`k.nn`).
+#'   Default: 20
+#' @param n_neighbors Integer specifying the number of neighbors for the RNA and
+#'   ATAC UMAP embeddings (passed to RunUMAP's `n.neighbors`). The WNN UMAP uses the
+#'   precomputed weighted neighbor graph and is unaffected. Default: 30
 #' @param random_seed Integer seed for reproducibility in clustering algorithms.
 #'   Default: 3514
 #' @param integrate_rna Logical indicating whether to perform Harmony integration
@@ -503,6 +527,8 @@ process_multimodal_seurat <- function(
   # Other parameters
   npcs = 50,
   ndims_lsi = 40,
+  k_param = 20,
+  n_neighbors = 30,
   random_seed = 3514,
   remove_ig = FALSE,
   genome = "GRCm39",
@@ -632,7 +658,7 @@ process_multimodal_seurat <- function(
     message("\nUsing ", dimensions_RNA, " dimensions for RNA")
     DefaultAssay(seurat) <- 'RNA'
     seurat <- RunUMAP(seurat, reduction = rna_reduction, dims = 1:dimensions_RNA,
-              assay = 'SCT', reduction.name = 'umap.rna',
+              n.neighbors = n_neighbors, assay = 'SCT', reduction.name = 'umap.rna',
               reduction.key = 'rnaUMAP_')
   } else {
     message("\nSkipping RNA UMAP generation (already completed)")
@@ -642,8 +668,8 @@ process_multimodal_seurat <- function(
   if (!skip_umap_and_neighbors) {
     message("Using dimensions 2:", dimensions_ATAC, " for ATAC (excluding first dimension)")
     DefaultAssay(seurat) <- 'ATAC'
-    seurat <- RunUMAP(seurat, reduction = 'lsi', dims = 2:dimensions_ATAC, 
-              assay = 'ATAC', reduction.name = 'umap.atac', 
+    seurat <- RunUMAP(seurat, reduction = 'lsi', dims = 2:dimensions_ATAC,
+              n.neighbors = n_neighbors, assay = 'ATAC', reduction.name = 'umap.atac',
               reduction.key = 'atacUMAP_')
   } else {
     message("Skipping ATAC UMAP generation (already completed)")
@@ -657,7 +683,7 @@ process_multimodal_seurat <- function(
     message("\nClustering RNA data...")
     DefaultAssay(seurat) <- 'RNA'
     Idents(seurat) <- 'Groups'
-    seurat <- FindNeighbors(seurat, reduction = rna_reduction, dims = 1:dimensions_RNA)
+    seurat <- FindNeighbors(seurat, reduction = rna_reduction, dims = 1:dimensions_RNA, k.param = k_param)
     seurat <- FindClusters(seurat, graph.name = 'SCT_snn', resolution = resolutions_RNA,
                 verbose = FALSE, algorithm = 4, random.seed = random_seed)
   } else {
@@ -694,7 +720,7 @@ process_multimodal_seurat <- function(
   if (!skip_umap_and_neighbors) {
     message("\nClustering ATAC data...")
     DefaultAssay(seurat) <- 'ATAC'
-    seurat <- FindNeighbors(seurat, reduction = 'lsi', dims = 2:dimensions_ATAC)
+    seurat <- FindNeighbors(seurat, reduction = 'lsi', dims = 2:dimensions_ATAC, k.param = k_param)
     seurat <- FindClusters(seurat, graph.name = 'ATAC_snn', resolution = resolutions_ATAC, 
                 verbose = FALSE, algorithm = 4, random.seed = random_seed)
   } else {
@@ -734,6 +760,7 @@ process_multimodal_seurat <- function(
       seurat,
       reduction.list = list(rna_reduction, "lsi"),
       dims.list = list(1:dimensions_RNA, 2:dimensions_ATAC),
+      k.nn = k_param,
       verbose = TRUE
     )
     

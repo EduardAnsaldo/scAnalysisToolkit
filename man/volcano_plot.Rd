@@ -19,9 +19,12 @@ volcano_plot(
     "Wilcox_ATAC_closest_genes", "Wilcox_ChromVar_motif"),
   genes_to_plot = NULL,
   pt_size = 1.5,
-  p_value_max = 600,
+  pval_cap = 300,
+  y_axis_max = NULL,
   nudge_x = NULL,
   nudge_y = NULL,
+  label_line_width = 0.5,
+  dashed_line_width = 0.5,
   ...
 )
 }
@@ -54,14 +57,26 @@ padj, pvalue}
 
 \item{pt_size}{Numeric; point size. Default 1.5}
 
-\item{p_value_max}{Numeric; maximum -log10 p-value for capping extremely small
-p-values in visualization. Default 600}
+\item{pval_cap}{Numeric; cap applied to the data's -log10 adjusted p-values to
+avoid infinities (padj is floored at 10^-pval_cap). This clips the plotted
+point values, not the displayed axis range. Must stay below ~307 so the
+floor 10^-pval_cap does not underflow to 0 in double precision. Default 300}
+
+\item{y_axis_max}{Numeric or NULL; upper limit of the y-axis (-log10 adjusted
+p-value). If NULL, the axis is scaled to the data maximum. Useful for keeping
+a consistent y-axis range across multiple plots. Default NULL}
 
 \item{nudge_x}{Numeric or NULL; horizontal nudge for gene labels. If NULL,
 defaults to 0 (or 3 when genes_to_plot is provided). Default NULL}
 
 \item{nudge_y}{Numeric or NULL; vertical nudge for gene labels. If NULL,
 defaults to 0 (or 3 when genes_to_plot is provided). Default NULL}
+
+\item{label_line_width}{Numeric; line width of the leader segments connecting
+gene labels to their points (the geom_text_repel \code{segment.size}). Default 0.5}
+
+\item{dashed_line_width}{Numeric; line width of the dashed fold-change and
+p-value threshold guide lines. Default 0.5}
 
 \item{...}{Additional arguments passed to plotting functions}
 }

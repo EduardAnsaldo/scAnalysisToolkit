@@ -160,6 +160,7 @@ calculate_D50 <- function (seurat, cell_grouping_var, replicate_var, replicate_g
     # Convert results to long format for plotting
     results_long <- results |>
         pivot_longer(-{{replicate_var}}, names_to = englue("{{cell_grouping_var}}"), values_to = "D50") |>
+        mutate({{cell_grouping_var}} := str_remove({{cell_grouping_var}}, "_D50$")) |>
         mutate({{cell_grouping_var}} := fct_inorder({{cell_grouping_var}}))
 
 
@@ -183,6 +184,7 @@ calculate_D50 <- function (seurat, cell_grouping_var, replicate_var, replicate_g
         stat_summary(fun = mean, geom = "bar", position = position_dodge(width = 0.7), width = 0.5, aes(fill = {{replicate_group_var}}, alpha = 0.5)) +
         stat_summary(fun.data = mean_se, fun.args = list(mult = 1),
             geom = "errorbar", width = 0.2, position = position_dodge(width = 0.7)) +
+        facet_wrap(vars({{cell_grouping_var}})) +
         scale_y_continuous(limits = c(0, 0.5), expand = expansion(mult = c(0, 0.05))) +
         theme_classic() +
         labs(x = englue("{{replicate_group_var}}"), y = "D50 Diversity", title = englue("D50 per {{replicate_group_var}} by {{cell_grouping_var}}")) +

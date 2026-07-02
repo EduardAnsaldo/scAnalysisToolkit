@@ -32,7 +32,8 @@ perform_seurat_clustering(
   integration_column = "Origin",
   vars_to_regress = NULL,
   regress_cell_cycle = FALSE,
-  cell_cycle_species = "mouse"
+  cell_cycle_species = "mouse",
+  plot_cell_cycle_umap = TRUE
 )
 }
 \arguments{
@@ -40,7 +41,10 @@ perform_seurat_clustering(
 
 \item{npcs}{Integer; number of principal components to compute. Default 100}
 
-\item{dimensions}{Integer; number of dimensions to use for UMAP and clustering. Default 30}
+\item{dimensions}{Integer or NULL; number of dimensions to use for UMAP and clustering.
+When \code{regress_cell_cycle = TRUE}, pass NULL to run the regressed SCTransform + PCA,
+display its elbow plot, and return early (\code{stage = "select_dimensions"}) so you can
+choose the number of dimensions and re-run. Default 30}
 
 \item{k_param}{Integer; number of nearest neighbors (k) for the KNN graph used in
 clustering (passed to FindNeighbors' \code{k.param}). Default 20}
@@ -106,11 +110,19 @@ regress them out during SCTransform. When TRUE, the RNA assay is log-normalized,
 \code{CellCycleScoring} is run, and 'S.Score' and 'G2M.Score' are added to the
 SCTransform \code{vars.to.regress} (combined with any \code{vars_to_regress}). If the RNA
 assay is split into layers, it is temporarily joined for scoring and the original
-split assay is restored afterward. Default FALSE}
+split assay is restored afterward. Unless \code{plot_cell_cycle_umap = FALSE}, the RNA
+assay is additionally embedded without regression so the S/G2M signatures can be
+compared on the UMAP before vs after regression. Default FALSE}
 
 \item{cell_cycle_species}{Character; 'mouse' or 'human'. Selects the cell cycle
 gene lists: 'human' uses Seurat's \code{cc.genes.updated.2019} as-is, 'mouse'
 title-cases them. Only used when \code{regress_cell_cycle = TRUE}. Default 'mouse'}
+
+\item{plot_cell_cycle_umap}{Logical; when \code{regress_cell_cycle = TRUE}, also compute an
+unregressed embedding and produce a \code{FeaturePlot_scCustom} of S.Score and G2M.Score
+on the UMAP before vs after regression (saved to \code{figures_path} if provided and
+returned as \code{cell_cycle_plot}). Set FALSE to skip the extra unregressed pass.
+Default TRUE}
 }
 \value{
 List with elements:
@@ -121,6 +133,11 @@ List with elements:
 \item{dimensions}{Number of dimensions used}
 \item{resolutions}{Resolutions tested}
 \item{selected_resolution}{Resolution selected for detailed analysis}
+\item{cell_cycle_plot}{Before/after cell-cycle FeaturePlot (or NULL)}
+
+When called with \code{regress_cell_cycle = TRUE} and \code{dimensions = NULL}, instead
+returns a short list \code{list(seurat, stage = "select_dimensions")} after
+displaying the regressed elbow plot, so dimensions can be chosen before re-running.
 }
 \description{
 Executes a comprehensive Seurat clustering pipeline including SCTransform

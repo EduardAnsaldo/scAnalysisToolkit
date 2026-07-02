@@ -1,6 +1,62 @@
 ## Seurat Clustering Functions
 ## Functions for performing Seurat clustering and dimensionality reduction
 
+#' Run SCTransform, PCA and UMAP for the RNA assay
+#'
+#' Internal helper encapsulating the SCTransform -> (VDJ quieting) -> PCA ->
+#' (optional Harmony integration) -> (optional elbow) -> (optional UMAP) sequence so it
+#' can be run more than once with different `vars.to.regress` (e.g. for a before/after
+#' cell-cycle-regression comparison). Assumes the RNA assay is already split when
+#' `integrate_rna = TRUE`.
+#'
+#' @param run_umap Logical; if FALSE, stop after PCA/elbow (no UMAP). Default TRUE
+#' @return The Seurat object with SCT assay, PCA (and Harmony/UMAP reductions).
+#' @noRd
+run_sct_pca_umap <- function(seurat, vars_to_regress, npcs, dimensions, n_neighbors,
+                             seed, verbose, quiet_vdj, integrate_rna, rna_reduction,
+                             plot_elbow, run_umap = TRUE) {
+    # Normalize RNA data with SCTransform
+    seurat <- SCTransform(seurat, verbose = verbose, assay = 'RNA',
+                          vars.to.regress = vars_to_regress)
+
+    # Optionally quiet VDJ genes from variable features
+    if (quiet_vdj) {
+        if (verbose) {
+            message("Variable features before VDJ filtering: ", length(VariableFeatures(seurat)))
+        }
+        VariableFeatures(seurat) <- VariableFeatures(seurat)[!stringr::str_detect(VariableFeatures(seurat), "Igh|Igl|Igk|Tra|Trb|Trd|Trg")]
+        if (verbose) {
+            message("Variable features after VDJ filtering: ", length(VariableFeatures(seurat)))
+        }
+    }
+
+    # Dimensionality reduction
+    seurat <- RunPCA(seurat, npcs = npcs, verbose = verbose, assay = 'SCT')
+
+    # Integrate with Harmony if requested
+    if (integrate_rna) {
+        message("Integrating RNA layers with Harmony...")
+        seurat <- IntegrateLayers(seurat, method = HarmonyIntegration,
+                                  normalization.method = 'SCT',
+                                  orig.reduction = 'pca',
+                                  new.reduction = 'harmony',
+                                  verbose = verbose)
+    }
+
+    # Plot elbow plot if requested
+    if (plot_elbow) {
+        print(ElbowPlot(seurat, ndims = npcs))
+    }
+
+    # Run UMAP if requested (skipped when dimensions have not been selected yet)
+    if (run_umap) {
+        seurat <- RunUMAP(seurat, dims = 1:dimensions, n.neighbors = n_neighbors,
+                          verbose = verbose, seed.use = seed, reduction = rna_reduction)
+    }
+
+    seurat
+}
+
 #' Perform Complete Seurat Clustering Workflow
 #'
 #' Executes a comprehensive Seurat clustering pipeline including SCTransform
@@ -10,7 +66,10 @@
 #'
 #' @param seurat Seurat object to cluster
 #' @param npcs Integer; number of principal components to compute. Default 100
-#' @param dimensions Integer; number of dimensions to use for UMAP and clustering. Default 30
+#' @param dimensions Integer or NULL; number of dimensions to use for UMAP and clustering.
+#'   When `regress_cell_cycle = TRUE`, pass NULL to run the regressed SCTransform + PCA,
+#'   display its elbow plot, and return early (`stage = "select_dimensions"`) so you can
+#'   choose the number of dimensions and re-run. Default 30
 #' @param k_param Integer; number of nearest neighbors (k) for the KNN graph used in
 #'   clustering (passed to FindNeighbors' `k.param`). Default 20
 #' @param n_neighbors Integer; number of neighbors for the UMAP embedding (passed to
@@ -52,10 +111,17 @@
 #'   `CellCycleScoring` is run, and 'S.Score' and 'G2M.Score' are added to the
 #'   SCTransform `vars.to.regress` (combined with any `vars_to_regress`). If the RNA
 #'   assay is split into layers, it is temporarily joined for scoring and the original
-#'   split assay is restored afterward. Default FALSE
+#'   split assay is restored afterward. Unless `plot_cell_cycle_umap = FALSE`, the RNA
+#'   assay is additionally embedded without regression so the S/G2M signatures can be
+#'   compared on the UMAP before vs after regression. Default FALSE
 #' @param cell_cycle_species Character; 'mouse' or 'human'. Selects the cell cycle
 #'   gene lists: 'human' uses Seurat's `cc.genes.updated.2019` as-is, 'mouse'
 #'   title-cases them. Only used when `regress_cell_cycle = TRUE`. Default 'mouse'
+#' @param plot_cell_cycle_umap Logical; when `regress_cell_cycle = TRUE`, also compute an
+#'   unregressed embedding and produce a `FeaturePlot_scCustom` of S.Score and G2M.Score
+#'   on the UMAP before vs after regression (saved to `figures_path` if provided and
+#'   returned as `cell_cycle_plot`). Set FALSE to skip the extra unregressed pass.
+#'   Default TRUE
 #'
 #' @return List with elements:
 #'   \item{seurat}{Processed Seurat object with clusters}
@@ -65,6 +131,11 @@
 #'   \item{dimensions}{Number of dimensions used}
 #'   \item{resolutions}{Resolutions tested}
 #'   \item{selected_resolution}{Resolution selected for detailed analysis}
+#'   \item{cell_cycle_plot}{Before/after cell-cycle FeaturePlot (or NULL)}
+#'
+#'   When called with `regress_cell_cycle = TRUE` and `dimensions = NULL`, instead
+#'   returns a short list \code{list(seurat, stage = "select_dimensions")} after
+#'   displaying the regressed elbow plot, so dimensions can be chosen before re-running.
 #'
 #' @export
 perform_seurat_clustering <- function(
@@ -95,7 +166,8 @@ perform_seurat_clustering <- function(
     integration_column = "Origin",
     vars_to_regress = NULL,
     regress_cell_cycle = FALSE,
-    cell_cycle_species = "mouse"
+    cell_cycle_species = "mouse",
+    plot_cell_cycle_umap = TRUE
 ) {
     # Filter object
     if (!is.null(filter_variable)) {
@@ -144,12 +216,6 @@ perform_seurat_clustering <- function(
         if (rna_is_split) {
             seurat[["RNA"]] <- split_rna_assay
         }
-
-        vars_to_regress <- union(vars_to_regress, c("S.Score", "G2M.Score"))
-        if (verbose) {
-            message("Cell cycle scored; SCTransform will regress: ",
-                    paste(vars_to_regress, collapse = ", "))
-        }
     }
 
     # Optionally split RNA assay for integration
@@ -162,41 +228,52 @@ perform_seurat_clustering <- function(
         }
     }
 
-    # Normalize RNA data with SCTransform
-    seurat <- SCTransform(seurat, verbose = verbose, assay = 'RNA',
-                          vars.to.regress = vars_to_regress)
+    # Normalize, reduce and embed (optionally comparing before/after cell cycle regression)
+    cell_cycle_plot <- NULL
+    if (regress_cell_cycle) {
+        base_vars  <- vars_to_regress
+        after_vars <- union(base_vars, c("S.Score", "G2M.Score"))
 
-    # Optionally quiet VDJ genes from variable features
-    if (quiet_vdj) {
-        if (verbose) {
-            message("Variable features before VDJ filtering: ", length(VariableFeatures(seurat)))
+        # Interactive stop: show the regressed elbow so dimensions can be selected
+        if (is.null(dimensions)) {
+            seurat <- run_sct_pca_umap(seurat, after_vars, npcs, dimensions, n_neighbors,
+                                       seed, verbose, quiet_vdj, integrate_rna, rna_reduction,
+                                       plot_elbow = TRUE, run_umap = FALSE)
+            message("Examine the regressed SCTransform elbow, then re-run with `dimensions` set.")
+            return(list(seurat = seurat, stage = "select_dimensions"))
         }
-        VariableFeatures(seurat) <- VariableFeatures(seurat)[!stringr::str_detect(VariableFeatures(seurat), "Igh|Igl|Igk|Tra|Trb|Trd|Trg")]
-        if (verbose) {
-            message("Variable features after VDJ filtering: ", length(VariableFeatures(seurat)))
+
+        # Before: embed without cell cycle regression, capture signature FeaturePlots
+        if (plot_cell_cycle_umap) {
+            seurat <- run_sct_pca_umap(seurat, base_vars, npcs, dimensions, n_neighbors,
+                                       seed, verbose, quiet_vdj, integrate_rna, rna_reduction,
+                                       plot_elbow = FALSE)
+            before_s   <- FeaturePlot_scCustom(seurat, features = "S.Score",   reduction = "umap") + ggtitle("S.Score - before")
+            before_g2m <- FeaturePlot_scCustom(seurat, features = "G2M.Score", reduction = "umap") + ggtitle("G2M.Score - before")
         }
+
+        # After: embed with cell cycle regression (this is the object we keep)
+        seurat <- run_sct_pca_umap(seurat, after_vars, npcs, dimensions, n_neighbors,
+                                   seed, verbose, quiet_vdj, integrate_rna, rna_reduction,
+                                   plot_elbow = plot_elbow)
+
+        if (plot_cell_cycle_umap) {
+            after_s   <- FeaturePlot_scCustom(seurat, features = "S.Score",   reduction = "umap") + ggtitle("S.Score - after")
+            after_g2m <- FeaturePlot_scCustom(seurat, features = "G2M.Score", reduction = "umap") + ggtitle("G2M.Score - after")
+            cell_cycle_plot <- patchwork::wrap_plots(
+                list(before_s, before_g2m, after_s, after_g2m), ncol = 2) +
+                patchwork::plot_annotation(title = "Cell cycle signatures: before vs after regression")
+            if (!is.null(figures_path)) {
+                ggsave(paste0('UMAP_cell_cycle_before_after_', object_annotations, '.pdf'),
+                       plot = cell_cycle_plot, path = figures_path, width = 12, height = 10)
+            }
+            print(cell_cycle_plot)
+        }
+    } else {
+        seurat <- run_sct_pca_umap(seurat, vars_to_regress, npcs, dimensions, n_neighbors,
+                                   seed, verbose, quiet_vdj, integrate_rna, rna_reduction,
+                                   plot_elbow = plot_elbow)
     }
-
-    # Dimensionality reduction
-    seurat <- RunPCA(seurat, npcs = npcs, verbose = verbose, assay = 'SCT')
-
-    # Integrate with Harmony if requested
-    if (integrate_rna) {
-        message("Integrating RNA layers with Harmony...")
-        seurat <- IntegrateLayers(seurat, method = HarmonyIntegration,
-                                  normalization.method = 'SCT',
-                                  orig.reduction = 'pca',
-                                  new.reduction = 'harmony',
-                                  verbose = verbose)
-    }
-
-    # Plot elbow plot if requested
-    if (plot_elbow) {
-        print(ElbowPlot(seurat, ndims = npcs))
-    }
-
-    # Run UMAP
-    seurat <- RunUMAP(seurat, dims = 1:dimensions, n.neighbors = n_neighbors, verbose = verbose, seed.use = seed, reduction = rna_reduction)
 
     # Find neighbors and clusters
     seurat <- FindNeighbors(seurat, dims = 1:dimensions, k.param = k_param, verbose = verbose, reduction = rna_reduction)
@@ -321,7 +398,8 @@ perform_seurat_clustering <- function(
         top_genes_results = top_genes_results,
         dimensions = dimensions,
         resolutions = resolutions,
-        selected_resolution = selected_resolution
+        selected_resolution = selected_resolution,
+        cell_cycle_plot = cell_cycle_plot
     )
 }
 

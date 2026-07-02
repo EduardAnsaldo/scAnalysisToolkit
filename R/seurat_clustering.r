@@ -84,17 +84,6 @@ run_sct_pca_umap <- function(seurat, vars_to_regress, npcs, dimensions, n_neighb
 #'   comparison plots are generated. Default NULL
 #' @param object_annotations Character; string to append to output file names. Default 'full_object'
 #' @param figures_path Character; path to save figures. Default NULL
-#' @param tables_path Character; path to save tables. Default NULL
-#' @param results_path Character; path for enrichment results. Default NULL
-#' @param run_pathway_enrichment Character vector or FALSE; enrichment methods to run.
-#'   Default FALSE
-#' @param n_genes_to_plot Integer; number of marker genes per cluster to plot. Default 3
-#' @param run_singler Logical; whether to run SingleR cell type annotation. Default FALSE
-#' @param singler_database Character; SingleR reference database. Default 'ImmGen'
-#' @param filter_ig Logical; whether to filter out immunoglobulin genes from marker
-#'   gene analysis. Default FALSE
-#' @param filter_tcr Logical; whether to filter out T cell receptor genes from marker
-#'   gene analysis. Default FALSE
 #' @param quiet_vdj Logical; whether to remove VDJ genes (Igh, Igk, Igl, Tra, Trb, Trd, Trg)
 #'   from variable features after SCTransform. Default FALSE
 #' @param integrate_rna Logical; whether to perform Harmony integration on the RNA
@@ -127,7 +116,6 @@ run_sct_pca_umap <- function(seurat, vars_to_regress, npcs, dimensions, n_neighb
 #'   \item{seurat}{Processed Seurat object with clusters}
 #'   \item{resolution_plot}{Grid of UMAP plots for all resolutions}
 #'   \item{detailed_plots}{List of detailed plots for selected resolution or NULL}
-#'   \item{top_genes_results}{Marker gene analysis results or NULL}
 #'   \item{dimensions}{Number of dimensions used}
 #'   \item{resolutions}{Resolutions tested}
 #'   \item{selected_resolution}{Resolution selected for detailed analysis}
@@ -153,14 +141,6 @@ perform_seurat_clustering <- function(
     selected_resolution = NULL,
     object_annotations = 'full_object',
     figures_path = NULL,
-    tables_path = NULL,
-    results_path = NULL,
-    run_pathway_enrichment = FALSE,
-    n_genes_to_plot = 3,
-    run_singler = FALSE,
-    singler_database = 'ImmGen',
-    filter_ig = FALSE,
-    filter_tcr = FALSE,
     quiet_vdj = FALSE,
     integrate_rna = FALSE,
     integration_column = "Origin",
@@ -293,7 +273,6 @@ perform_seurat_clustering <- function(
 
     # If a specific resolution is selected, generate detailed plots
     detailed_plots <- NULL
-    top_genes_results <- NULL
     if (!is.null(selected_resolution)) {
         Idents(seurat) <- paste0('SCT_snn_res.', selected_resolution)
         seurat[['seurat_clusters']] <- Idents(seurat)
@@ -331,63 +310,6 @@ perform_seurat_clustering <- function(
 
         detailed_plots <- list(cluster_plot = p1, group_split_plot = p2, groups_plot = p3)
         walk(detailed_plots, print)
-
-        # If multiple SCT models exist (e.g. after integration), recorrect SCT
-        # counts across models before differential expression
-        if (length(slot(seurat[['SCT']], 'SCTModel.list')) > 1) {
-            seurat <- PrepSCTFindMarkers(seurat, verbose = verbose)
-        }
-
-        # Top genes per cluster
-        top_genes_results <- top_genes_per_cluster(
-            seurat,
-            n_genes_to_plot = n_genes_to_plot,
-            object_annotations = object_annotations,
-            tables_path = tables_path,
-            figures_path = figures_path,
-            results_path = results_path,
-            run_pathway_enrichment = run_pathway_enrichment,
-            filter_ig = filter_ig,
-            flip_axes = FALSE,
-            filter_tcr = filter_tcr
-        )
-
-        if (!is.null(figures_path)) {
-            ggsave(
-                paste0(figures_path, 'DotPlot_Top', n_genes_to_plot, '_per_cluster_', object_annotations, '.pdf'),
-                plot = top_genes_results$plot,
-                width = 8,
-                height = 14
-            )
-        }
-
-        # SingleR annotations if requested
-        if (run_singler) {
-            local_path <- paste0(figures_path, object_annotations, '_cell_type_annotations')
-            unlink(local_path, recursive = TRUE)
-            dir.create(local_path)
-
-            # Normalize and scale RNA data
-            seurat <- NormalizeData(seurat, assay = "RNA", normalization.method = "LogNormalize", scale.factor = 10000)
-            seurat <- ScaleData(seurat, assay = 'RNA')
-
-            # Run SingleR annotations
-            seurat <- annotate_seurat_with_SingleR_Eduard(
-                seurat,
-                local_path,
-                database = singler_database,
-                annotation_basis = 'cluster_coarse',
-                split_by_groups = FALSE
-            )
-
-            annotate_seurat_with_SingleR_Eduard(
-                seurat,
-                local_path,
-                database = singler_database,
-                annotation_basis = 'cell_coarse',
-                split_by_groups = FALSE
-            )
-        }
     }
 
     # Return list with processed seurat object and plots
@@ -395,7 +317,6 @@ perform_seurat_clustering <- function(
         seurat = seurat,
         resolution_plot = resolution_plot,
         detailed_plots = detailed_plots,
-        top_genes_results = top_genes_results,
         dimensions = dimensions,
         resolutions = resolutions,
         selected_resolution = selected_resolution,

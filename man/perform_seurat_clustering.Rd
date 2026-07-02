@@ -19,14 +19,6 @@ perform_seurat_clustering(
   selected_resolution = NULL,
   object_annotations = "full_object",
   figures_path = NULL,
-  tables_path = NULL,
-  results_path = NULL,
-  run_pathway_enrichment = FALSE,
-  n_genes_to_plot = 3,
-  run_singler = FALSE,
-  singler_database = "ImmGen",
-  filter_ig = FALSE,
-  filter_tcr = FALSE,
   quiet_vdj = FALSE,
   integrate_rna = FALSE,
   integration_column = "Origin",
@@ -71,25 +63,6 @@ comparison plots are generated. Default NULL}
 
 \item{figures_path}{Character; path to save figures. Default NULL}
 
-\item{tables_path}{Character; path to save tables. Default NULL}
-
-\item{results_path}{Character; path for enrichment results. Default NULL}
-
-\item{run_pathway_enrichment}{Character vector or FALSE; enrichment methods to run.
-Default FALSE}
-
-\item{n_genes_to_plot}{Integer; number of marker genes per cluster to plot. Default 3}
-
-\item{run_singler}{Logical; whether to run SingleR cell type annotation. Default FALSE}
-
-\item{singler_database}{Character; SingleR reference database. Default 'ImmGen'}
-
-\item{filter_ig}{Logical; whether to filter out immunoglobulin genes from marker
-gene analysis. Default FALSE}
-
-\item{filter_tcr}{Logical; whether to filter out T cell receptor genes from marker
-gene analysis. Default FALSE}
-
 \item{quiet_vdj}{Logical; whether to remove VDJ genes (Igh, Igk, Igl, Tra, Trb, Trd, Trg)
 from variable features after SCTransform. Default FALSE}
 
@@ -129,7 +102,6 @@ List with elements:
 \item{seurat}{Processed Seurat object with clusters}
 \item{resolution_plot}{Grid of UMAP plots for all resolutions}
 \item{detailed_plots}{List of detailed plots for selected resolution or NULL}
-\item{top_genes_results}{Marker gene analysis results or NULL}
 \item{dimensions}{Number of dimensions used}
 \item{resolutions}{Resolutions tested}
 \item{selected_resolution}{Resolution selected for detailed analysis}

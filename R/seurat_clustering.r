@@ -47,6 +47,15 @@
 #' @param vars_to_regress Character vector or NULL; metadata variable(s) to regress
 #'   out during SCTransform normalization (passed to SCTransform's `vars.to.regress`,
 #'   e.g. 'percent.mt' or cell-cycle scores). Default NULL (no regression)
+#' @param regress_cell_cycle Logical; whether to compute cell cycle scores and
+#'   regress them out during SCTransform. When TRUE, the RNA assay is log-normalized,
+#'   `CellCycleScoring` is run, and 'S.Score' and 'G2M.Score' are added to the
+#'   SCTransform `vars.to.regress` (combined with any `vars_to_regress`). If the RNA
+#'   assay is split into layers, it is temporarily joined for scoring and the original
+#'   split assay is restored afterward. Default FALSE
+#' @param cell_cycle_species Character; 'mouse' or 'human'. Selects the cell cycle
+#'   gene lists: 'human' uses Seurat's `cc.genes.updated.2019` as-is, 'mouse'
+#'   title-cases them. Only used when `regress_cell_cycle = TRUE`. Default 'mouse'
 #'
 #' @return List with elements:
 #'   \item{seurat}{Processed Seurat object with clusters}
@@ -84,7 +93,9 @@ perform_seurat_clustering <- function(
     quiet_vdj = FALSE,
     integrate_rna = FALSE,
     integration_column = "Origin",
-    vars_to_regress = NULL
+    vars_to_regress = NULL,
+    regress_cell_cycle = FALSE,
+    cell_cycle_species = "mouse"
 ) {
     # Filter object
     if (!is.null(filter_variable)) {
@@ -101,6 +112,45 @@ perform_seurat_clustering <- function(
 
     # Determine which reduction to use for downstream steps
     rna_reduction <- if (integrate_rna) "harmony" else "pca"
+
+    # Optionally score cell cycle and regress the scores during SCTransform
+    if (regress_cell_cycle) {
+        # Seurat's cc.genes are human symbols; title-case them for mouse
+        if (cell_cycle_species == "mouse") {
+            s_features   <- stringr::str_to_title(Seurat::cc.genes.updated.2019$s.genes)
+            g2m_features <- stringr::str_to_title(Seurat::cc.genes.updated.2019$g2m.genes)
+        } else if (cell_cycle_species == "human") {
+            s_features   <- Seurat::cc.genes.updated.2019$s.genes
+            g2m_features <- Seurat::cc.genes.updated.2019$g2m.genes
+        } else {
+            stop("cell_cycle_species must be either 'mouse' or 'human'")
+        }
+
+        DefaultAssay(seurat) <- "RNA"
+
+        # CellCycleScoring/AddModuleScore need a single (joined) data layer. If the RNA
+        # assay is split, keep the split assay, join for scoring, and restore it after.
+        rna_is_split <- length(Layers(seurat[["RNA"]], search = "counts")) > 1
+        if (rna_is_split) {
+            split_rna_assay <- seurat[["RNA"]]
+            seurat[["RNA"]] <- SeuratObject::JoinLayers(seurat[["RNA"]])
+        }
+
+        seurat <- NormalizeData(seurat, assay = "RNA", verbose = verbose)
+        seurat <- CellCycleScoring(seurat, s.features = s_features,
+                                   g2m.features = g2m_features, set.ident = FALSE)
+
+        # Reassign the original split assay; the phase scores live in meta.data and persist
+        if (rna_is_split) {
+            seurat[["RNA"]] <- split_rna_assay
+        }
+
+        vars_to_regress <- union(vars_to_regress, c("S.Score", "G2M.Score"))
+        if (verbose) {
+            message("Cell cycle scored; SCTransform will regress: ",
+                    paste(vars_to_regress, collapse = ", "))
+        }
+    }
 
     # Optionally split RNA assay for integration
     if (integrate_rna) {

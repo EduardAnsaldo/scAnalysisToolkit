@@ -30,7 +30,9 @@ perform_seurat_clustering(
   quiet_vdj = FALSE,
   integrate_rna = FALSE,
   integration_column = "Origin",
-  vars_to_regress = NULL
+  vars_to_regress = NULL,
+  regress_cell_cycle = FALSE,
+  cell_cycle_species = "mouse"
 )
 }
 \arguments{
@@ -98,6 +100,17 @@ for integration. Default "Origin"}
 \item{vars_to_regress}{Character vector or NULL; metadata variable(s) to regress
 out during SCTransform normalization (passed to SCTransform's \code{vars.to.regress},
 e.g. 'percent.mt' or cell-cycle scores). Default NULL (no regression)}
+
+\item{regress_cell_cycle}{Logical; whether to compute cell cycle scores and
+regress them out during SCTransform. When TRUE, the RNA assay is log-normalized,
+\code{CellCycleScoring} is run, and 'S.Score' and 'G2M.Score' are added to the
+SCTransform \code{vars.to.regress} (combined with any \code{vars_to_regress}). If the RNA
+assay is split into layers, it is temporarily joined for scoring and the original
+split assay is restored afterward. Default FALSE}
+
+\item{cell_cycle_species}{Character; 'mouse' or 'human'. Selects the cell cycle
+gene lists: 'human' uses Seurat's \code{cc.genes.updated.2019} as-is, 'mouse'
+title-cases them. Only used when \code{regress_cell_cycle = TRUE}. Default 'mouse'}
 }
 \value{
 List with elements:

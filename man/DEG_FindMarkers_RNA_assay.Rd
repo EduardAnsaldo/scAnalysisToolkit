@@ -24,6 +24,8 @@ DEG_FindMarkers_RNA_assay(
   minimum_cell_number = 30,
   run_pathway_enrichment = NULL,
   exclude_sex_chr_genes = FALSE,
+  genes_to_exclude = c(),
+  exclude_vdj = FALSE,
   ...
 )
 }
@@ -68,6 +70,13 @@ filtering. Default 20}
 
 \item{exclude_sex_chr_genes}{Logical; if TRUE, removes mouse sex chromosome genes
 from results to avoid false positives from sex imbalance. Default FALSE}
+
+\item{genes_to_exclude}{Character vector of regular expressions; genes matching any
+pattern are excluded from results. Plain gene names work as literal patterns.
+Default c()}
+
+\item{exclude_vdj}{Logical; if TRUE, also exclude VDJ (immunoglobulin and T-cell
+receptor) genes. Default FALSE}
 }
 \value{
 List with elements:

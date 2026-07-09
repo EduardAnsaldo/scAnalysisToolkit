@@ -88,6 +88,50 @@ add_gene_labels_layer <- function(label_column, diffexpressed, label_size = 5,
     )
 }
 
+#' VDJ (Immune Receptor) Gene Regex Pattern
+#'
+#' Returns a regular expression matching VDJ genes: immunoglobulin (Igh, Igk, Igl)
+#' and T-cell receptor (Trav/Trbv/Trdv/Trgv, Traj/Trbj/Trdj/Trgj, Trac/Trbc/Trdc/Trgc)
+#' genes. The pattern is anchored (^) to gene-symbol prefixes to avoid matching
+#' unrelated genes (e.g. Trap1), and wrapped in a scoped case-insensitive inline
+#' flag group `(?i:...)` so it matches both mouse (Igh, Trav) and human (IGH, TRAV)
+#' symbols without affecting any patterns it is combined with.
+#'
+#' @return Character; a single regex string.
+#'
+#' @noRd
+vdj_gene_pattern <- function() {
+    '(?i:^Igh|^Igl|^Igk|^Trav|^Trbv|^Trdv|^Trgv|^Traj|^Trbj|^Trdj|^Trgj|^Trac|^Trbc|^Trdc|^Trgc)'
+}
+
+#' Identify Genes to Exclude from Differential Expression
+#'
+#' Given a vector of gene names, returns a logical vector flagging which genes
+#' should be excluded based on user-supplied regular expressions and/or the VDJ
+#' gene defaults. User patterns are matched exactly as written (case-sensitive);
+#' the VDJ default carries its own case-insensitive flag (see \code{vdj_gene_pattern}).
+#'
+#' @param genes Character vector of gene names to test.
+#' @param genes_to_exclude Character vector of regular expressions; a gene is
+#'   excluded if it matches any pattern. Plain gene names work as literal regexes.
+#'   Default c()
+#' @param exclude_vdj Logical; if TRUE, also exclude VDJ (immunoglobulin and
+#'   T-cell receptor) genes. Default FALSE
+#'
+#' @return Logical vector the same length as \code{genes}; TRUE means exclude.
+#'
+#' @noRd
+match_genes_to_exclude <- function(genes, genes_to_exclude = c(), exclude_vdj = FALSE) {
+    patterns <- as.character(genes_to_exclude)
+    if (isTRUE(exclude_vdj)) {
+        patterns <- c(patterns, vdj_gene_pattern())
+    }
+    if (length(patterns) == 0) {
+        return(rep(FALSE, length(genes)))
+    }
+    stringr::str_detect(genes, paste(patterns, collapse = '|'))
+}
+
 #' Validate Cell Counts for Differential Expression
 #'
 #' Checks if each comparison group has sufficient cells for differential

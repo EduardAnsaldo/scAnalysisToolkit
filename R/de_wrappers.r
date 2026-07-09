@@ -21,7 +21,11 @@
 #' @param minimum_cell_number Integer; minimum cells required per group. Default 10
 #' @param run_pathway_enrichment Character; method for pathway enrichment ('Metascape',
 #'   'ClusterProfiler', or NULL). Default NULL
-#' @param genes_to_exclude Character vector; genes to exclude from analysis. Default c()
+#' @param genes_to_exclude Character vector of regular expressions; genes matching any
+#'   pattern are excluded from analysis. Plain gene names work as literal patterns.
+#'   Default c()
+#' @param exclude_vdj Logical; if TRUE, also exclude VDJ (immunoglobulin and T-cell
+#'   receptor) genes. Default FALSE
 #' @param ... Additional arguments passed to visualization and enrichment functions
 #'
 #' @return List with elements:
@@ -38,7 +42,8 @@ pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clus
                        path = './', FC_threshold = 0.3, p_value_threshold = 0.05,
                        max_overlaps = 15,
                        expression_threshold_for_gene_list = 20, minimum_cell_number = 10,
-                       run_pathway_enrichment = NULL, genes_to_exclude = c(), ...) {
+                       run_pathway_enrichment = NULL, genes_to_exclude = c(),
+                       exclude_vdj = FALSE, ...) {
 
     local_figures_path <- here::here(path, 'figures')
     dir.create(local_figures_path, showWarnings = FALSE, recursive = TRUE)
@@ -59,6 +64,7 @@ pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clus
         expression_threshold_for_gene_list = expression_threshold_for_gene_list,
         minimum_cell_number = minimum_cell_number,
         genes_to_exclude = genes_to_exclude,
+        exclude_vdj = exclude_vdj,
         ...
     )
 
@@ -151,6 +157,11 @@ pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clus
 #' @param run_pathway_enrichment Character; method for pathway enrichment or NULL. Default NULL
 #' @param exclude_sex_chr_genes Logical; if TRUE, removes mouse sex chromosome genes
 #'   from results to avoid false positives from sex imbalance. Default FALSE
+#' @param genes_to_exclude Character vector of regular expressions; genes matching any
+#'   pattern are excluded from results. Plain gene names work as literal patterns.
+#'   Default c()
+#' @param exclude_vdj Logical; if TRUE, also exclude VDJ (immunoglobulin and T-cell
+#'   receptor) genes. Default FALSE
 #'
 #' @return List with elements:
 #'   \item{all_count}{Integer; number of significant DEGs}
@@ -168,7 +179,8 @@ DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, clus
                                       gene_lists_to_plot = NULL, expression_threshold_for_gene_list = 20,
                                       minimum_cell_number = 30,
                                       run_pathway_enrichment = NULL,
-                                      exclude_sex_chr_genes = FALSE, ...) {
+                                      exclude_sex_chr_genes = FALSE,
+                                      genes_to_exclude = c(), exclude_vdj = FALSE, ...) {
 
     local_figures_path <- here::here(path, 'figures')
     dir.create(local_figures_path, showWarnings = FALSE, recursive = TRUE)
@@ -189,6 +201,8 @@ DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, clus
         min_fraction = min_fraction,
         minimum_cell_number = minimum_cell_number,
         exclude_sex_chr_genes = exclude_sex_chr_genes,
+        genes_to_exclude = genes_to_exclude,
+        exclude_vdj = exclude_vdj,
         ...
     )
 
@@ -287,6 +301,11 @@ DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, clus
 #' @param run_pathway_enrichment Character; method for pathway enrichment or NULL. Default NULL
 #' @param exclude_sex_chr_genes Logical; if TRUE, removes mouse sex chromosome genes
 #'   from results to avoid false positives from sex imbalance. Default FALSE
+#' @param genes_to_exclude Character vector of regular expressions; genes matching any
+#'   pattern are excluded from results. Plain gene names work as literal patterns.
+#'   Default c()
+#' @param exclude_vdj Logical; if TRUE, also exclude VDJ (immunoglobulin and T-cell
+#'   receptor) genes. Default FALSE
 #' @param ... Additional arguments passed to core analysis and visualization functions
 #'
 #' @return List with elements:
@@ -306,7 +325,8 @@ DEG_FindMarkers_SCT_assay <- function(scRNAseq, comparison, group1, group2, is_i
                                       distance_from_diagonal_threshold = 0.7, gene_lists_to_plot = NULL,
                                       expression_threshold_for_gene_list = 20,
                                       minimum_cell_number = 30, run_pathway_enrichment = NULL,
-                                      exclude_sex_chr_genes = FALSE, ...) {
+                                      exclude_sex_chr_genes = FALSE,
+                                      genes_to_exclude = c(), exclude_vdj = FALSE, ...) {
 
     local_figures_path <- here::here(path, 'figures')
     dir.create(local_figures_path, showWarnings = FALSE, recursive = TRUE)
@@ -329,6 +349,8 @@ DEG_FindMarkers_SCT_assay <- function(scRNAseq, comparison, group1, group2, is_i
         expression_threshold_for_gene_list = expression_threshold_for_gene_list,
         minimum_cell_number = minimum_cell_number,
         exclude_sex_chr_genes = exclude_sex_chr_genes,
+        genes_to_exclude = genes_to_exclude,
+        exclude_vdj = exclude_vdj,
         ...
     )
 
@@ -451,6 +473,11 @@ DEG_FindMarkers_SCT_assay <- function(scRNAseq, comparison, group1, group2, is_i
 #'   for filtering gene lists. Default 20
 #' @param minimum_cell_number Integer; minimum replicates required (not used for bulk). Default 10
 #' @param run_pathway_enrichment Logical; whether to run pathway enrichment. Default FALSE
+#' @param genes_to_exclude Character vector of regular expressions; genes matching any
+#'   pattern are excluded from analysis. Plain gene names work as literal patterns.
+#'   Default c()
+#' @param exclude_vdj Logical; if TRUE, also exclude VDJ (immunoglobulin and T-cell
+#'   receptor) genes. Default FALSE
 #' @param ... Additional arguments passed to core analysis and visualization functions
 #'
 #' @return Named vector with elements:
@@ -464,7 +491,8 @@ bulk_analysis <- function(counts_table, comparison = 'Groups', group1, group2, c
                          max_overlaps = 15, label_size = 5, pathways_of_interest = NULL,
                          label_threshold = 100000, distance_from_diagonal_threshold = 0.4,
                          gene_lists_to_plot = NULL, expression_threshold_for_gene_list = 20,
-                         minimum_cell_number = 10, run_pathway_enrichment = FALSE, ...) {
+                         minimum_cell_number = 10, run_pathway_enrichment = FALSE,
+                         genes_to_exclude = c(), exclude_vdj = FALSE, ...) {
 
     local_figures_path <- here::here(path, 'figures')
     dir.create(local_figures_path, showWarnings = FALSE, recursive = TRUE)
@@ -483,6 +511,8 @@ bulk_analysis <- function(counts_table, comparison = 'Groups', group1, group2, c
         FC_threshold = FC_threshold,
         p_value_threshold = p_value_threshold,
         expression_threshold_for_gene_list = expression_threshold_for_gene_list,
+        genes_to_exclude = genes_to_exclude,
+        exclude_vdj = exclude_vdj,
         ...
     )
 

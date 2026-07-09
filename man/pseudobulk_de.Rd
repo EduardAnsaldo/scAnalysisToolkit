@@ -16,6 +16,7 @@ pseudobulk_de(
   expression_threshold_for_gene_list = 20,
   minimum_cell_number = 10,
   genes_to_exclude = c(),
+  exclude_vdj = FALSE,
   ...
 )
 }
@@ -41,7 +42,12 @@ for a gene to be included in filtered gene lists. Default 20}
 
 \item{minimum_cell_number}{Integer; minimum cells required per group. Default 10}
 
-\item{genes_to_exclude}{Character vector; genes to exclude from analysis. Default c()}
+\item{genes_to_exclude}{Character vector of regular expressions; genes matching any
+pattern are excluded from analysis. Plain gene names work as literal patterns.
+Default c()}
+
+\item{exclude_vdj}{Logical; if TRUE, also exclude VDJ (immunoglobulin and T-cell
+receptor) genes. Default FALSE}
 
 \item{...}{Additional arguments (unused)}
 }

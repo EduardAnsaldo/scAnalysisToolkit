@@ -19,7 +19,11 @@
 #' @param expression_threshold_for_gene_list Numeric; minimum average normalized counts
 #'   for a gene to be included in filtered gene lists. Default 20
 #' @param minimum_cell_number Integer; minimum cells required per group. Default 10
-#' @param genes_to_exclude Character vector; genes to exclude from analysis. Default c()
+#' @param genes_to_exclude Character vector of regular expressions; genes matching any
+#'   pattern are excluded from analysis. Plain gene names work as literal patterns.
+#'   Default c()
+#' @param exclude_vdj Logical; if TRUE, also exclude VDJ (immunoglobulin and T-cell
+#'   receptor) genes. Default FALSE
 #' @param ... Additional arguments (unused)
 #'
 #' @return List with elements:
@@ -32,7 +36,7 @@
 pseudobulk_de <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clusters',
                           path = './', FC_threshold = 0.3, p_value_threshold = 0.05,
                           expression_threshold_for_gene_list = 20, minimum_cell_number = 10,
-                          genes_to_exclude = c(), ...) {
+                          genes_to_exclude = c(), exclude_vdj = FALSE, ...) {
 
     # Subset seurat object
     scRNAseq <- subset(scRNAseq, subset = (str_detect(!!as.name(comparison), group1) | str_detect(!!as.name(comparison), group2)))
@@ -73,13 +77,20 @@ pseudobulk_de <- function(scRNAseq, comparison, group1, group2, cluster = 'all_c
     counts <- counts$RNA |>
         as.data.frame() |>
         rownames_to_column('genes') |>
-        as_tibble() |>
-        dplyr::select(-any_of(genes_to_exclude)) |>
+        as_tibble()
+
+    # Exclude requested genes (regex patterns and/or VDJ defaults)
+    excluded <- match_genes_to_exclude(counts$genes, genes_to_exclude, exclude_vdj)
+    if (any(excluded)) {
+        message('Excluding ', sum(excluded), ' genes matching exclusion patterns')
+    }
+    counts <- counts |>
+        filter(!excluded) |>
         column_to_rownames('genes')
 
     # Generate sample level metadata
     colData <- data.frame(samples = colnames(counts)) |>
-        mutate(condition = ifelse(grepl(group1, samples), group1, group2))
+        mutate(condition = ifelse(grepl(str_replace_all(as.character(group1), '_', '-'), samples), group1, group2))
 
     # Filter
     counts <- counts |>
@@ -135,8 +146,8 @@ pseudobulk_de <- function(scRNAseq, comparison, group1, group2, cluster = 'all_c
         as_tibble() |>
         rowwise() |>
         mutate(
-            !!paste0('Avg_', group2) := mean(c_across(contains(group2))),
-            !!paste0('Avg_', group1) := mean(c_across(contains(group1)))
+            !!paste0('Avg_', group2) := mean(c_across(contains(str_replace_all(as.character(group2), '_', '-')))),
+            !!paste0('Avg_', group1) := mean(c_across(contains(str_replace_all(as.character(group1), '_', '-'))))
         ) |>
         ungroup()
 
@@ -196,6 +207,11 @@ pseudobulk_de <- function(scRNAseq, comparison, group1, group2, cluster = 'all_c
 #' @param minimum_cell_number Integer; minimum cells required per group. Default 30
 #' @param exclude_sex_chr_genes Logical; if TRUE, removes mouse sex chromosome genes
 #'   from results to avoid false positives from sex imbalance. Default FALSE
+#' @param genes_to_exclude Character vector of regular expressions; genes matching any
+#'   pattern are excluded from results. Plain gene names work as literal patterns.
+#'   Default c()
+#' @param exclude_vdj Logical; if TRUE, also exclude VDJ (immunoglobulin and T-cell
+#'   receptor) genes. Default FALSE
 #' @param ... Additional arguments (unused)
 #'
 #' @return List with elements:
@@ -209,7 +225,8 @@ DEG_FindMarkers_RNA_assay_de <- function(scRNAseq, comparison, group1, group2,
                                          cluster = 'all_clusters', path = './',
                                          FC_threshold = 0.3, p_value_threshold = 0.05,
                                          min_fraction = 0.01, minimum_cell_number = 30,
-                                         exclude_sex_chr_genes = FALSE, ...) {
+                                         exclude_sex_chr_genes = FALSE,
+                                         genes_to_exclude = c(), exclude_vdj = FALSE, ...) {
 
     # Set Paths
     gene_lists_path <- here::here(path, 'gene_lists')
@@ -254,8 +271,8 @@ DEG_FindMarkers_RNA_assay_de <- function(scRNAseq, comparison, group1, group2,
                             as.data.frame() |>
                             rownames_to_column(var = 'gene') |>
                             rename(
-                                !!paste0('Avg_', group2) := all_of(as.character(group2)),
-                                !!paste0('Avg_', group1) := all_of(as.character(group1))
+                                !!paste0('Avg_', group2) := all_of(as.character(group2) |> str_replace_all('_', '-')),
+                                !!paste0('Avg_', group1) := all_of(as.character(group1) |> str_replace_all('_', '-'))
                             )
 
     # Add gene annotations
@@ -285,6 +302,13 @@ DEG_FindMarkers_RNA_assay_de <- function(scRNAseq, comparison, group1, group2,
         }
         results <- results |> filter(!genes %in% sex_chr_genes)
     }
+
+    # Exclude requested genes (regex patterns and/or VDJ defaults)
+    excluded <- match_genes_to_exclude(results$genes, genes_to_exclude, exclude_vdj)
+    if (any(excluded)) {
+        message('Removing ', sum(excluded), ' genes matching exclusion patterns from results')
+    }
+    results <- results |> filter(!excluded)
 
     # Filter results
     results_filtered <- filter(results,
@@ -336,7 +360,12 @@ DEG_FindMarkers_RNA_assay_de <- function(scRNAseq, comparison, group1, group2,
 #' @param minimum_cell_number Integer; minimum cells required per group. Default 30
 #' @param exclude_sex_chr_genes Logical; if TRUE, removes mouse sex chromosome genes
 #'   from results to avoid false positives from sex imbalance. Default FALSE
-#' @param ... Additional arguments (unused)   
+#' @param genes_to_exclude Character vector of regular expressions; genes matching any
+#'   pattern are excluded from results. Plain gene names work as literal patterns.
+#'   Default c()
+#' @param exclude_vdj Logical; if TRUE, also exclude VDJ (immunoglobulin and T-cell
+#'   receptor) genes. Default FALSE
+#' @param ... Additional arguments (unused)
 #'
 #' @return List with elements:
 #'   \item{all_count}{Integer; number of significant DEGs}
@@ -348,7 +377,8 @@ DEG_FindMarkers_RNA_assay_de <- function(scRNAseq, comparison, group1, group2,
 DEG_FindMarkers_SCT_assay_de <- function(scRNAseq, comparison, group1, group2, is_integrated_subset = FALSE,
                                          cluster = 'all_clusters', path = './', FC_threshold = 0.3,
                                          p_value_threshold = 0.05, min_fraction = 0.01, expression_threshold_for_gene_list = 20,
-                                         minimum_cell_number = 30, exclude_sex_chr_genes = FALSE, ...) {
+                                         minimum_cell_number = 30, exclude_sex_chr_genes = FALSE,
+                                         genes_to_exclude = c(), exclude_vdj = FALSE, ...) {
 
     # Set Paths
     gene_lists_path <- here::here(path, 'gene_lists')
@@ -427,6 +457,13 @@ DEG_FindMarkers_SCT_assay_de <- function(scRNAseq, comparison, group1, group2, i
         results <- results |> filter(!genes %in% sex_chr_genes)
     }
 
+    # Exclude requested genes (regex patterns and/or VDJ defaults)
+    excluded <- match_genes_to_exclude(results$genes, genes_to_exclude, exclude_vdj)
+    if (any(excluded)) {
+        message('Removing ', sum(excluded), ' genes matching exclusion patterns from results')
+    }
+    results <- results |> filter(!excluded)
+
     # Filter results
     results_filtered <- filter(
         results,
@@ -473,6 +510,11 @@ DEG_FindMarkers_SCT_assay_de <- function(scRNAseq, comparison, group1, group2, i
 #' @param p_value_threshold Numeric; adjusted p-value threshold. Default 0.05
 #' @param expression_threshold_for_gene_list Numeric; minimum average normalized counts
 #'   for a gene to be included in filtered gene lists. Default 20
+#' @param genes_to_exclude Character vector of regular expressions; genes matching any
+#'   pattern are excluded from analysis. Plain gene names work as literal patterns.
+#'   Default c()
+#' @param exclude_vdj Logical; if TRUE, also exclude VDJ (immunoglobulin and T-cell
+#'   receptor) genes. Default FALSE
 #' @param ... Additional arguments (unused)
 #'
 #' @return List with elements:
@@ -485,7 +527,8 @@ DEG_FindMarkers_SCT_assay_de <- function(scRNAseq, comparison, group1, group2, i
 bulk_analysis_de <- function(counts_table, comparison = 'Groups', group1, group2,
                              cluster = '', path = './', FC_threshold = 0.3,
                              p_value_threshold = 0.05,
-                             expression_threshold_for_gene_list = 20, ...) {
+                             expression_threshold_for_gene_list = 20,
+                             genes_to_exclude = c(), exclude_vdj = FALSE, ...) {
 
     # Set Paths
     gene_lists_path <- here::here(path, 'gene_lists')
@@ -497,6 +540,13 @@ bulk_analysis_de <- function(counts_table, comparison = 'Groups', group1, group2
     group2 <- stringr::fixed(group2)
 
     counts <- tibble(counts_table) |> column_to_rownames('genes')
+
+    # Exclude requested genes (regex patterns and/or VDJ defaults)
+    excluded <- match_genes_to_exclude(rownames(counts), genes_to_exclude, exclude_vdj)
+    if (any(excluded)) {
+        message('Excluding ', sum(excluded), ' genes matching exclusion patterns')
+    }
+    counts <- counts[!excluded, , drop = FALSE]
 
     # Generate sample level metadata
     colData <- data.frame(samples = colnames(counts)) |>

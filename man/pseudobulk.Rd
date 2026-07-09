@@ -18,6 +18,7 @@ pseudobulk(
   minimum_cell_number = 10,
   run_pathway_enrichment = NULL,
   genes_to_exclude = c(),
+  exclude_vdj = FALSE,
   ...
 )
 }
@@ -48,7 +49,12 @@ for filtering gene lists. Default 20}
 \item{run_pathway_enrichment}{Character; method for pathway enrichment ('Metascape',
 'ClusterProfiler', or NULL). Default NULL}
 
-\item{genes_to_exclude}{Character vector; genes to exclude from analysis. Default c()}
+\item{genes_to_exclude}{Character vector of regular expressions; genes matching any
+pattern are excluded from analysis. Plain gene names work as literal patterns.
+Default c()}
+
+\item{exclude_vdj}{Logical; if TRUE, also exclude VDJ (immunoglobulin and T-cell
+receptor) genes. Default FALSE}
 
 \item{...}{Additional arguments passed to visualization and enrichment functions}
 }

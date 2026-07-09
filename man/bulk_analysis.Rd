@@ -22,6 +22,8 @@ bulk_analysis(
   expression_threshold_for_gene_list = 20,
   minimum_cell_number = 10,
   run_pathway_enrichment = FALSE,
+  genes_to_exclude = c(),
+  exclude_vdj = FALSE,
   ...
 )
 }
@@ -62,6 +64,13 @@ for filtering gene lists. Default 20}
 \item{minimum_cell_number}{Integer; minimum replicates required (not used for bulk). Default 10}
 
 \item{run_pathway_enrichment}{Logical; whether to run pathway enrichment. Default FALSE}
+
+\item{genes_to_exclude}{Character vector of regular expressions; genes matching any
+pattern are excluded from analysis. Plain gene names work as literal patterns.
+Default c()}
+
+\item{exclude_vdj}{Logical; if TRUE, also exclude VDJ (immunoglobulin and T-cell
+receptor) genes. Default FALSE}
 
 \item{...}{Additional arguments passed to core analysis and visualization functions}
 }

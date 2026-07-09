@@ -14,6 +14,8 @@ bulk_analysis_de(
   FC_threshold = 0.3,
   p_value_threshold = 0.05,
   expression_threshold_for_gene_list = 20,
+  genes_to_exclude = c(),
+  exclude_vdj = FALSE,
   ...
 )
 }
@@ -37,6 +39,13 @@ must include a 'genes' column}
 
 \item{expression_threshold_for_gene_list}{Numeric; minimum average normalized counts
 for a gene to be included in filtered gene lists. Default 20}
+
+\item{genes_to_exclude}{Character vector of regular expressions; genes matching any
+pattern are excluded from analysis. Plain gene names work as literal patterns.
+Default c()}
+
+\item{exclude_vdj}{Logical; if TRUE, also exclude VDJ (immunoglobulin and T-cell
+receptor) genes. Default FALSE}
 
 \item{...}{Additional arguments (unused)}
 }

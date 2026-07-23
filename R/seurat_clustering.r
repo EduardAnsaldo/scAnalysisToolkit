@@ -111,6 +111,10 @@ run_sct_pca_umap <- function(seurat, vars_to_regress, npcs, dimensions, n_neighb
 #'   on the UMAP before vs after regression (saved to `figures_path` if provided and
 #'   returned as `cell_cycle_plot`). Set FALSE to skip the extra unregressed pass.
 #'   Default TRUE
+#' @param algorithm Integer; clustering algorithm passed to `FindClusters` (1 = original Louvain,
+#'   2 = Louvain with multilevel refinement, 3 = SLM, 4 = Leiden). Default 4
+#' @param cluster_random_seed Integer; `random.seed` for `FindClusters`. Defaults to `seed`; set it
+#'   to reproduce a previous run's clustering (e.g. 0, Seurat's `FindClusters` default). Default `seed`
 #'
 #' @return List with elements:
 #'   \item{seurat}{Processed Seurat object with clusters}
@@ -147,7 +151,9 @@ perform_seurat_clustering <- function(
     vars_to_regress = NULL,
     regress_cell_cycle = FALSE,
     cell_cycle_species = "mouse",
-    plot_cell_cycle_umap = TRUE
+    plot_cell_cycle_umap = TRUE,
+    algorithm = 4,
+    cluster_random_seed = seed
 ) {
     # Filter object
     if (!is.null(filter_variable)) {
@@ -257,7 +263,7 @@ perform_seurat_clustering <- function(
 
     # Find neighbors and clusters
     seurat <- FindNeighbors(seurat, dims = 1:dimensions, k.param = k_param, verbose = verbose, reduction = rna_reduction)
-    seurat <- FindClusters(seurat, resolution = resolutions, verbose = verbose, algorithm = 4, random.seed = seed)
+    seurat <- FindClusters(seurat, resolution = resolutions, verbose = verbose, algorithm = algorithm, random.seed = cluster_random_seed)
 
     # Create UMAP plots for each resolution
     p <- resolutions |>

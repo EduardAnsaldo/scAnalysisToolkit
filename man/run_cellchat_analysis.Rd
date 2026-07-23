@@ -13,7 +13,7 @@ run_cellchat_analysis(
   subset_db = NULL,
   min_cells = 10,
   method = "triMean",
-  trim = 0.1,
+  trim = NULL,
   use_parallel = TRUE,
   n_workers = 10,
   max_memory_mb = 4000,

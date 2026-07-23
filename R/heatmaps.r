@@ -21,7 +21,7 @@
 #' @export
 plot_pathways_heatmap <- function(genes_to_plot, seurat, title, color_palette = grDevices::hcl.colors(n = 20,'RdBu',rev = T), grouping_var = 'Samples') {
 
-    Aggregated_expression <- AggregateExpression(seurat, group.by = grouping_var, return.seurat = T)
+    Aggregated_expression <- AggregateExpression(seurat, assays = 'RNA', group.by = grouping_var, return.seurat = T)
     data_to_plot <- Aggregated_expression[['RNA']]$data |>
         as.data.frame() |>
         rownames_to_column('gene') |>
@@ -77,7 +77,7 @@ plot_pathways_heatmap <- function(genes_to_plot, seurat, title, color_palette = 
 #' @export
 plot_pathways_heatmap2 <- function(genes_to_plot, seurat, title, color_palette = grDevices::hcl.colors(n = 20,'RdBu',rev = T), grouping_var = 'Samples') {
 
-    Aggregated_expression <- AggregateExpression(seurat, group.by = grouping_var, return.seurat = T)
+    Aggregated_expression <- AggregateExpression(seurat, assays = 'RNA', group.by = grouping_var, return.seurat = T)
     data_to_plot <- Aggregated_expression[['RNA']]$data |>
         as.data.frame() |>
         rownames_to_column('gene') |>

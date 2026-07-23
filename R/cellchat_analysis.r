@@ -28,7 +28,7 @@ run_cellchat_analysis <- function(seurat,
            subset_db = NULL,
            min_cells = 10,
            method = 'triMean',
-           trim = 0.1,
+           trim = NULL,
            use_parallel = TRUE,
            n_workers = 10,
            max_memory_mb = 4000,
@@ -216,21 +216,48 @@ run_cellchat_analysis <- function(seurat,
 #'   orders by source first.
 #' @param do.flip Logical.  Transpose the axes so that pathways appear on the
 #'   x-axis and cell-group pairs on the y-axis (default \code{FALSE}).
+#' @param show.lr.pairs Logical.  When \code{TRUE}, each pathway's axis tick
+#'   label is replaced by the ligand-receptor pairs that make up the pathway
+#'   (parsed from \code{object@@LR$LRsig$interaction_name_2}).  Ligands that
+#'   share an identical receptor set are grouped and combined with \code{"/"}
+#'   (e.g. \code{"TGFB1/TGFB2/TGFB3 - (TGFBR1+TGFBR2)"}); genuinely
+#'   many-to-many pathways span multiple lines.  The affected axis title also
+#'   changes to \code{"Ligand-receptor pairs"}.  Requires an object populated
+#'   through \code{\link[CellChat]{identifyOverExpressedInteractions}}.
+#'   Default \code{FALSE}.
 #' @param color.use Controls bubble fill colour.  Two modes:
 #'   \describe{
-#'     \item{\code{NULL} (default)}{Continuous viridis-family gradient
-#'       controlled by \code{viridis.option}.}
+#'     \item{\code{NULL} (default)}{Continuous gradient controlled by
+#'       \code{color.heatmap}.}
 #'     \item{Named character vector}{Maps pathway names to hex colours for
 #'       categorical colouring, e.g.
 #'       \code{c(CXCL = "#e41a1c", VEGF = "#377eb8")}.  Pathways absent from
 #'       the vector receive \code{NA} fill.}
 #'   }
-#' @param viridis.option Character string passed to the \code{option} argument
-#'   of \code{\link[ggplot2]{scale_fill_viridis_c}}.  Accepted values:
-#'   \code{"viridis"} (default), \code{"magma"}, \code{"plasma"},
-#'   \code{"inferno"}, \code{"cividis"}, \code{"mako"}, \code{"rocket"},
-#'   \code{"turbo"}.  Ignored when \code{color.use} is a named vector.
+#' @param color.heatmap Character string naming the continuous colour palette,
+#'   following \code{\link[CellChat]{netVisual_bubble}}.  Any
+#'   \code{RColorBrewer} palette name (default \code{"Spectral"}); an
+#'   unrecognised name falls back to a \pkg{viridis} \code{option} (e.g.
+#'   \code{"magma"}).  Colours run low-to-high after CellChat's reversal
+#'   (\code{direction = -1}).  Ignored when \code{color.use} is a named vector.
+#' @param min.quantile,max.quantile Numeric quantile cutoffs in \code{[0, 1]}
+#'   (default \code{0} / \code{1}).  Following
+#'   \code{\link[CellChat]{netVisual_bubble}}, probabilities below/above these
+#'   quantiles are clamped before colouring, which sets the colour-scale range
+#'   and trims outliers; the two colourbar ends are labelled \code{"min"} and
+#'   \code{"max"}.  Defaults leave the data unchanged.
 #' @param show.legend Logical; whether to draw the legend (default \code{TRUE}).
+#' @param scale.size Logical.  When \code{TRUE} (default) bubble size encodes
+#'   the communication probability.  When \code{FALSE} all bubbles are drawn at
+#'   a single fixed size (\code{dot.size}) and the size legend is removed;
+#'   colour then remains the only probability encoding.
+#' @param size.range Length-2 numeric giving the minimum and maximum bubble
+#'   size passed to \code{\link[ggplot2]{scale_size_continuous}} when
+#'   \code{scale.size = TRUE} (default \code{c(1, 10)}; e.g. \code{c(1, 5)} for
+#'   a tighter spread).
+#' @param dot.size Numeric; the single fixed bubble size used when
+#'   \code{scale.size = FALSE} (default \code{4}, in the same units as
+#'   \code{size.range}).  Ignored when \code{scale.size = TRUE}.
 #' @param font.size Base font size in pt passed to
 #'   \code{\link[ggplot2]{theme_classic}} (default \code{10}).
 #' @param font.size.title Plot title font size in pt (default \code{10}).
@@ -270,9 +297,9 @@ run_cellchat_analysis <- function(seurat,
 #' # Top 15 pathways by mean probability, magma palette
 #' netVisual_bubble_pathways(
 #'   cellchat,
-#'   top.n          = 15,
-#'   top.n.by       = "mean",
-#'   viridis.option = "magma"
+#'   top.n         = 15,
+#'   top.n.by      = "mean",
+#'   color.heatmap = "magma"
 #' )
 #'
 #' # Filter senders/receivers and pathways, top 10 by max
@@ -292,7 +319,7 @@ run_cellchat_analysis <- function(seurat,
 #' out$gg.obj
 #' }
 #'
-#' @importFrom ggplot2 ggplot aes geom_point scale_fill_manual scale_color_manual scale_fill_viridis_c scale_color_viridis_c scale_size_continuous labs theme_classic theme element_text element_rect element_line element_blank unit
+#' @importFrom ggplot2 ggplot aes geom_point scale_fill_manual scale_color_manual scale_fill_gradientn scale_color_gradientn scale_size_continuous scale_x_discrete scale_y_discrete labs theme_classic theme element_text element_rect element_line element_blank unit
 #' @importFrom rlang .data
 #' @importFrom methods .hasSlot
 #'
@@ -308,9 +335,15 @@ netVisual_bubble_pathways <- function(
     min.prob        = 0,
     sort.by.target  = FALSE,
     do.flip         = FALSE,
+    show.lr.pairs   = FALSE,
     color.use       = NULL,
-    viridis.option  = "viridis",
+    color.heatmap   = "Spectral",
+    min.quantile    = 0,
+    max.quantile    = 1,
     show.legend     = TRUE,
+    scale.size      = TRUE,
+    size.range      = c(1, 10),
+    dot.size        = 4,
     font.size       = 10,
     font.size.title = 10,
     angle.x         = 90,
@@ -327,13 +360,23 @@ netVisual_bubble_pathways <- function(
     if (is.na(top.n) || top.n < 1L) stop("'top.n' must be a positive integer.")
   }
 
-  viridis_opts <- c("viridis", "magma", "plasma", "inferno",
-                    "cividis", "mako", "rocket", "turbo")
-  if (!viridis.option %in% viridis_opts) {
-    stop(
-      "'viridis.option' must be one of: ",
-      paste(viridis_opts, collapse = ", ")
-    )
+  if (!is.character(color.heatmap) || length(color.heatmap) != 1L) {
+    stop("'color.heatmap' must be a single palette name (character string).")
+  }
+  if (!is.numeric(min.quantile) || !is.numeric(max.quantile) ||
+      length(min.quantile) != 1L || length(max.quantile) != 1L ||
+      anyNA(c(min.quantile, max.quantile)) ||
+      min.quantile < 0 || max.quantile > 1 || min.quantile > max.quantile) {
+    stop("'min.quantile'/'max.quantile' must be single numbers in [0, 1] with min <= max.")
+  }
+
+  if (!is.numeric(size.range) || length(size.range) != 2L || anyNA(size.range) ||
+      any(size.range <= 0) || size.range[1] > size.range[2]) {
+    stop("'size.range' must be a length-2 numeric of positive, non-decreasing values.")
+  }
+  if (!is.numeric(dot.size) || length(dot.size) != 1L || is.na(dot.size) ||
+      dot.size <= 0) {
+    stop("'dot.size' must be a single positive number.")
   }
 
   # ---- 1. Extract pathway probability array from @netP ----------------------
@@ -374,7 +417,13 @@ netVisual_bubble_pathways <- function(
   }
 
   # ---- 4. Reshape 3-D array to long data frame ------------------------------
-  df <- .array3d_to_long(prob3d)   # columns: source, target, pathway, prob
+  # columns: source, target, pathway, prob
+  df <- reshape2::melt(
+    prob3d,
+    varnames   = c("source", "target", "pathway"),
+    value.name = "prob",
+    as.is      = TRUE
+  )
 
   # ---- 5. Filter by source / target -----------------------------------------
   df <- df[df$source %in% sources_use & df$target %in% targets_use, , drop = FALSE]
@@ -444,13 +493,20 @@ netVisual_bubble_pathways <- function(
   df$pair    <- factor(df$pair,    levels = unique(df$pair))
   df$pathway <- factor(df$pathway, levels = rev(ranked_paths))
 
+  # ---- 10b. Optional ligand-receptor-pair axis labels -----------------------
+  # Named vector mapping each pathway (factor level) to its collapsed LR-pair
+  # label; applied to the pathway axis as tick labels further below.  Computed
+  # here so a missing @LR$LRsig fails fast, before any plotting.
+  lr_map <- if (show.lr.pairs) .pathway_lr_labels(object, levels(df$pathway)) else NULL
+
   # ---- 11. Axis assignment (respects do.flip) --------------------------------
+  pathway_axis_lab <- if (show.lr.pairs) "Ligand-receptor pairs" else "Signalling Pathway"
   if (do.flip) {
     x_var <- "pathway"; y_var <- "pair"
-    x_lab <- "Signalling Pathway"; y_lab <- "Cell-group pair"
+    x_lab <- pathway_axis_lab; y_lab <- "Cell-group pair"
   } else {
     x_var <- "pair"; y_var <- "pathway"
-    x_lab <- "Cell-group pair"; y_lab <- "Signalling Pathway"
+    x_lab <- "Cell-group pair"; y_lab <- pathway_axis_lab
   }
 
   # ---- 12. Resolve label-justification defaults -----------------------------
@@ -458,7 +514,29 @@ netVisual_bubble_pathways <- function(
   if (is.null(hjust.x)) hjust.x <- if (angle.x != 0) 1 else 0.5
 
   # ---- 13. Build ggplot ------------------------------------------------------
-  prob_max <- max(df$prob, na.rm = TRUE)
+  #
+  # Colour handling mirrors CellChat::netVisual_bubble: clamp the plotted
+  # probability to the requested quantile cutoffs (a no-op at the 0/1 defaults),
+  # then span the colour scale over the clamped min-max with the two ends
+  # labelled "min"/"max".  A degenerate range (all values equal) falls back to
+  # the scale's default limits/breaks.
+  min.cutoff <- stats::quantile(df$prob, min.quantile, na.rm = TRUE, names = FALSE)
+  max.cutoff <- stats::quantile(df$prob, max.quantile, na.rm = TRUE, names = FALSE)
+  df$prob[df$prob < min.cutoff] <- min.cutoff
+  df$prob[df$prob > max.cutoff] <- max.cutoff
+
+  prob_min <- min.cutoff   # == quantile(df$prob, 0) after clamping
+  prob_max <- max.cutoff   # == quantile(df$prob, 1) after clamping
+  if (prob_min != prob_max) {
+    prob_limits <- c(prob_min, prob_max)
+    prob_breaks <- c(prob_min, prob_max)
+    prob_labels <- c("min", "max")
+  } else {
+    prob_limits <- NULL
+    prob_breaks <- ggplot2::waiver()
+    prob_labels <- ggplot2::waiver()
+  }
+  grad_colors <- .heatmap_colors(color.heatmap)
 
   if (!is.null(color.use) &&
       is.character(color.use) &&
@@ -481,7 +559,7 @@ netVisual_bubble_pathways <- function(
 
   } else {
 
-    # Continuous viridis gradient -------------------------------------------
+    # Continuous CellChat-style gradient ------------------------------------
     p <- ggplot2::ggplot(
       df,
       ggplot2::aes(
@@ -493,24 +571,32 @@ netVisual_bubble_pathways <- function(
       )
     ) +
       ggplot2::geom_point(shape = 21, stroke = 0.35) +
-      ggplot2::scale_fill_viridis_c(
-        option = viridis.option,
-        name   = "Probability",
-        limits = c(0, prob_max),
-        begin  = 0.15,    # avoid very dark end on some palettes
-        end    = 0.95
+      ggplot2::scale_fill_gradientn(
+        colors   = grad_colors,
+        na.value = "white",
+        name     = "Probability",
+        limits   = prob_limits,
+        breaks   = prob_breaks,
+        labels   = prob_labels
       ) +
-      ggplot2::scale_color_viridis_c(
-        option = viridis.option,
-        guide  = "none",
-        limits = c(0, prob_max),
-        begin  = 0.15,
-        end    = 0.95
+      ggplot2::scale_color_gradientn(
+        colors   = grad_colors,
+        na.value = "white",
+        guide    = "none",
+        limits   = prob_limits
       )
   }
 
+  # Size scale: encode probability across 'size.range', or collapse to a single
+  # fixed 'dot.size' (legend hidden) when 'scale.size = FALSE' so colour becomes
+  # the only probability encoding.
+  if (scale.size) {
+    p <- p + ggplot2::scale_size_continuous(range = size.range, name = "Probability")
+  } else {
+    p <- p + ggplot2::scale_size_continuous(range = c(dot.size, dot.size), guide = "none")
+  }
+
   p <- p +
-    ggplot2::scale_size_continuous(range = c(1, 10), name = "Probability") +
     ggplot2::labs(x = x_lab, y = y_lab, title = title.name) +
     ggplot2::theme_classic(base_size = font.size) +
     ggplot2::theme(
@@ -535,6 +621,17 @@ netVisual_bubble_pathways <- function(
 
   if (!show.legend) {
     p <- p + ggplot2::theme(legend.position = "none")
+  }
+
+  # ---- 13b. Relabel pathway axis with ligand-receptor pairs -----------------
+  # lr_map is named by pathway; ggplot matches names against the discrete
+  # break (factor level) values, so the underlying data is left untouched.
+  if (show.lr.pairs) {
+    if (do.flip) {
+      p <- p + ggplot2::scale_x_discrete(labels = lr_map)
+    } else {
+      p <- p + ggplot2::scale_y_discrete(labels = lr_map)
+    }
   }
 
   # ---- 14. Return ------------------------------------------------------------
@@ -597,27 +694,102 @@ netVisual_bubble_pathways <- function(
 }
 
 
-#' Melt a named 3-D array into a long data frame
+#' Build a CellChat-style continuous colour ramp
 #'
-#' @param arr A named 3-D array with dimensions
-#'   \code{[sender, receiver, pathway]}.
+#' Mirrors the palette logic of \code{CellChat::netVisual_bubble}: resolve a
+#' base palette from an \code{RColorBrewer} name, falling back to a
+#' \pkg{viridis} option, reverse it (\code{direction = -1}) and interpolate to
+#' \code{n.out} colours.
 #'
-#' @return A data frame with columns \code{source}, \code{target},
-#'   \code{pathway}, and \code{prob}.
+#' @param color.heatmap Palette name (Brewer or viridis option).
+#' @param n.colors      Base number of palette colours (default 10).
+#' @param direction     \code{-1} reverses the palette (default, as CellChat).
+#' @param n.out         Number of interpolated colours to return (default 99).
+#'
+#' @return Character vector of \code{n.out} hex colours.
 #' @noRd
-.array3d_to_long <- function(arr) {
-  pw_names <- dimnames(arr)[[3]]
-  rows     <- vector("list", length(pw_names))
+.heatmap_colors <- function(color.heatmap, n.colors = 10L, direction = -1L, n.out = 99L) {
+  cols <- tryCatch(
+    suppressWarnings(RColorBrewer::brewer.pal(n = n.colors, name = color.heatmap)),
+    error = function(e) scales::viridis_pal(option = color.heatmap, direction = -1)(n.colors)
+  )
+  if (direction == -1L) cols <- rev(cols)   # matches CellChat (incl. its viridis double-rev)
+  grDevices::colorRampPalette(cols)(n.out)
+}
 
-  for (k in seq_along(pw_names)) {
-    slice            <- arr[, , k, drop = TRUE]
-    mat_df           <- as.data.frame(as.table(slice), stringsAsFactors = FALSE)
-    colnames(mat_df) <- c("source", "target", "prob")
-    mat_df$pathway   <- pw_names[k]
-    rows[[k]]        <- mat_df
+
+#' Collapse a set of ligand-receptor pairs into a compact axis label
+#'
+#' Given the \code{interaction_name_2} strings for one pathway (each formatted
+#' \code{"ligand - receptor"}, where a multi-subunit receptor looks like
+#' \code{"(A+B)"}), ligands that share an identical receptor \emph{set} are
+#' grouped and joined with \code{"/"}; one line is emitted per distinct
+#' receptor set.  Shared cases stay on a single line
+#' (\code{"TGFB1/TGFB2/TGFB3 - (TGFBR1+TGFBR2)"}); genuinely many-to-many
+#' pathways span multiple newline-separated lines.
+#'
+#' @param inter2 Character vector of \code{interaction_name_2} strings.
+#'
+#' @return A single character string (possibly containing \code{"\n"}).
+#' @noRd
+.collapse_lr_pairs <- function(inter2) {
+  inter2 <- unique(inter2)
+
+  # Split "ligand - receptor" on the ' - ' delimiter.  \s+-\s+ tolerates the
+  # stray double space seen in some mouse rows and does NOT split hyphenated
+  # gene symbols such as 'H2-K1' (which carry no spaces around the hyphen).
+  lig <- sub("\\s+-\\s+.*$", "", inter2)               # before first ' - '
+  rec <- sub("^.*?\\s+-\\s+", "", inter2, perl = TRUE) # after  first ' - '
+
+  ligs       <- unique(lig)
+  rec_by_lig <- lapply(ligs, function(L) unique(rec[lig == L]))
+  keys       <- vapply(
+    rec_by_lig,
+    function(r) paste(sort(r), collapse = ""),   # order-independent set key
+    character(1)
+  )
+
+  entries <- vapply(unique(keys), function(k) {
+    idx <- which(keys == k)
+    paste(
+      paste(ligs[idx],          collapse = "/"),
+      paste(rec_by_lig[[idx[1]]], collapse = "/"),
+      sep = " - "
+    )
+  }, character(1))
+
+  paste(entries, collapse = "\n")
+}
+
+
+#' Map pathway names to collapsed ligand-receptor-pair labels
+#'
+#' Looks up each pathway's contributing LR pairs in \code{object@@LR$LRsig} and
+#' collapses them via \code{\link{.collapse_lr_pairs}}.
+#'
+#' @param object   A CellChat object with a populated \code{@@LR$LRsig} slot.
+#' @param pathways Character vector of pathway names.
+#'
+#' @return Named character vector (names = \code{pathways}) of labels.  A
+#'   pathway with no \code{LRsig} rows falls back to its own name.
+#' @noRd
+.pathway_lr_labels <- function(object, pathways) {
+  if (!methods::.hasSlot(object, "LR") || is.null(object@LR$LRsig)) {
+    stop(
+      "show.lr.pairs = TRUE requires 'object@LR$LRsig'; re-run the CellChat ",
+      "pipeline through identifyOverExpressedInteractions() to populate it."
+    )
+  }
+  lr <- object@LR$LRsig
+  if (!all(c("pathway_name", "interaction_name_2") %in% colnames(lr))) {
+    stop(
+      "'object@LR$LRsig' lacks the required 'pathway_name' / ",
+      "'interaction_name_2' columns."
+    )
   }
 
-  out      <- do.call(rbind, rows)
-  out$prob <- as.numeric(out$prob)
-  out
+  vapply(pathways, function(pw) {
+    v <- lr$interaction_name_2[lr$pathway_name == pw]
+    if (length(v) == 0L) pw else .collapse_lr_pairs(v)
+  }, character(1), USE.NAMES = TRUE)
 }

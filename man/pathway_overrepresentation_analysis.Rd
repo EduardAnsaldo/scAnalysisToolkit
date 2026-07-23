@@ -14,6 +14,8 @@ pathway_overrepresentation_analysis(
   group = "",
   nterms_to_plot = 12,
   font_size = 10,
+  label_length = 60,
+  wrap_labels = FALSE,
   ...
 )
 }
@@ -35,6 +37,17 @@ pathway_overrepresentation_analysis(
 \item{nterms_to_plot}{Integer; number of terms to show in dot plot. Default 50}
 
 \item{font_size}{Numeric; font size for plots. Default 8}
+
+\item{label_length}{Integer; max character length for y-axis pathway labels.
+Used as the truncation width (default) or, when \code{wrap_labels = TRUE},
+the wrapping width. Default 60.}
+
+\item{wrap_labels}{Logical; controls long y-axis pathway labels. In both
+modes underscores in the pathway names are shown as spaces
+(e.g. \code{"REACTOME_IFN_SIGNALING"} -> \code{"REACTOME IFN SIGNALING"}).
+When \code{FALSE} (default) labels are then truncated to \code{label_length};
+when \code{TRUE} they are wrapped onto multiple lines at \code{label_length}.
+Default \code{FALSE}.}
 
 \item{...}{Additional arguments (unused)}
 }

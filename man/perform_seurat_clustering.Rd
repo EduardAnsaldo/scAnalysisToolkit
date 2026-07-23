@@ -25,7 +25,9 @@ perform_seurat_clustering(
   vars_to_regress = NULL,
   regress_cell_cycle = FALSE,
   cell_cycle_species = "mouse",
-  plot_cell_cycle_umap = TRUE
+  plot_cell_cycle_umap = TRUE,
+  algorithm = 4,
+  cluster_random_seed = seed
 )
 }
 \arguments{
@@ -96,6 +98,12 @@ unregressed embedding and produce a \code{FeaturePlot_scCustom} of S.Score and G
 on the UMAP before vs after regression (saved to \code{figures_path} if provided and
 returned as \code{cell_cycle_plot}). Set FALSE to skip the extra unregressed pass.
 Default TRUE}
+
+\item{algorithm}{Integer; clustering algorithm passed to \code{FindClusters} (1 = original Louvain,
+2 = Louvain with multilevel refinement, 3 = SLM, 4 = Leiden). Default 4}
+
+\item{cluster_random_seed}{Integer; \code{random.seed} for \code{FindClusters}. Defaults to \code{seed}; set it
+to reproduce a previous run's clustering (e.g. 0, Seurat's \code{FindClusters} default). Default \code{seed}}
 }
 \value{
 List with elements:

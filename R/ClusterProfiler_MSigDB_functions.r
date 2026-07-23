@@ -16,12 +16,21 @@
 #' @param group Character; group identifier for plot titles. Default ''
 #' @param nterms_to_plot Integer; number of terms to show in dot plot. Default 50
 #' @param font_size Numeric; font size for plots. Default 8
+#' @param label_length Integer; max character length for y-axis pathway labels.
+#'   Used as the truncation width (default) or, when \code{wrap_labels = TRUE},
+#'   the wrapping width. Default 60.
+#' @param wrap_labels Logical; controls long y-axis pathway labels. In both
+#'   modes underscores in the pathway names are shown as spaces
+#'   (e.g. \code{"REACTOME_IFN_SIGNALING"} -> \code{"REACTOME IFN SIGNALING"}).
+#'   When \code{FALSE} (default) labels are then truncated to \code{label_length};
+#'   when \code{TRUE} they are wrapped onto multiple lines at \code{label_length}.
+#'   Default \code{FALSE}.
 #' @param ... Additional arguments (unused)
 #'
 #' @return ggplot object; bar plot of enriched pathways (or no-data plot if insufficient genes/results)
 #'
 #' @export
-pathway_overrepresentation_analysis <- function (significant_genes, all_genes, local_path, minGSSize = 5, maxGSSize = 400, filename = '', group = '', nterms_to_plot = 12, font_size = 10,  ...)  {
+pathway_overrepresentation_analysis <- function (significant_genes, all_genes, local_path, minGSSize = 5, maxGSSize = 400, filename = '', group = '', nterms_to_plot = 12, font_size = 10, label_length = 60, wrap_labels = FALSE,  ...)  {
 
      set_enrichment_color_scale()
 
@@ -68,7 +77,14 @@ pathway_overrepresentation_analysis <- function (significant_genes, all_genes, l
                     qvalueCutoff = 0.25,
                     TERM2GENE = msigdbr_pathways)
 
-     
+     # Convert the geneID column from Entrez IDs back to gene symbols so the
+     # genes detected in each pathway are readable in the saved table.
+     if (!is.null(enrichment_results)) {
+          enrichment_results <- clusterProfiler::setReadable(
+               enrichment_results, OrgDb = "org.Mm.eg.db", keyType = "ENTREZID"
+          )
+     }
+
      enrichment_results_table <- as_tibble(enrichment_results)
      
      write.csv(enrichment_results_table, here::here(local_path, paste0(filename,'Pathway_OverRepresentation_analysis_results.csv')))
@@ -101,8 +117,16 @@ pathway_overrepresentation_analysis <- function (significant_genes, all_genes, l
                     limits  = c(0, 20)   # set explicit limits so boundary values don't fall outside
                     ) + 
                labs(x = '-log10(p-value)', y = '', title = paste0(filename,'Pathways UP in ', group)) +
-               theme_minimal() +
-               scale_y_discrete(labels = function(x) stringr::str_trunc(x, 60)) + 
+               theme_classic() +
+               scale_y_discrete(expand = expansion(0), labels = function(x) {
+                    x <- gsub("_", " ", x)   # underscores -> spaces, keep original all-caps
+                    if (wrap_labels) {
+                         stringr::str_wrap(x, width = label_length)  # multi-line
+                    } else {
+                         stringr::str_trunc(x, label_length)         # truncate (default)
+                    }
+               }) +
+               scale_x_continuous(expand = expansion(0)) +
                theme(axis.text.y = element_text(size = 8), title = element_text(size = 16), plot.title.position = 'plot', legend.position = 'none', axis.text.x = element_text(size = 8))
      #    print(plot2)
      ggsave(plot = p1, filename = paste0(filename, '_Pathway_enrichment_analysis_metascape', '.pdf'), width = 6, height = 6, path = local_path)
@@ -462,6 +486,12 @@ pathway_overrepresentation_analysis_multiple_lists <- function (gene_list, all_g
           print(p1)
           return(list(plot = p1, results = NULL))
      }
+
+     # Convert the geneID column from Entrez IDs back to gene symbols so the
+     # genes detected in each pathway are readable in the saved table.
+     enrichment_results <- clusterProfiler::setReadable(
+          enrichment_results, OrgDb = "org.Mm.eg.db", keyType = "ENTREZID"
+     )
 
      enrichment_results <- enrichment_results |>
           mutate(Cluster = if (all(!is.na(suppressWarnings(as.numeric(levels(factor(Cluster))))))) {

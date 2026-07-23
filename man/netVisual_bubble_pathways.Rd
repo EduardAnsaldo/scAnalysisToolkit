@@ -15,9 +15,15 @@ netVisual_bubble_pathways(
   min.prob = 0,
   sort.by.target = FALSE,
   do.flip = FALSE,
+  show.lr.pairs = FALSE,
   color.use = NULL,
-  viridis.option = "viridis",
+  color.heatmap = "Spectral",
+  min.quantile = 0,
+  max.quantile = 1,
   show.legend = TRUE,
+  scale.size = TRUE,
+  size.range = c(1, 10),
+  dot.size = 4,
   font.size = 10,
   font.size.title = 10,
   angle.x = 90,
@@ -67,23 +73,55 @@ orders by source first.}
 \item{do.flip}{Logical.  Transpose the axes so that pathways appear on the
 x-axis and cell-group pairs on the y-axis (default \code{FALSE}).}
 
+\item{show.lr.pairs}{Logical.  When \code{TRUE}, each pathway's axis tick
+label is replaced by the ligand-receptor pairs that make up the pathway
+(parsed from \code{object@LR$LRsig$interaction_name_2}).  Ligands that
+share an identical receptor set are grouped and combined with \code{"/"}
+(e.g. \code{"TGFB1/TGFB2/TGFB3 - (TGFBR1+TGFBR2)"}); genuinely
+many-to-many pathways span multiple lines.  The affected axis title also
+changes to \code{"Ligand-receptor pairs"}.  Requires an object populated
+through \code{\link[CellChat]{identifyOverExpressedInteractions}}.
+Default \code{FALSE}.}
+
 \item{color.use}{Controls bubble fill colour.  Two modes:
 \describe{
-\item{\code{NULL} (default)}{Continuous viridis-family gradient
-controlled by \code{viridis.option}.}
+\item{\code{NULL} (default)}{Continuous gradient controlled by
+\code{color.heatmap}.}
 \item{Named character vector}{Maps pathway names to hex colours for
 categorical colouring, e.g.
 \code{c(CXCL = "#e41a1c", VEGF = "#377eb8")}.  Pathways absent from
 the vector receive \code{NA} fill.}
 }}
 
-\item{viridis.option}{Character string passed to the \code{option} argument
-of \code{\link[ggplot2]{scale_fill_viridis_c}}.  Accepted values:
-\code{"viridis"} (default), \code{"magma"}, \code{"plasma"},
-\code{"inferno"}, \code{"cividis"}, \code{"mako"}, \code{"rocket"},
-\code{"turbo"}.  Ignored when \code{color.use} is a named vector.}
+\item{color.heatmap}{Character string naming the continuous colour palette,
+following \code{\link[CellChat]{netVisual_bubble}}.  Any
+\code{RColorBrewer} palette name (default \code{"Spectral"}); an
+unrecognised name falls back to a \pkg{viridis} \code{option} (e.g.
+\code{"magma"}).  Colours run low-to-high after CellChat's reversal
+(\code{direction = -1}).  Ignored when \code{color.use} is a named vector.}
+
+\item{min.quantile, max.quantile}{Numeric quantile cutoffs in \code{[0, 1]}
+(default \code{0} / \code{1}).  Following
+\code{\link[CellChat]{netVisual_bubble}}, probabilities below/above these
+quantiles are clamped before colouring, which sets the colour-scale range
+and trims outliers; the two colourbar ends are labelled \code{"min"} and
+\code{"max"}.  Defaults leave the data unchanged.}
 
 \item{show.legend}{Logical; whether to draw the legend (default \code{TRUE}).}
+
+\item{scale.size}{Logical.  When \code{TRUE} (default) bubble size encodes
+the communication probability.  When \code{FALSE} all bubbles are drawn at
+a single fixed size (\code{dot.size}) and the size legend is removed;
+colour then remains the only probability encoding.}
+
+\item{size.range}{Length-2 numeric giving the minimum and maximum bubble
+size passed to \code{\link[ggplot2]{scale_size_continuous}} when
+\code{scale.size = TRUE} (default \code{c(1, 10)}; e.g. \code{c(1, 5)} for
+a tighter spread).}
+
+\item{dot.size}{Numeric; the single fixed bubble size used when
+\code{scale.size = FALSE} (default \code{4}, in the same units as
+\code{size.range}).  Ignored when \code{scale.size = TRUE}.}
 
 \item{font.size}{Base font size in pt passed to
 \code{\link[ggplot2]{theme_classic}} (default \code{10}).}
@@ -139,9 +177,9 @@ netVisual_bubble_pathways(cellchat)
 # Top 15 pathways by mean probability, magma palette
 netVisual_bubble_pathways(
   cellchat,
-  top.n          = 15,
-  top.n.by       = "mean",
-  viridis.option = "magma"
+  top.n         = 15,
+  top.n.by      = "mean",
+  color.heatmap = "magma"
 )
 
 # Filter senders/receivers and pathways, top 10 by max

@@ -31,7 +31,7 @@ If \code{NULL} (default), all available reductions will be included.}
 \value{
 A \code{SummarizedExperiment} object where:
 \itemize{
-\item \code{assay(se, "counts")} contains the peak × cell matrix.
+\item \code{assay(se, "counts")} contains the peak x cell matrix.
 \item \code{rowRanges(se)} contains the peak genomic coordinates.
 \item \code{colData(se)} contains the cell-level metadata from
 \code{obj@meta.data}.

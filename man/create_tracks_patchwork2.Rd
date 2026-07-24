@@ -55,6 +55,8 @@ annotation stored in the object's ATAC assay.}
 
 \item{extend_downstream}{Bases to extend downstream (default 20000)}
 
+\item{annotation_font_size}{Numeric; font size for the annotation track labels.}
+
 \item{add_links}{Logical, whether to add link plots (default FALSE)}
 
 \item{gene_symbol}{Logical, whether to add expression plots (default FALSE)}

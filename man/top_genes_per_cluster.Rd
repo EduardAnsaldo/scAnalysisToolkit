@@ -52,6 +52,10 @@ from FindAllMarkers results. Default FALSE}
 Trdv, Trgv, Traj, Trbj, Trdj, Trgj, Trac, Trbc, Trdc, Trgc) from FindAllMarkers
 results. Default FALSE}
 
+\item{flip_axes}{Logical; whether to flip the dot-plot axes. Default TRUE}
+
+\item{dot_scale}{Numeric; scaling factor for dot sizes in the dot plot. Default 8}
+
 \item{...}{Additional arguments passed to ClusterProfiler analysis}
 }
 \value{

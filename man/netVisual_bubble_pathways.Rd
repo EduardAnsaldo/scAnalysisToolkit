@@ -34,9 +34,9 @@ netVisual_bubble_pathways(
 )
 }
 \arguments{
-\item{object}{A \code{\linkS4class{CellChat}} object whose
+\item{object}{A \code{CellChat} object whose
 \code{@netP$prob} slot has been populated by
-\code{\link[CellChat]{computeCommunProbPathway}}.}
+\code{computeCommunProbPathway}.}
 
 \item{sources.use}{Integer indices \emph{or} character names of sender cell
 groups to include.  \code{NULL} (default) retains all groups.}
@@ -80,7 +80,7 @@ share an identical receptor set are grouped and combined with \code{"/"}
 (e.g. \code{"TGFB1/TGFB2/TGFB3 - (TGFBR1+TGFBR2)"}); genuinely
 many-to-many pathways span multiple lines.  The affected axis title also
 changes to \code{"Ligand-receptor pairs"}.  Requires an object populated
-through \code{\link[CellChat]{identifyOverExpressedInteractions}}.
+through \code{identifyOverExpressedInteractions}.
 Default \code{FALSE}.}
 
 \item{color.use}{Controls bubble fill colour.  Two modes:
@@ -94,7 +94,7 @@ the vector receive \code{NA} fill.}
 }}
 
 \item{color.heatmap}{Character string naming the continuous colour palette,
-following \code{\link[CellChat]{netVisual_bubble}}.  Any
+following \code{netVisual_bubble}.  Any
 \code{RColorBrewer} palette name (default \code{"Spectral"}); an
 unrecognised name falls back to a \pkg{viridis} \code{option} (e.g.
 \code{"magma"}).  Colours run low-to-high after CellChat's reversal
@@ -102,7 +102,7 @@ unrecognised name falls back to a \pkg{viridis} \code{option} (e.g.
 
 \item{min.quantile, max.quantile}{Numeric quantile cutoffs in \code{[0, 1]}
 (default \code{0} / \code{1}).  Following
-\code{\link[CellChat]{netVisual_bubble}}, probabilities below/above these
+\code{netVisual_bubble}, probabilities below/above these
 quantiles are clamped before colouring, which sets the colour-scale range
 and trims outliers; the two colourbar ends are labelled \code{"min"} and
 \code{"max"}.  Defaults leave the data unchanged.}
@@ -162,7 +162,7 @@ the communication probability; no p-value is available at the pathway level.
 }
 \details{
 This function is the pathway-level analogue of
-\code{\link[CellChat]{netVisual_bubble}}, which operates on individual
+\code{netVisual_bubble}, which operates on individual
 ligand-receptor pairs (\code{object@net}).  The argument interface is kept
 as close to the original as possible so the two can be used
 interchangeably.
@@ -199,9 +199,10 @@ head(out$communication)
 out$gg.obj
 }
 
+
 }
 \seealso{
-\code{\link[CellChat]{netVisual_bubble}} for the LR-pair-level equivalent,
-\code{\link[CellChat]{computeCommunProbPathway}} to populate
+\code{netVisual_bubble} for the LR-pair-level equivalent,
+\code{computeCommunProbPathway} to populate
 \code{@netP$prob}.
 }

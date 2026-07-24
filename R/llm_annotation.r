@@ -327,7 +327,6 @@
 #' seurat@misc$llm_annotation_prompts
 #' }
 #'
-#' @importFrom utils head
 #' @export
 annotate_seurat_with_LLM <- function(
     seurat,

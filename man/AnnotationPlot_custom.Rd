@@ -32,6 +32,8 @@ element is used to separate the start from end coordinate.}
 \item{extend.upstream}{Number of bases to extend the region upstream.}
 
 \item{extend.downstream}{Number of bases to extend the region downstream.}
+
+\item{annotation_font_size}{Numeric; font size for gene annotation labels.}
 }
 \value{
 Returns a \code{\link[ggplot2:ggplot]{ggplot2::ggplot()}} object
@@ -40,7 +42,7 @@ Returns a \code{\link[ggplot2:ggplot]{ggplot2::ggplot()}} object
 Display gene annotations in a given region of the genome.
 }
 \examples{
-\donttest{
+\dontrun{
 AnnotationPlot_custom(object = atac_small, region = c("chr1-29554-39554"))
 }
 }

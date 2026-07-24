@@ -37,6 +37,9 @@ Default is 'seurat_clusters_atac'}
 \item{topn}{Numeric. Number of top differentially active genes to visualize for both
 up and downregulated genes. Default is 9}
 
+\item{cluster}{Optional label for the cluster, used in the volcano plot title.
+When NULL (default), the title is built from \code{cluster_id} and \code{other_cluster_id}.}
+
 \item{...}{Additional arguments passed to volcano_plot function}
 }
 \value{

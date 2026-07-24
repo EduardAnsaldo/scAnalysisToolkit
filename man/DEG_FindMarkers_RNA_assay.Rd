@@ -77,6 +77,9 @@ Default c()}
 
 \item{exclude_vdj}{Logical; if TRUE, also exclude VDJ (immunoglobulin and T-cell
 receptor) genes. Default FALSE}
+
+\item{...}{Additional arguments passed to the underlying DE function
+(\code{DEG_FindMarkers_RNA_assay_de}) and the scatter/volcano plotting functions.}
 }
 \value{
 List with elements:

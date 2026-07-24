@@ -32,7 +32,7 @@ assay (e.g. \code{"SCT"} or \code{"RNA"}) with the feature of interest.}
 \item{region}{Either a coordinate string (e.g. \code{"chr1-1000-2000"} or
 \code{"chr1:1000-2000"}) or a gene symbol present in the chromatin assay's
 annotations. Gene symbols are resolved to their full transcript span via
-\code{\link[=resolve_region]{resolve_region()}}.}
+\code{resolve_region()}.}
 
 \item{theme}{Optional \code{ggplot2} theme object applied to every track before
 the function's internal styling. Use this to set base font sizes, panel
@@ -85,7 +85,7 @@ order: coverage, peak, gene annotation, link. Length 4 by default
 link track when \code{add_links = FALSE}) are dropped automatically.}
 
 \item{widths}{Numeric vector of length 2 giving the relative widths of
-the track panel and the expression panel, passed to \code{\link[Signac:CombineTracks]{CombineTracks()}}.
+the track panel and the expression panel, passed to \code{\link[Signac:CombineTracks]{Signac::CombineTracks()}}.
 Defaults to \code{c(10, 1)}.}
 }
 \value{

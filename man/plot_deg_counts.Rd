@@ -23,7 +23,13 @@ DOWN_count (numeric)}
 
 \item{figures_path}{Character; directory path to save the plot}
 
+\item{group2}{Character; the second group being compared (used in labels). Default NULL}
+
+\item{group1}{Character; the first group being compared (used in labels). Default NULL}
+
 \item{title}{Character; plot title. Default 'Differentially Expressed Genes by Cell Type'}
+
+\item{data_type}{Character; type of features counted; one of 'genes', 'peaks', 'motifs', 'dorcs'.}
 
 \item{width}{Numeric; plot width in inches. Default 10}
 

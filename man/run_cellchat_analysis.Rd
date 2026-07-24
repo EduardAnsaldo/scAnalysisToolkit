@@ -38,6 +38,14 @@ Common values: "Cell-Cell Contact", "ECM-Receptor", "Secreted Signaling"}
 
 \item{min_cells}{Integer, minimum number of cells required for communication}
 
+\item{method}{Character string passed to \code{CellChat::computeCommunProb} as
+\code{type}, setting how the average expression per cell group is computed
+(e.g. "triMean", "truncatedMean"). Default "triMean"}
+
+\item{trim}{Numeric fraction (0-0.25) for trimmed-mean expression, passed to
+\code{CellChat::computeCommunProb}; only used when \code{method = "truncatedMean"}.
+Default NULL}
+
 \item{use_parallel}{Logical, whether to use parallel processing}
 
 \item{n_workers}{Integer, number of parallel workers (only used if use_parallel = TRUE)}

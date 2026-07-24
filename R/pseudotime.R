@@ -2,7 +2,7 @@
 # Pseudotime visualization
 # -----------------------------------------------------------------------------
 # Provides:
-#   * plot_pseudotime_heatmap() — ggplot heatmap of cells (ordered by
+#   * plot_pseudotime_heatmap() - ggplot heatmap of cells (ordered by
 #                                 pseudotime) x genes, with optional rolling-mean
 #                                 / LOESS smoothing and a pseudotime annotation
 #                                 bar.
@@ -47,7 +47,6 @@
 #'
 #' @return A ggplot object (or a patchwork if show_pseudotime_bar = TRUE).
 #'
-#' @importFrom Seurat DefaultAssay GetAssayData
 #' @export
 plot_pseudotime_heatmap <- function(seurat_obj,
                                     genes,
@@ -252,7 +251,7 @@ plot_pseudotime_heatmap <- function(seurat_obj,
                       zscore     = "Expression\n(z-score)",
                       none       = "Expression")
   if (loess_smooth) {
-    fill_label <- paste0(fill_label, sprintf("\nloess α=%g", loess_span))
+    fill_label <- paste0(fill_label, sprintf("\nloess \u03b1=%g", loess_span))
   }
   if (!is.null(legend_title)) fill_label <- legend_title
 
@@ -268,7 +267,7 @@ plot_pseudotime_heatmap <- function(seurat_obj,
     fill_scale +
     scale_x_discrete(expand = c(0, 0)) +
     scale_y_discrete(expand = c(0, 0)) +
-    labs(x = paste0("Cells ordered by ", pseudotime_col, " →"),
+    labs(x = paste0("Cells ordered by ", pseudotime_col, " \u2192"),
          y = NULL) +
     theme_minimal(base_size = 11) +
     theme(

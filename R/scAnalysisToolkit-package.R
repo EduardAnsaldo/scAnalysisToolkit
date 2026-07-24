@@ -2,11 +2,13 @@
 "_PACKAGE"
 
 #' @import Seurat
+#' @import SeuratObject
 #' @import dplyr
 #' @import ggplot2
 #' @import rlang
-#' @import scRepertoire
- 
+#' @import stringr
+#' @import tidyr
+
 
 ## usethis namespace: start
 #' @importFrom cowplot plot_grid
@@ -17,35 +19,47 @@
 #' @importFrom forcats fct_rev
 #' @importFrom ggbeeswarm geom_quasirandom
 #' @importFrom ggrepel geom_text_repel
+#' @importFrom glue glue
 #' @importFrom graphics title
+#' @importFrom grDevices dev.cur
+#' @importFrom grDevices dev.off
+#' @importFrom grDevices hcl.colors
+#' @importFrom grDevices png
 #' @importFrom grDevices recordPlot
+#' @importFrom grid arrow
+#' @importFrom lifecycle deprecated
+#' @importFrom methods .hasSlot
 #' @importFrom org.Mm.eg.db org.Mm.eg.db
 #' @importFrom patchwork plot_annotation
+#' @importFrom patchwork plot_layout
+#' @importFrom patchwork wrap_elements
 #' @importFrom patchwork wrap_plots
+#' @importFrom purrr compact
+#' @importFrom purrr list_c
 #' @importFrom purrr map
+#' @importFrom purrr map2
+#' @importFrom purrr map_chr
+#' @importFrom purrr map_dfr
 #' @importFrom purrr walk
 #' @importFrom scales alpha
+#' @importFrom scales breaks_width
 #' @importFrom scCustomize DimPlot_scCustom
 #' @importFrom scCustomize DotPlot_scCustom
 #' @importFrom scCustomize FeaturePlot_scCustom
+#' @importFrom stats as.dist
+#' @importFrom stats complete.cases
+#' @importFrom stats cor
+#' @importFrom stats dist
+#' @importFrom stats hclust
 #' @importFrom stats setNames
-#' @importFrom stringr fixed
-#' @importFrom stringr str_c
-#' @importFrom stringr str_detect
-#' @importFrom stringr str_equal
-#' @importFrom stringr str_flatten_comma
-#' @importFrom stringr str_replace
-#' @importFrom stringr str_replace_all
 #' @importFrom tibble as_tibble
 #' @importFrom tibble as.tibble
 #' @importFrom tibble column_to_rownames
 #' @importFrom tibble rownames_to_column
 #' @importFrom tibble tibble
-#' @importFrom tidyr pivot_longer
-#' @importFrom tidyr pivot_wider
-#' @importFrom tidyr separate_wider_delim
 #' @importFrom utils head
 #' @importFrom utils read.csv
+#' @importFrom utils tail
 #' @importFrom utils write.csv
 #' @importFrom utils write.table
 ## usethis namespace: end

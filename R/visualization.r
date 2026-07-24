@@ -15,13 +15,11 @@
 #'
 #' @return A plot of the same type as the input, with updated legend breaks.
 #'
-#' @importFrom ggplot2 scale_color_gradientn
-#' @importFrom scales breaks_width
 #'
 #' @export
 apply_integer_breaks <- function(plot,
                                  break_size = 1,
-                                 colors_use = viridis_plasma_dark_high,
+                                 colors_use = scCustomize::viridis_plasma_dark_high,
                                  na_color = "lightgray") {
 
     # Helper: pull existing color-scale limits from a single ggplot
@@ -57,7 +55,7 @@ apply_integer_breaks <- function(plot,
     # patchwork: apply per-subplot to preserve each one's own limits
     if (inherits(plot, "patchwork")) {
         plot$patches$plots <- lapply(plot$patches$plots, rescale_one)
-        # The "main" plot of a patchwork is also a ggplot — rescale it too
+        # The "main" plot of a patchwork is also a ggplot - rescale it too
         plot <- rescale_one(plot)
         return(plot)
     }
@@ -86,6 +84,7 @@ apply_integer_breaks <- function(plot,
 #' @param extend_downstream Bases to extend downstream (default 20000)
 #' @param add_links Logical, whether to add link plots (default FALSE)
 #' @param gene_symbol Logical, whether to add expression plots (default FALSE)
+#' @param expression_features Character vector of features to plot in the expression panel.
 #' @param assay Assay to use for expression plot (default "SCT")
 #' @param heights Numeric vector of relative heights for tracks
 #' @param widths Numeric vector of relative widths (track vs expression)
@@ -108,6 +107,8 @@ create_tracks_patchwork <- function(seurat,
                                     assay = "SCT",
                                     heights = c(10, 1, 2, 3),
                                     widths = c(10, 1)) {
+
+  rlang::check_installed(c("Signac", "GenomicRanges"), reason = "to use `create_tracks_patchwork()`")
 
   # Determine grid dimensions if not supplied
   n <- length(regions)
@@ -146,7 +147,7 @@ create_tracks_patchwork <- function(seurat,
     p + theme(legend.position = "none")
   }
 
-  # Helper: rotate facet strip labels 90° and remove the strip background box.
+  # Helper: rotate facet strip labels 90 degrees and remove the strip background box.
   # Applied AFTER the user theme so it isn't overridden.
   style_facet_labels <- function(p) {
     if (is.null(p)) return(NULL)
@@ -194,7 +195,7 @@ create_tracks_patchwork <- function(seurat,
     if (grepl("^[^:\\-]+[:\\-][0-9]+[:\\-][0-9]+$", region)) {
       return(region)
     }
-    annotations <- Annotation(object = seurat[[assay_atac]])
+    annotations <- Signac::Annotation(object = seurat[[assay_atac]])
     if (is.null(annotations)) {
       stop("No annotation found on assay '", assay_atac,
            "'. Cannot resolve gene symbol '", region, "'.")
@@ -217,7 +218,7 @@ create_tracks_patchwork <- function(seurat,
     is_first_col <- col_idx == 1
     coord_region <- resolve_region(region_input)
 
-    cov_plot <- CoveragePlot(
+    cov_plot <- Signac::CoveragePlot(
       object = seurat,
       region = coord_region,
       extend.upstream = extend_upstream,
@@ -234,7 +235,7 @@ create_tracks_patchwork <- function(seurat,
       extend.downstream = extend_downstream
     ) + theme(axis.title.y = element_text(angle = 0, vjust = 0.5))
 
-    peak_plot <- PeakPlot(
+    peak_plot <- Signac::PeakPlot(
       object = seurat,
       region = coord_region,
       extend.upstream = extend_upstream,
@@ -242,7 +243,7 @@ create_tracks_patchwork <- function(seurat,
     ) + theme(axis.title.y = element_text(angle = 0, vjust = 0.5))
 
     link_plot <- if (add_links) {
-    LinkPlot(
+    Signac::LinkPlot(
       object            = seurat,
       region            = coord_region,
       min.cutoff        = 0,
@@ -260,14 +261,14 @@ create_tracks_patchwork <- function(seurat,
       feat <- if (!is.null(expr_feature)) expr_feature else region_input
       avail <- rownames(seurat[[assay]])
       if (feat %in% avail) {
-        ExpressionPlot(
+        Signac::ExpressionPlot(
           object   = seurat,
           features = feat,
           assay    = assay
         )
       } else {
         warning("Feature '", feat, "' not found in assay '", assay,
-                "' — skipping expression plot.")
+                "' - skipping expression plot.")
         NULL
       }
     } else {
@@ -310,7 +311,7 @@ create_tracks_patchwork <- function(seurat,
     link_plot <- strip_legend(link_plot)
     expr_plot <- strip_legend(expr_plot)
 
-    # Facet labels: style for first column, remove for others — applied
+    # Facet labels: style for first column, remove for others - applied
     # LAST so the user-supplied theme can't reset strip.text back
     if (is_first_col) {
       cov_plot <- style_facet_labels(cov_plot)
@@ -329,7 +330,7 @@ create_tracks_patchwork <- function(seurat,
     track_heights <- heights[keep]
 
 
-    combined <- CombineTracks(
+    combined <- Signac::CombineTracks(
       plotlist        = plotlist,
       expression.plot = expr_plot,
       heights         = track_heights,
@@ -415,20 +416,13 @@ create_tracks_patchwork <- function(seurat,
 #' element is used to separate the start from end coordinate.
 #' @param extend.upstream Number of bases to extend the region upstream.
 #' @param extend.downstream Number of bases to extend the region downstream.
-#' 
+#' @param annotation_font_size Numeric; font size for gene annotation labels.
+#'
 #' @return Returns a [ggplot2::ggplot()] object
 #' @export
-#' @importFrom IRanges subsetByOverlaps
-#' @importFrom GenomicRanges start end
-#' @importFrom GenomeInfoDb seqnames
-#' @importFrom ggplot2 theme_classic ylim xlim ylab xlab
-#' geom_segment geom_text aes_string scale_color_manual
-#' @importFrom grid arrow
-#' @importFrom S4Vectors split
-#' @importFrom fastmatch fmatch
 #' @concept visualization
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' AnnotationPlot_custom(object = atac_small, region = c("chr1-29554-39554"))
 #' }
 AnnotationPlot_custom <- function(
@@ -441,6 +435,7 @@ AnnotationPlot_custom <- function(
   extend.downstream = 0,
   annotation_font_size = 1.5
 ) {
+  rlang::check_installed(c("Signac", "GenomicRanges", "GenomeInfoDb", "IRanges", "fastmatch"), reason = "to use `AnnotationPlot_custom()`")
   if(mode == "gene") {
     collapse_transcript <- TRUE
     label <- "gene_name"
@@ -450,7 +445,7 @@ AnnotationPlot_custom <- function(
   } else {
     stop("Unknown mode requested, choose either 'gene' or 'transcript'")
   }
-  annotation <- Annotation(object = object)
+  annotation <- Signac::Annotation(object = object)
   if (is.null(x = annotation)) {
     return(NULL)
   }
@@ -462,13 +457,13 @@ AnnotationPlot_custom <- function(
     extend.upstream = extend.upstream,
     extend.downstream = extend.downstream
   )
-  start.pos <- start(x = region)
-  end.pos <- end(x = region)
-  chromosome <- seqnames(x = region)
+  start.pos <- GenomicRanges::start(x = region)
+  end.pos <- GenomicRanges::end(x = region)
+  chromosome <- GenomeInfoDb::seqnames(x = region)
 
   # get names of genes that overlap region, then subset to include only those
   # genes. This avoids truncating the gene if it runs outside the region
-  annotation.subset <- subsetByOverlaps(x = annotation, ranges = region)
+  annotation.subset <- IRanges::subsetByOverlaps(x = annotation, ranges = region)
   if (mode == "gene") {
     genes.keep <- unique(x = annotation.subset$gene_name)
     annotation.subset <- annotation[
@@ -602,7 +597,7 @@ AnnotationPlot_custom <- function(
 #' @param region Either a coordinate string (e.g. `"chr1-1000-2000"` or
 #'   `"chr1:1000-2000"`) or a gene symbol present in the chromatin assay's
 #'   annotations. Gene symbols are resolved to their full transcript span via
-#'   [resolve_region()].
+#'   \code{resolve_region()}.
 #' @param theme Optional `ggplot2` theme object applied to every track before
 #'   the function's internal styling. Use this to set base font sizes, panel
 #'   backgrounds, etc.
@@ -641,7 +636,7 @@ AnnotationPlot_custom <- function(
 #'   (`c(10, 1, 2, 3)`); entries corresponding to omitted tracks (e.g. the
 #'   link track when `add_links = FALSE`) are dropped automatically.
 #' @param widths Numeric vector of length 2 giving the relative widths of
-#'   the track panel and the expression panel, passed to [CombineTracks()].
+#'   the track panel and the expression panel, passed to [Signac::CombineTracks()].
 #'   Defaults to `c(10, 1)`.
 #'
 #' @return A `patchwork` object combining the coverage and (optionally)
@@ -720,6 +715,8 @@ CoveragePlot_custom <- function(seurat,
                                 heights = c(10, 1, 2, 3),
                                 widths = c(10, 1)) {
 
+  rlang::check_installed(c("Signac", "GenomicRanges"), reason = "to use `CoveragePlot_custom()`")
+
   # Helper: strip y-axis ticks and labels from a ggplot
   strip_y_ticks_labels <- function(p) {
     if (is.null(p)) return(NULL)
@@ -777,12 +774,18 @@ CoveragePlot_custom <- function(seurat,
     )
   }
 
-  # Helper: resolve a gene symbol to a coordinate string
+  # Helper: normalise `region` to a "chr-start-end" coordinate string.
+  # If `region` already looks like a coordinate string (chr:start-end or
+  # chr-start-end, either separator), it is returned unchanged. Otherwise it is
+  # treated as a gene symbol and looked up in the ATAC assay annotation
+  # (`assay_atac`); the returned range spans the full gene body (min start to
+  # max end across all annotated features for that symbol). Errors if the assay
+  # has no annotation or the symbol is not found.
   resolve_region <- function(region) {
     if (grepl("^[^:\\-]+[:\\-][0-9]+[:\\-][0-9]+$", region)) {
       return(region)
     }
-    annotations <- Annotation(object = seurat[[assay_atac]])
+    annotations <- Signac::Annotation(object = seurat[[assay_atac]])
     if (is.null(annotations)) {
       stop("No annotation found on assay '", assay_atac,
            "'. Cannot resolve gene symbol '", region, "'.")
@@ -801,7 +804,7 @@ CoveragePlot_custom <- function(seurat,
   coord_region <- resolve_region(region)
 
   # Build the individual track plots
-  cov_plot <- CoveragePlot(
+  cov_plot <- Signac::CoveragePlot(
     object            = seurat,
     region            = coord_region,
     extend.upstream   = extend_upstream,
@@ -819,7 +822,7 @@ CoveragePlot_custom <- function(seurat,
     annotation_font_size = annotation_font_size
   )
 
-  peak_plot <- PeakPlot(
+  peak_plot <- Signac::PeakPlot(
     object            = seurat,
     region            = coord_region,
     extend.upstream   = extend_upstream,
@@ -827,7 +830,7 @@ CoveragePlot_custom <- function(seurat,
   )
 
   link_plot <- if (add_links) {
-    LinkPlot(
+    Signac::LinkPlot(
       object            = seurat,
       region            = coord_region,
       min.cutoff        = 0,
@@ -844,14 +847,14 @@ CoveragePlot_custom <- function(seurat,
     feat <- if (!is.null(expression_feature)) expression_feature else region
     avail <- rownames(seurat[[assay]])
     if (feat %in% avail) {
-      ExpressionPlot(
+      Signac::ExpressionPlot(
         object   = seurat,
         features = feat,
         assay    = assay
       )
     } else {
       warning("Feature '", feat, "' not found in assay '", assay,
-              "' — skipping expression plot.")
+              "' - skipping expression plot.")
       NULL
     }
   } else {
@@ -893,7 +896,7 @@ CoveragePlot_custom <- function(seurat,
   plotlist <- plotlist[keep]
   track_heights <- heights[keep]
 
-  combined <- CombineTracks(
+  combined <- Signac::CombineTracks(
     plotlist        = plotlist,
     expression.plot = expr_plot,
     heights         = track_heights,
@@ -933,6 +936,7 @@ CoveragePlot_custom <- function(seurat,
 #' @param assay_atac Name of the ATAC/peaks assay (default "ATAC")
 #' @param extend_upstream Bases to extend upstream (default 20000)
 #' @param extend_downstream Bases to extend downstream (default 20000)
+#' @param annotation_font_size Numeric; font size for the annotation track labels.
 #' @param add_links Logical, whether to add link plots (default FALSE)
 #' @param gene_symbol Logical, whether to add expression plots (default FALSE)
 #' @param expression_features Optional vector of features for the expression
@@ -982,6 +986,8 @@ create_tracks_patchwork2 <- function(seurat,
                                     track_titles = NULL,
                                     track_title_theme = NULL) {
 
+  rlang::check_installed(c("Signac", "GenomicRanges"), reason = "to use `create_tracks_patchwork2()`")
+
   # Validate explicit titles length, if provided
   if (!is.null(track_titles) && length(track_titles) != length(regions)) {
     stop("`track_titles` must have the same length as `regions`.")
@@ -1024,7 +1030,7 @@ create_tracks_patchwork2 <- function(seurat,
     p + theme(legend.position = "none")
   }
 
-  # Helper: rotate facet strip labels 90° and remove the strip background box.
+  # Helper: rotate facet strip labels 90 degrees and remove the strip background box.
   # Applied AFTER the user theme so it isn't overridden.
   style_facet_labels <- function(p) {
     if (is.null(p)) return(NULL)
@@ -1079,7 +1085,7 @@ create_tracks_patchwork2 <- function(seurat,
     if (is_coord_string(region)) {
       return(region)
     }
-    annotations <- Annotation(object = seurat[[assay_atac]])
+    annotations <- Signac::Annotation(object = seurat[[assay_atac]])
     if (is.null(annotations)) {
       stop("No annotation found on assay '", assay_atac,
            "'. Cannot resolve gene symbol '", region, "'.")
@@ -1133,7 +1139,7 @@ create_tracks_patchwork2 <- function(seurat,
     is_first_col <- col_idx == 1
     coord_region <- resolve_region(region_input)
 
-    cov_plot <- CoveragePlot(
+    cov_plot <- Signac::CoveragePlot(
       object            = seurat,
       region            = coord_region,
       extend.upstream   = extend_upstream,
@@ -1151,7 +1157,7 @@ create_tracks_patchwork2 <- function(seurat,
       annotation_font_size = annotation_font_size
     ) + theme(axis.title.y = element_text(angle = 0, vjust = 0.5))
 
-    peak_plot <- PeakPlot(
+    peak_plot <- Signac::PeakPlot(
       object            = seurat,
       region            = coord_region,
       extend.upstream   = extend_upstream,
@@ -1159,7 +1165,7 @@ create_tracks_patchwork2 <- function(seurat,
     ) + theme(axis.title.y = element_text(angle = 0, vjust = 0.5))
 
     link_plot <- if (add_links) {
-      LinkPlot(
+      Signac::LinkPlot(
         object            = seurat,
         region            = coord_region,
         min.cutoff        = 0,
@@ -1177,14 +1183,14 @@ create_tracks_patchwork2 <- function(seurat,
       feat <- if (!is.null(expr_feature)) expr_feature else region_input
       avail <- rownames(seurat[[assay]])
       if (feat %in% avail) {
-        ExpressionPlot(
+        Signac::ExpressionPlot(
           object   = seurat,
           features = feat,
           assay    = assay
         )
       } else {
         warning("Feature '", feat, "' not found in assay '", assay,
-                "' — skipping expression plot.")
+                "' - skipping expression plot.")
         NULL
       }
     } else {
@@ -1227,7 +1233,7 @@ create_tracks_patchwork2 <- function(seurat,
     link_plot <- strip_legend(link_plot)
     expr_plot <- strip_legend(expr_plot)
 
-    # Facet labels: style for first column, remove for others — applied
+    # Facet labels: style for first column, remove for others - applied
     # LAST so the user-supplied theme can't reset strip.text back
     if (is_first_col) {
       cov_plot <- style_facet_labels(cov_plot)
@@ -1245,7 +1251,7 @@ create_tracks_patchwork2 <- function(seurat,
     plotlist      <- plotlist[keep]
     track_heights <- heights[keep]
 
-    combined <- CombineTracks(
+    combined <- Signac::CombineTracks(
       plotlist        = plotlist,
       expression.plot = expr_plot,
       heights         = track_heights,
@@ -1271,8 +1277,7 @@ create_tracks_patchwork2 <- function(seurat,
     if (add_track_titles || !is.null(track_titles)) {
       track_title <- make_track_title(region_input, region_idx)
 
-      default_track_title_theme <- fig_theme + theme(
-        plot.title = element_text(hjust = 0.5, face = "italic", margin = margin(t = 2, b = 0)))
+      default_track_title_theme <- theme(plot.title = element_text(size = 7, hjust = 0.5, face = "italic", margin = margin(t = 2, b = 0)))
     
 #         default_track_title_theme <- theme(
 #   plot.title = element_text(hjust = 0.5, face = "bold", size = 20,

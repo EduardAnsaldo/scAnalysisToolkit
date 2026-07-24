@@ -112,7 +112,7 @@ scatterplot <- function (results, group1, group2, local_figures_path, FC_thresho
                                  label_size, max_overlaps = 10) +
         scale_colour_manual(values=my_colors)+
         theme(text=element_text(size=20), legend.position="none")+
-        labs(title=paste0(test_type, ' DEGs in ', str_replace(cluster,pattern = '_',replace = ' ') ),
+        labs(title=paste0(test_type, ' DEGs in ', str_replace(cluster,pattern = '_',replacement = ' ') ),
                     x=paste0(axis_test, ' in ', group1),
                     y=paste0(axis_test, ' in ',  group2))+
         theme_classic(base_size = 28, base_line_size=1) +
@@ -175,15 +175,15 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
     test_type <- match.arg(test_type)
 
     if (test_type == 'Wilcox_ATAC') {
-        plot_title <- paste0('Differentially Accessible Regions in ', str_replace(cluster,pattern = '_',replace = ' ') )
+        plot_title <- paste0('Differentially Accessible Regions in ', str_replace(cluster,pattern = '_',replacement = ' ') )
     } else if (test_type == 'Wilcox_DORC') {
-        plot_title <- paste0('Differential DORCs in ', str_replace(cluster,pattern = '_',replace = ' ') )
+        plot_title <- paste0('Differential DORCs in ', str_replace(cluster,pattern = '_',replacement = ' ') )
     } else if (test_type == 'Wilcox_ATAC_closest_genes') {
-        plot_title <- paste0('Genes Closest to Differentially Accessible Regions in ', str_replace(cluster,pattern = '_',replace = ' ') )
+        plot_title <- paste0('Genes Closest to Differentially Accessible Regions in ', str_replace(cluster,pattern = '_',replacement = ' ') )
     } else if (test_type == 'Wilcox_ChromVar_motif') {
-        plot_title <- paste0('Differentially Active Motifs in ', str_replace(cluster,pattern = '_',replace = ' ') )
+        plot_title <- paste0('Differentially Active Motifs in ', str_replace(cluster,pattern = '_',replacement = ' ') )
     } else {
-        plot_title <- paste0(test_type, ' DEGs in ', str_replace(cluster,pattern = '_',replace = ' ') )
+        plot_title <- paste0(test_type, ' DEGs in ', str_replace(cluster,pattern = '_',replacement = ' ') )
     }
 
     x_axis_title <- ifelse(test_type == 'Wilcox_ChromVar_motif', paste('Mean Z score difference (', group2, ' - ', group1, ')', sep=''), paste('Average log2 FC (', group2, '/', group1, ')', sep=''))
@@ -354,7 +354,10 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
 #' @param deg_counts_df Data frame with columns: cell_type (character), UP_count (numeric),
 #'   DOWN_count (numeric)
 #' @param figures_path Character; directory path to save the plot
+#' @param group2 Character; the second group being compared (used in labels). Default NULL
+#' @param group1 Character; the first group being compared (used in labels). Default NULL
 #' @param title Character; plot title. Default 'Differentially Expressed Genes by Cell Type'
+#' @param data_type Character; type of features counted; one of 'genes', 'peaks', 'motifs', 'dorcs'.
 #' @param width Numeric; plot width in inches. Default 10
 #' @param height Numeric; plot height in inches. Default 6
 #' @param up_color Character; color for upregulated genes. Default '#E64B35' (red)

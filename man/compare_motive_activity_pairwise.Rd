@@ -24,6 +24,11 @@ compare_motive_activity_pairwise(
 
 \item{other_cluster_id}{Character or numeric. The comparison cluster identifier}
 
+\item{cluster_title}{Character; optional label for the cluster used in plot titles.
+When NULL (default), the title is built from the two cluster identifiers.}
+
+\item{figures_path}{Character; directory where output figures are written.}
+
 \item{identities}{Character. The metadata column to use for cell identities.
 Default is 'seurat_clusters_atac'}
 

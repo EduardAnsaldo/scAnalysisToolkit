@@ -162,6 +162,8 @@ pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clus
 #'   Default c()
 #' @param exclude_vdj Logical; if TRUE, also exclude VDJ (immunoglobulin and T-cell
 #'   receptor) genes. Default FALSE
+#' @param ... Additional arguments passed to the underlying DE function
+#'   (\code{DEG_FindMarkers_RNA_assay_de}) and the scatter/volcano plotting functions.
 #'
 #' @return List with elements:
 #'   \item{all_count}{Integer; number of significant DEGs}

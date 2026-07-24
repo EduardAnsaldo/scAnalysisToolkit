@@ -178,14 +178,6 @@ plot_pathways_heatmap2 <- function(genes_to_plot, seurat, title, color_palette =
 #' )
 #' }
 #'
-#' @importFrom Seurat GetAssayData
-#' @importFrom dplyr filter mutate bind_cols
-#' @importFrom tibble as_tibble rownames_to_column
-#' @importFrom tidyr pivot_longer
-#' @importFrom purrr map set_names
-#' @importFrom forcats fct_rev
-#' @importFrom ggplot2 ggplot aes geom_tile scale_fill_gradientn
-#'   scale_y_discrete theme_minimal theme element_text labs
 #' @export
 plot_chromvar_heatmap <- function(motifs_to_plot, 
                                    seurat, 
@@ -300,13 +292,6 @@ plot_chromvar_heatmap <- function(motifs_to_plot,
 #' )
 #' }
 #'
-#' @importFrom Seurat AggregateExpression
-#' @importFrom dplyr filter mutate group_by ungroup
-#' @importFrom tibble rownames_to_column as_tibble
-#' @importFrom tidyr pivot_longer
-#' @importFrom forcats fct_rev
-#' @importFrom ggplot2 ggplot aes geom_tile scale_fill_gradientn theme_minimal
-#'   theme element_text labs
 #'
 #' @export
 plot_dorcs_heatmap <- function(dorcs_to_plot, seurat, title, color_palette = grDevices::hcl.colors(n = 20, 'RdBu', rev = TRUE), grouping_var = 'Samples') {
@@ -425,12 +410,6 @@ plot_dorcs_heatmap <- function(dorcs_to_plot, seurat, title, color_palette = grD
 #'
 #' @return A `ggplot` object.
 #'
-#' @importFrom dplyr filter pull mutate left_join group_by summarise n_distinct
-#' @importFrom tidyr pivot_wider pivot_longer
-#' @importFrom tibble column_to_rownames rownames_to_column as_tibble tibble
-#' @importFrom ggplot2 ggplot aes geom_tile geom_rect scale_fill_gradientn
-#'   scale_x_discrete theme_minimal theme element_text element_blank
-#'   element_rect labs facet_grid vars margin
 #'
 #' @export
 plotfigRHeatmap_EA_gg <- function(figR.d,

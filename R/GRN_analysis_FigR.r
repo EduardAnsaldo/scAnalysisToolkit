@@ -19,7 +19,7 @@
 #'
 #' @return A \code{SummarizedExperiment} object where:
 #'   \itemize{
-#'     \item \code{assay(se, "counts")} contains the peak × cell matrix.
+#'     \item \code{assay(se, "counts")} contains the peak x cell matrix.
 #'     \item \code{rowRanges(se)} contains the peak genomic coordinates.
 #'     \item \code{colData(se)} contains the cell-level metadata from
 #'           \code{obj@meta.data}.
@@ -37,16 +37,13 @@
 #'   se <- SE_from_Signac(seurat_obj, assayName = "ATAC", fetchRawCounts = FALSE)
 #' }
 #'
-#' @importFrom SummarizedExperiment SummarizedExperiment
-#' @importFrom S4Vectors DataFrame
-#' @export
-#' @importFrom SingleCellExperiment SingleCellExperiment reducedDims<-
-#' @importFrom S4Vectors DataFrame SimpleList
 #' @export
 SE_from_Signac <- function(obj,
                            assayName = "peaks",
                            fetchRawCounts = TRUE,
                            reductions = NULL) {
+
+  rlang::check_installed(c("Signac", "S4Vectors", "SingleCellExperiment"), reason = "to use `SE_from_Signac()`")
 
   if (!inherits(obj, "Seurat")) stop("`obj` must be a Seurat object.")
   if (!assayName %in% names(obj@assays)) {
@@ -131,6 +128,7 @@ SE_from_Signac <- function(obj,
 #'
 #' @seealso \code{\link{gene_to_jaspar}} for the reverse operation
 ID_to_symbol <- function(motif_id){
+  rlang::check_installed(c("JASPAR2024", "RSQLite", "TFBSTools"), reason = "to use `ID_to_symbol()`")
   
   # Handle missing input
   if (is.na(motif_id)) {
@@ -139,7 +137,7 @@ ID_to_symbol <- function(motif_id){
   
   # Initialize JASPAR database connection
   JASPAR2024 <- JASPAR2024::JASPAR2024()
-  JASPARConnect <- RSQLite::dbConnect(RSQLite::SQLite(), db(JASPAR2024))
+  JASPARConnect <- RSQLite::dbConnect(RSQLite::SQLite(), JASPAR2024::db(JASPAR2024))
   
   # Retrieve motif matrix by ID
   motif_matrix <- TFBSTools::getMatrixByID(
@@ -194,10 +192,11 @@ ID_to_symbol <- function(motif_id){
 #'
 #' @seealso \code{\link{ID_to_symbol}} for converting JASPAR IDs back to gene symbols
 gene_to_jaspar <- function(gene_symbol, species = "Homo sapiens", collection = "CORE") {
+  rlang::check_installed(c("JASPAR2024", "RSQLite", "TFBSTools"), reason = "to use `gene_to_jaspar()`")
   
   # Initialize database connection
   JASPAR2024 <- JASPAR2024::JASPAR2024()
-  JASPARConnect <- RSQLite::dbConnect(RSQLite::SQLite(), db(JASPAR2024))
+  JASPARConnect <- RSQLite::dbConnect(RSQLite::SQLite(), JASPAR2024::db(JASPAR2024))
   
   # Query JASPAR database with original gene symbol
   pfm_list <- TFBSTools::getMatrixSet(
@@ -282,18 +281,20 @@ run_figr_analysis <- function(seurat,
                  dorc_cutoff = 7,
                  dorc_k_pct = 0.03,
                  n_bg = 100) {
+
+  rlang::check_installed(c("FigR", "Signac", "GenomeInfoDb", "GenomicRanges", "S4Vectors", "SummarizedExperiment", "SingleCellExperiment"), reason = "to use `run_figr_analysis()`")
   
   # Step 1: Filter to standard chromosomes
   message("Filtering to standard chromosomes...")
   DefaultAssay(seurat) <- atac_assay
-  features.keep <- as.character(GenomeInfoDb::seqnames(granges(seurat))) %in% GenomeInfoDb::standardChromosomes(granges(seurat))
+  features.keep <- as.character(GenomeInfoDb::seqnames(GenomicRanges::granges(seurat))) %in% GenomeInfoDb::standardChromosomes(GenomicRanges::granges(seurat))
   
   seurat@assays[[atac_assay]]@counts <- seurat@assays[[atac_assay]]@counts[features.keep, ]
   seurat@assays[[atac_assay]]@data <- seurat@assays[[atac_assay]]@data[features.keep, ]
   seurat@assays[[atac_assay]]@meta.features <- seurat@assays[[atac_assay]]@meta.features[features.keep, ]
   
   # Get standard chromosomes as a vector
-  standard_chroms <- GenomeInfoDb::standardChromosomes(granges(seurat))
+  standard_chroms <- GenomeInfoDb::standardChromosomes(GenomicRanges::granges(seurat))
 
   # Create a logical vector for subsetting
   gr_seqnames <- as.character(GenomeInfoDb::seqnames(gr))
@@ -307,18 +308,18 @@ run_figr_analysis <- function(seurat,
   # # Update annotation
   # gr <- seurat@assays[[atac_assay]]@annotation
   # seurat@assays[[atac_assay]]@annotation <- gr[GenomeInfoDb::seqnames(gr) %in% 
-  #                         GenomeInfoDb::standardChromosomes(granges(seurat))]
+  #                         GenomeInfoDb::standardChromosomes(GenomicRanges::granges(seurat))]
   
   # Fix seqinfo
   gr <- seurat@assays[[atac_assay]]@seqinfo
-  standard_chroms <- GenomeInfoDb::standardChromosomes(granges(seurat)) |> as.vector()
+  standard_chroms <- GenomeInfoDb::standardChromosomes(GenomicRanges::granges(seurat)) |> as.vector()
   standard_chroms_short <- stringr::str_remove(standard_chroms, 'chr')
   GenomeInfoDb::seqlevels(gr) <- standard_chroms_short
   seurat@assays[[atac_assay]]@seqinfo <- gr[standard_chroms_short]
   
   # Update ranges
   gr <- seurat@assays[[atac_assay]]@ranges
-  # gr <- gr[GenomeInfoDb::seqnames(gr) %in% GenomeInfoDb::standardChromosomes(granges(seurat))]
+  # gr <- gr[GenomeInfoDb::seqnames(gr) %in% GenomeInfoDb::standardChromosomes(GenomicRanges::granges(seurat))]
   
   # Create a logical vector for subsetting
   gr_seqnames <- as.character(GenomeInfoDb::seqnames(gr))
@@ -340,7 +341,7 @@ run_figr_analysis <- function(seurat,
   # Step 2: Convert to SingleCellExperiment
   message("Converting to SingleCellExperiment...")
   chromatin_assay <- seurat[[atac_assay]]
-  peak_ranges <- granges(chromatin_assay)
+  peak_ranges <- GenomicRanges::granges(chromatin_assay)
   ATAC_se <- Seurat::as.SingleCellExperiment(seurat, assay = atac_assay)
   SummarizedExperiment::rowRanges(ATAC_se) <- peak_ranges
   
@@ -486,6 +487,7 @@ plot_dorc_genes <- function(results,
 #' @param drivers Character vector of driver TF gene names to analyze
 #' @param genes Character vector of genes to create DORC plots for
 #' @param top_dorcs_genes Character vector of top DORC
+#' @param cluster_ident Character; metadata column name identifying clusters (default: "seurat_clusters_atac")
 #' @param umap_reduction Name of UMAP reduction to use (default: "umap.atac")
 #' @param species Species name for JASPAR lookup (default: "Mus musculus")
 #'
@@ -497,14 +499,16 @@ analyze_figr_results <- function(figR.d,
                   RNAmat.s,
                   umap.d,
                   top_dorcs_genes,
-                  output_dir = here("results/figr_plots"),
+                  output_dir = here::here("results/figr_plots"),
                   score_cuts = list(scatter = 1, heatmap1 = 2, heatmap2 = 1.5, network = 1.6),
                   drivers = NULL,
                   genes = NULL,
                   cluster_ident = "seurat_clusters_atac",
                   umap_reduction = "umap.atac",
                   species = "Mus musculus") {
-  
+
+  rlang::check_installed(c("ggrastr", "Signac", "FigR", "BuenColors"), reason = "to use `analyze_figr_results()`")
+
   # Create output directory if it doesn't exist
   if (!dir.exists(output_dir)) {
   dir.create(output_dir, recursive = TRUE)
@@ -518,7 +522,7 @@ analyze_figr_results <- function(figR.d,
     theme(plot.margin = margin(20, 20, 20, 20))
   
   print(text_plot)
-  ggsave(here(output_dir, "cluster_info.png"), text_plot, width = 8, height = 2, dpi = 300)
+  ggsave(here::here(output_dir, "cluster_info.png"), text_plot, width = 8, height = 2, dpi = 300)
 
   
   results <- list()
@@ -530,14 +534,14 @@ analyze_figr_results <- function(figR.d,
     ggrastr::geom_point_rast(size = 0.01, shape = 16) +
     theme_classic() +
     scale_color_gradientn(
-    colours = jdb_palette("solar_extra"),
+    colours = BuenColors::jdb_palette("solar_extra"),
     limits = c(-3, 3),
     oob = scales::squish,
     breaks = scales::breaks_pretty(n = 3)
     )
   print(results$scatter_plot)
-  ggsave(here(output_dir, "scatter_plot.png"), results$scatter_plot, width = 8, height = 6, dpi = 300)
-  message("✓ Scatter plot completed")
+  ggsave(here::here(output_dir, "scatter_plot.png"), results$scatter_plot, width = 8, height = 6, dpi = 300)
+  message("\u2713 Scatter plot completed")
   }, error = function(e) {
   warning("Failed to create scatter plot: ", e$message)
   results$scatter_plot <<- NULL
@@ -545,19 +549,19 @@ analyze_figr_results <- function(figR.d,
   
   # 2. Rank drivers
   tryCatch({
-  results$rank_by_mean <- rankDrivers(figR.d, rankBy = "meanScore", interactive = FALSE)
+  results$rank_by_mean <- FigR::rankDrivers(figR.d, rankBy = "meanScore", interactive = FALSE)
   print(results$rank_by_mean)
-  ggsave(here(output_dir, "rank_by_mean.png"), results$rank_by_mean, width = 10, height = 8, dpi = 300)
-  message("✓ Rank by mean completed")
+  ggsave(here::here(output_dir, "rank_by_mean.png"), results$rank_by_mean, width = 10, height = 8, dpi = 300)
+  message("\u2713 Rank by mean completed")
   }, error = function(e) {
   warning("Failed to rank drivers by mean: ", e$message)
   results$rank_by_mean <<- NULL
   })
   
   tryCatch({
-  results$rank_by_targets <- rankDrivers(figR.d, score.cut = score_cuts$scatter, rankBy = "nTargets", interactive = TRUE)
+  results$rank_by_targets <- FigR::rankDrivers(figR.d, score.cut = score_cuts$scatter, rankBy = "nTargets", interactive = TRUE)
   print(results$rank_by_targets)
-  message("✓ Rank by targets completed")
+  message("\u2713 Rank by targets completed")
   }, error = function(e) {
   warning("Failed to rank drivers by targets: ", e$message)
   results$rank_by_targets <<- NULL
@@ -568,14 +572,14 @@ analyze_figr_results <- function(figR.d,
   results$heatmap1 <- plotfigRHeatmap_EA(
     figR.d = figR.d,
     score.cut = score_cuts$heatmap1,
-    column_names_gp = gpar(fontsize = 12),
-    row_names_gp = gpar(fontsize = 12),
+    column_names_gp = grid::gpar(fontsize = 12),
+    row_names_gp = grid::gpar(fontsize = 12),
     show_row_dend = FALSE
   )
-  png(here(output_dir, "heatmap1.png"), width = 10, height = 8, units = "in", res = 300)
+  png(here::here(output_dir, "heatmap1.png"), width = 10, height = 8, units = "in", res = 300)
   print(results$heatmap1)
   dev.off()
-  message("✓ Heatmap 1 completed")
+  message("\u2713 Heatmap 1 completed")
   }, error = function(e) {
   warning("Failed to create heatmap1: ", e$message)
   results$heatmap1 <<- NULL
@@ -586,14 +590,14 @@ analyze_figr_results <- function(figR.d,
   results$heatmap2 <- plotfigRHeatmap_EA(
     figR.d = figR.d,
     score.cut = score_cuts$heatmap2,
-    column_names_gp = gpar(fontsize = 10),
-    row_names_gp = gpar(fontsize = 10),
+    column_names_gp = grid::gpar(fontsize = 10),
+    row_names_gp = grid::gpar(fontsize = 10),
     show_row_dend = FALSE
   )
-  png(here(output_dir, "heatmap2.png"), width = 10, height = 8, units = "in", res = 300)
+  png(here::here(output_dir, "heatmap2.png"), width = 10, height = 8, units = "in", res = 300)
   print(results$heatmap2)
   dev.off()
-  message("✓ Heatmap 2 completed")
+  message("\u2713 Heatmap 2 completed")
   }, error = function(e) {
   warning("Failed to create heatmap2: ", e$message)
   results$heatmap2 <<- NULL
@@ -606,16 +610,16 @@ analyze_figr_results <- function(figR.d,
     score.cut = score_cuts$scatter,
     TFs = NULL,
     DORCs = NULL,
-    column_names_gp = gpar(fontsize = 8.5),
-    row_names_gp = gpar(fontsize = 8.5),
+    column_names_gp = grid::gpar(fontsize = 8.5),
+    row_names_gp = grid::gpar(fontsize = 8.5),
     show_row_dend = FALSE,
     cluster_columns = TRUE,
     cluster_rows = TRUE
   )
-  png(here(output_dir, "heatmap_clustered.png"), width = 10, height = 8, units = "in", res = 300)
+  png(here::here(output_dir, "heatmap_clustered.png"), width = 10, height = 8, units = "in", res = 300)
   print(results$heatmap_clustered)
   dev.off()
-  message("✓ Clustered heatmap completed")
+  message("\u2713 Clustered heatmap completed")
   }, error = function(e) {
   warning("Failed to create clustered heatmap: ", e$message)
   results$heatmap_clustered <<- NULL
@@ -624,16 +628,16 @@ analyze_figr_results <- function(figR.d,
   
   # 4. Network view
   tryCatch({
-  results$network <- plotfigRNetwork(
+  results$network <- FigR::plotfigRNetwork(
     figR.d,
     score.cut = score_cuts$network,
     TFs = NULL,
     weight.edges = TRUE
   )
-  png(here(output_dir, "network.png"), width = 10, height = 8, units = "in", res = 300)
+  png(here::here(output_dir, "network.png"), width = 10, height = 8, units = "in", res = 300)
   print(results$network)
   dev.off()
-  message("✓ Network plot completed")
+  message("\u2713 Network plot completed")
   }, error = function(e) {
   warning("Failed to create network plot: ", e$message)
   results$network <<- NULL
@@ -645,7 +649,7 @@ analyze_figr_results <- function(figR.d,
   tryCatch({
     results$dorc_plots <- map(genes, function(gene) {
     tryCatch({
-      dorc_plot <- plotMarker2D(
+      dorc_plot <- FigR::plotMarker2D(
       umap.d,
       dorcMat.s,
       markers = gene,
@@ -653,7 +657,7 @@ analyze_figr_results <- function(figR.d,
       colorPalette = "brewer_heat"
       ) + ggtitle(paste(gene, "DORC"))
       
-      rna_plot <- plotMarker2D(
+      rna_plot <- FigR::plotMarker2D(
       umap.d,
       RNAmat.s,
       markers = gene,
@@ -663,14 +667,14 @@ analyze_figr_results <- function(figR.d,
       
       combined_plot <- dorc_plot + rna_plot
       print(combined_plot)
-      ggsave(here(output_dir, paste0("dorc_", gene, ".png")), combined_plot, width = 12, height = 5, dpi = 300)
+      ggsave(here::here(output_dir, paste0("dorc_", gene, ".png")), combined_plot, width = 12, height = 5, dpi = 300)
       return(combined_plot)
     }, error = function(e) {
       warning("Failed to create DORC plot for gene ", gene, ": ", e$message)
       return(NULL)
     })
     })
-    message("✓ DORC plots completed")
+    message("\u2713 DORC plots completed")
   }, error = function(e) {
     warning("Failed to create DORC plots: ", e$message)
     results$dorc_plots <<- NULL
@@ -690,20 +694,20 @@ analyze_figr_results <- function(figR.d,
   
   drivers_names <- c(drivers_UP, drivers_DOWN)
   drivers_ID <- map(drivers_names, ~ gene_to_jaspar(.x, species = species, collection = "CORE"))
-  drivers_ID <- list_c(drivers_ID)
+  drivers_ID <- purrr::list_c(drivers_ID)
   drivers_ID <- drivers_ID[!is.na(drivers_ID)]
   drivers_names <- map(drivers_ID, ID_to_symbol)
   
   results$driver_plots <- map(drivers_ID, function(.x) {
     tryCatch({
     DefaultAssay(seurat) <- "chromvar"
-    p1 <- FeaturePlot_scCustom(seurat, features = .x, reduction = 'umap.wnn', colors_use = sequential_palette) +
+    p1 <- FeaturePlot_scCustom(seurat, features = .x, reduction = 'umap.wnn', colors_use = grDevices::hcl.colors(n = 20, "Mako", rev = TRUE)) +
       labs(title = paste0(drivers_names[[which(drivers_ID == .x)]], ' Chromvar score')) + NoAxes()
     
     DefaultAssay(seurat) <- "SCT"
     gene_name <- drivers_names[[which(drivers_ID == .x)]]
     if (gene_name %in% rownames(seurat[["SCT"]])) {
-      p2 <- FeaturePlot_scCustom(seurat, features = gene_name, reduction = 'umap.wnn', colors_use = sequential_palette) +
+      p2 <- FeaturePlot_scCustom(seurat, features = gene_name, reduction = 'umap.wnn', colors_use = grDevices::hcl.colors(n = 20, "Mako", rev = TRUE)) +
       labs(title = paste0(gene_name, ' expression')) + NoAxes()
     } else {
       p2 <- ggplot() + theme_void()
@@ -711,14 +715,14 @@ analyze_figr_results <- function(figR.d,
     
     combined_plot <- p1 + p2
     print(combined_plot)
-    ggsave(here(output_dir, paste0("driver_", gene_name, ".png")), combined_plot, width = 12, height = 5, dpi = 300)
+    ggsave(here::here(output_dir, paste0("driver_", gene_name, ".png")), combined_plot, width = 12, height = 5, dpi = 300)
     return(combined_plot)
     }, error = function(e) {
     warning("Failed to create driver plot for ", .x, ": ", e$message)
     return(NULL)
     })
   })
-  message("✓ Driver plots completed")
+  message("\u2713 Driver plots completed")
   }, error = function(e) {
   warning("Failed to create driver plots: ", e$message)
   results$driver_plots <<- NULL
@@ -728,14 +732,14 @@ analyze_figr_results <- function(figR.d,
   tryCatch({
   seurat[['DORCs']] <- CreateAssayObject(counts = dorcMat.s)
   Idents(seurat) <- cluster_ident
-  message("✓ DORCs added to Seurat object")
+  message("\u2713 DORCs added to Seurat object")
   }, error = function(e) {
   warning("Failed to add DORCs to Seurat object: ", e$message)
   })
   
   # 8. Create detailed DORC plots with coverage
   tryCatch({
-  available_genes <- Annotation(seurat[['ATAC']])$gene_name
+  available_genes <- Signac::Annotation(seurat[['ATAC']])$gene_name
   top_dorcs_genes_filtered <- top_dorcs_genes[top_dorcs_genes %in% available_genes]
   
   missing_genes <- setdiff(top_dorcs_genes, top_dorcs_genes_filtered)
@@ -748,16 +752,16 @@ analyze_figr_results <- function(figR.d,
   results$detailed_dorc_plots <- map(top_dorcs_genes_filtered, function(gene) {
     tryCatch({
     DefaultAssay(seurat) <- 'DORCs'
-    p1 <- FeaturePlot_scCustom(seurat, feature = gene, reduction = umap_reduction, colors_use = sequential_palette, pt.size = 1.3) +
+    p1 <- FeaturePlot_scCustom(seurat, features = gene, reduction = umap_reduction, colors_use = grDevices::hcl.colors(n = 20, "Mako", rev = TRUE), pt.size = 1.3) +
       labs(title = paste0('DORC: ', gene)) + NoAxes() + NoLegend()
     
     DefaultAssay(seurat) <- 'SCT'
-    p2 <- FeaturePlot_scCustom(seurat, feature = gene, reduction = umap_reduction, colors_use = sequential_palette, pt.size = 1.3) +
+    p2 <- FeaturePlot_scCustom(seurat, features = gene, reduction = umap_reduction, colors_use = grDevices::hcl.colors(n = 20, "Mako", rev = TRUE), pt.size = 1.3) +
       labs(title = paste0('RNA: ', gene)) + NoAxes() + NoLegend()
     
     DefaultAssay(seurat) <- 'ATAC'
     if (gene %in% top_dorcs_genes_filtered) {
-      p3 <- CoveragePlot(
+      p3 <- Signac::CoveragePlot(
       seurat,
       region = gene,
       group.by = cluster_ident,
@@ -770,14 +774,14 @@ analyze_figr_results <- function(figR.d,
     
     combined_plot <- (p1 | p2) / p3 + plot_layout(heights = c(1, 1.3)) + plot_annotation(title = paste0('DORC: ', gene))
     print(combined_plot)
-    ggsave(here(output_dir, paste0("detailed_dorc_", gene, ".png")), combined_plot, width = 12, height = 10, dpi = 300)
+    ggsave(here::here(output_dir, paste0("detailed_dorc_", gene, ".png")), combined_plot, width = 12, height = 10, dpi = 300)
     return(combined_plot)
     }, error = function(e) {
     warning("Failed to create detailed DORC plot for gene ", gene, ": ", e$message)
     return(NULL)
     })
   })
-  message("✓ Detailed DORC plots completed")
+  message("\u2713 Detailed DORC plots completed")
   }, error = function(e) {
   warning("Failed to create detailed DORC plots: ", e$message)
   results$detailed_dorc_plots <<- NULL
@@ -791,7 +795,7 @@ analyze_figr_results <- function(figR.d,
 #' Plot FigR heatmap with modifications
 #'
 #' Heatmap visualization of TF-DORC associations based on the regulation scores inferred by FigR
-#'@param figR.d data.frame of results returned by \code{\link[FigR]{runFigRGRN}}).
+#'@param figR.d data.frame of results returned by \code{runFigRGRN}).
 #'@param score.cut numeric specifying the absolute regulation score to threshold TF-DORC connections on. Default is 1
 #'@param DORCs character specifying valid DORC gene symbols to subset heatmap to. Default is NULL (no subsetting)
 #'@param TFs character specifying valid TF gene symbols to subset heatmap to. Default is NULL (no subsetting)
@@ -804,8 +808,9 @@ plotfigRHeatmap_EA <- function(figR.d,
                  TFs=NULL,
                  ... # Additional params passed to ComplexHeatmap
 ){
-  
-  
+
+  rlang::check_installed(c("ComplexHeatmap", "BuenColors"), reason = "to use `plotfigRHeatmap_EA()`")
+
   message("Using absolute score cut-off of: ",score.cut," ..\n")
   
   DORCsToKeep <- figR.d %>% dplyr::filter(abs(Score) >= score.cut) %>% pull(DORC) %>% unique()
@@ -869,6 +874,8 @@ plotfigRHeatmap_EA <- function(figR.d,
 #'   Default is 'seurat_clusters_atac'
 #' @param topn Numeric. Number of top differentially active genes to visualize for both
 #'   up and downregulated genes. Default is 9
+#' @param cluster Optional label for the cluster, used in the volcano plot title.
+#'   When NULL (default), the title is built from \code{cluster_id} and \code{other_cluster_id}.
 #' @param ... Additional arguments passed to volcano_plot function
 #'
 #' @return A data frame containing differential activity results with the following columns:
@@ -907,6 +914,8 @@ plotfigRHeatmap_EA <- function(figR.d,
 #' @export
 compare_DORC_scores_pairwise <- function(seurat, dorcMat.s, umap.d, cluster_id, other_cluster_id, figures_path, identities='seurat_clusters_atac', topn=9,  cluster = NULL, ...) {
   
+  rlang::check_installed("FigR", reason = "to use `compare_DORC_scores_pairwise()`")
+
   # Set the default assay to  DORCs  for motif activity analysis
   # and update cell identities to the specified metadata column
   DefaultAssay(seurat) <- 'DORCs'
@@ -972,7 +981,7 @@ compare_DORC_scores_pairwise <- function(seurat, dorcMat.s, umap.d, cluster_id, 
   # Each plot shows both DORC activity and RNA expression on UMAP embeddings
   dorc_plots <- map(valid_genes, function(gene) {
   # Create DORC activity plot with heat color palette
-  dorc_plot <- plotMarker2D(
+  dorc_plot <- FigR::plotMarker2D(
     umap.d, 
     dorcMat.s, 
     markers = gene,
@@ -981,7 +990,7 @@ compare_DORC_scores_pairwise <- function(seurat, dorcMat.s, umap.d, cluster_id, 
   ) + ggtitle(paste(gene, "DORC"))
   
   # Create RNA expression plot with purple color palette
-  rna_plot <- plotMarker2D(
+  rna_plot <- FigR::plotMarker2D(
     umap.d,
     RNAmat.s,
     markers = gene,
@@ -1007,7 +1016,7 @@ compare_DORC_scores_pairwise <- function(seurat, dorcMat.s, umap.d, cluster_id, 
   # Each plot shows both DORC activity and RNA expression on UMAP embeddings
   dorc_plots <- map(valid_genes, function(gene) {
   # Create DORC activity plot with heat color palette
-  dorc_plot <- plotMarker2D(
+  dorc_plot <- FigR::plotMarker2D(
     umap.d, 
     dorcMat.s, 
     markers = gene,
@@ -1016,7 +1025,7 @@ compare_DORC_scores_pairwise <- function(seurat, dorcMat.s, umap.d, cluster_id, 
   ) + ggtitle(paste(gene, "DORC"))
   
   # Create RNA expression plot with purple color palette
-  rna_plot <- plotMarker2D(
+  rna_plot <- FigR::plotMarker2D(
     umap.d,
     RNAmat.s,
     markers = gene,

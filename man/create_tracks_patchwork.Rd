@@ -54,6 +54,8 @@ annotation stored in the object's ATAC assay.}
 
 \item{gene_symbol}{Logical, whether to add expression plots (default FALSE)}
 
+\item{expression_features}{Character vector of features to plot in the expression panel.}
+
 \item{assay}{Assay to use for expression plot (default "SCT")}
 
 \item{heights}{Numeric vector of relative heights for tracks}

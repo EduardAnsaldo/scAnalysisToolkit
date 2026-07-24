@@ -11,7 +11,7 @@ analyze_figr_results(
   RNAmat.s,
   umap.d,
   top_dorcs_genes,
-  output_dir = here("results/figr_plots"),
+  output_dir = here::here("results/figr_plots"),
   score_cuts = list(scatter = 1, heatmap1 = 2, heatmap2 = 1.5, network = 1.6),
   drivers = NULL,
   genes = NULL,
@@ -40,6 +40,8 @@ analyze_figr_results(
 \item{drivers}{Character vector of driver TF gene names to analyze}
 
 \item{genes}{Character vector of genes to create DORC plots for}
+
+\item{cluster_ident}{Character; metadata column name identifying clusters (default: "seurat_clusters_atac")}
 
 \item{umap_reduction}{Name of UMAP reduction to use (default: "umap.atac")}
 

@@ -32,11 +32,7 @@ find_enriched_motifs <- function(seurat_object,
                   n_motifs_to_plot = 10) {
 
   # Check for required packages
-  if (!requireNamespace("Signac", quietly = TRUE)) {
-    stop("Package 'Signac' is required but not installed. Please install it with:\n",
-         "  install.packages('Signac')",
-         call. = FALSE)
-  }
+  rlang::check_installed("Signac", reason = "to use `find_enriched_motifs()`")
 
   # Filter top accessible peaks for the specified cluster
   top_accessible_peaks <- da_results |>

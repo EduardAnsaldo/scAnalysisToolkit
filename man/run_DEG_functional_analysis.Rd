@@ -11,7 +11,7 @@ run_DEG_functional_analysis(results, method = NULL, ...)
 and statistics (typically from DE analysis functions)}
 
 \item{method}{Character vector; analysis method(s) to run. Options: 'ClusterProfiler',
-'Metascape', 'gProfiler2'. Can specify up to 3 methods. If NULL or empty,
+'Metascape'. Can specify up to 2 methods. If NULL or empty,
 returns invisible(NULL). Default NULL}
 
 \item{...}{Additional arguments passed to the specific analysis functions
@@ -23,7 +23,7 @@ with results from each method. If method is NULL: invisible(NULL)
 }
 \description{
 Dispatcher function that performs functional pathway analysis on differential
-expression results using one or more methods. Supports ClusterProfiler (GO/KEGG),
-Metascape web-based analysis, and gProfiler2. Automatically calls the appropriate
+expression results using one or more methods. Supports ClusterProfiler (GO/KEGG)
+and Metascape web-based analysis. Automatically calls the appropriate
 analysis function based on method selection.
 }

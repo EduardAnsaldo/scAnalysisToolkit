@@ -40,6 +40,8 @@
 #' @export
 top_peaks_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = 'seurat_clusters_atac', object_annotations = '', tables_path = 'results/tables/', figures_path = 'results/figures/', results_path = 'results/', run_pathway_enrichment = NULL, peak_to_gene = NULL, closest_feature_fallback = FALSE, ...) {
 
+    rlang::check_installed("Signac", reason = "to use `top_peaks_per_cluster()`")
+
     # Set the identity class for clustering
     Idents(seurat) <- grouping_var
     # Set the default assay to 'ATAC'
@@ -213,6 +215,8 @@ run_differential_accessibility_FindMarkers <- function(seurat, comparison, group
                                          p_value_threshold = 0.05, min_fraction = 0.05,
                                          minimum_cell_number = 30, peak_to_gene = NULL,
                                          closest_feature_fallback = FALSE, ...) {
+
+    rlang::check_installed("Signac", reason = "to use `run_differential_accessibility_FindMarkers()`")
 
     # Set Paths
     gene_lists_path <- here::here(path, 'gene_lists')
@@ -502,6 +506,9 @@ run_differential_accessibility <- function(seurat, comparison, group1, group2, i
 #' @param seurat A Seurat object containing chromVAR and ATAC assays
 #' @param cluster_id Character or numeric. The primary cluster identifier to compare
 #' @param other_cluster_id Character or numeric. The comparison cluster identifier
+#' @param cluster_title Character; optional label for the cluster used in plot titles.
+#'   When NULL (default), the title is built from the two cluster identifiers.
+#' @param figures_path Character; directory where output figures are written.
 #' @param identities Character. The metadata column to use for cell identities.
 #'   Default is 'seurat_clusters_atac'
 #' @param reduction Character. The dimensional reduction to use for feature plots.
@@ -557,8 +564,10 @@ run_differential_accessibility <- function(seurat, comparison, group1, group2, i
 # Custom function, to be incorporated into the package later
 compare_motive_activity_pairwise <- function(seurat, cluster_id, other_cluster_id, cluster_title = NULL, figures_path, identities='seurat_clusters_atac', reduction = 'umap.wnn', topn=9, sequential_palette , ...) {
 
-  JASPAR2024 <- JASPAR2024()
-  JASPARConnect <- RSQLite::dbConnect(RSQLite::SQLite(), db(JASPAR2024))
+  rlang::check_installed(c("JASPAR2024", "RSQLite", "TFBSTools", "Signac"), reason = "to use `compare_motive_activity_pairwise()`")
+
+  JASPAR2024 <- JASPAR2024::JASPAR2024()
+  JASPARConnect <- RSQLite::dbConnect(RSQLite::SQLite(), JASPAR2024::db(JASPAR2024))
 
   if (is.null(cluster_title)) {
     cluster_title <- paste("Cluster", cluster_id, "vs", other_cluster_id)
@@ -640,7 +649,7 @@ compare_motive_activity_pairwise <- function(seurat, cluster_id, other_cluster_i
 
     } else {
       # Create motif plot
-      motif_plot <- MotifPlot(
+      motif_plot <- Signac::MotifPlot(
         object = seurat,
         motifs = motifs,
         assay = 'ATAC'
@@ -657,7 +666,7 @@ compare_motive_activity_pairwise <- function(seurat, cluster_id, other_cluster_i
 
       # Get motif names
       top_motif_names <- map(motifs, function(motif_id) {
-        motif_matrix <- getMatrixByID(
+        motif_matrix <- TFBSTools::getMatrixByID(
           x = JASPARConnect, 
           ID = motif_id   
         )
@@ -668,7 +677,7 @@ compare_motive_activity_pairwise <- function(seurat, cluster_id, other_cluster_i
       
       # Create feature plots
       plots <- map2(motifs, top_motif_names, function(TF_ID, TF_name) {
-        p <- FeaturePlot_scCustom(seurat, feature = TF_ID, reduction = reduction, colors_use = sequential_palette) + 
+        p <- FeaturePlot_scCustom(seurat, features = TF_ID, reduction = reduction, colors_use = sequential_palette) + 
           labs(title = paste0(TF_name)) + 
           NoAxes() + 
           NoLegend()
@@ -709,7 +718,7 @@ compare_motive_activity_pairwise <- function(seurat, cluster_id, other_cluster_i
       rownames_to_column(var = 'motif_id') |>
       mutate(
         motif_name = map_chr(motif_id, function(motif_id) {
-            motif_matrix <- getMatrixByID(
+            motif_matrix <- TFBSTools::getMatrixByID(
               x = JASPARConnect,
               ID = motif_id
             )
@@ -717,7 +726,7 @@ compare_motive_activity_pairwise <- function(seurat, cluster_id, other_cluster_i
           })) |> 
       column_to_rownames(var = 'motif_id')      
 
-  dbDisconnect(JASPARConnect)
+  RSQLite::dbDisconnect(JASPARConnect)
 
   return(differential_activity)
 }

@@ -11,6 +11,12 @@
 #' @param subset_db Character string to filter database interactions, or NULL for all.
 #'   Common values: "Cell-Cell Contact", "ECM-Receptor", "Secreted Signaling"
 #' @param min_cells Integer, minimum number of cells required for communication
+#' @param method Character string passed to \code{CellChat::computeCommunProb} as
+#'   \code{type}, setting how the average expression per cell group is computed
+#'   (e.g. "triMean", "truncatedMean"). Default "triMean"
+#' @param trim Numeric fraction (0-0.25) for trimmed-mean expression, passed to
+#'   \code{CellChat::computeCommunProb}; only used when \code{method = "truncatedMean"}.
+#'   Default NULL
 #' @param use_parallel Logical, whether to use parallel processing
 #' @param n_workers Integer, number of parallel workers (only used if use_parallel = TRUE)
 #' @param max_memory_mb Numeric, maximum memory for future in MB (only used if use_parallel = TRUE)
@@ -38,11 +44,7 @@ run_cellchat_analysis <- function(seurat,
            output_file = NULL) {
 
   # Check for required packages
-  if (!requireNamespace("CellChat", quietly = TRUE)) {
-    stop("Package 'CellChat' is required but not installed. Please install it with:\n",
-         "  devtools::install_github('jinworks/CellChat')",
-         call. = FALSE)
-  }
+  rlang::check_installed("CellChat", reason = "to use `run_cellchat_analysis()`")
 
   # Part I: Setup and preprocessing
   message("Starting CellChat analysis...")
@@ -78,7 +80,7 @@ run_cellchat_analysis <- function(seurat,
 
   ## Preprocessing the data for CellChat analysis
   message("Preprocessing data...")
-  cellchat_object <- subsetData(cellchat_object)
+  cellchat_object <- CellChat::subsetData(cellchat_object)
 
   # Set up parallel processing if requested
   if (use_parallel) {
@@ -102,7 +104,7 @@ run_cellchat_analysis <- function(seurat,
   if (smooth_data) {
     message("Smoothing data using PPI network...")
     ppi_network <- if (species == "mouse") CellChat::PPI.mouse else CellChat::PPI.human
-    cellchat_object <- smoothData(cellchat_object, adj = ppi_network)
+    cellchat_object <- CellChat::smoothData(cellchat_object, adj = ppi_network)
   }
 
   # Part II: Compute communication probabilities
@@ -182,14 +184,14 @@ run_cellchat_analysis <- function(seurat,
 #' the communication probability; no p-value is available at the pathway level.
 #'
 #' This function is the pathway-level analogue of
-#' \code{\link[CellChat]{netVisual_bubble}}, which operates on individual
+#' \code{netVisual_bubble}, which operates on individual
 #' ligand-receptor pairs (\code{object@@net}).  The argument interface is kept
 #' as close to the original as possible so the two can be used
 #' interchangeably.
 #'
-#' @param object A \code{\linkS4class{CellChat}} object whose
+#' @param object A \code{CellChat} object whose
 #'   \code{@@netP$prob} slot has been populated by
-#'   \code{\link[CellChat]{computeCommunProbPathway}}.
+#'   \code{computeCommunProbPathway}.
 #' @param sources.use Integer indices \emph{or} character names of sender cell
 #'   groups to include.  \code{NULL} (default) retains all groups.
 #' @param targets.use Integer indices \emph{or} character names of receiver
@@ -223,7 +225,7 @@ run_cellchat_analysis <- function(seurat,
 #'   (e.g. \code{"TGFB1/TGFB2/TGFB3 - (TGFBR1+TGFBR2)"}); genuinely
 #'   many-to-many pathways span multiple lines.  The affected axis title also
 #'   changes to \code{"Ligand-receptor pairs"}.  Requires an object populated
-#'   through \code{\link[CellChat]{identifyOverExpressedInteractions}}.
+#'   through \code{identifyOverExpressedInteractions}.
 #'   Default \code{FALSE}.
 #' @param color.use Controls bubble fill colour.  Two modes:
 #'   \describe{
@@ -235,14 +237,14 @@ run_cellchat_analysis <- function(seurat,
 #'       the vector receive \code{NA} fill.}
 #'   }
 #' @param color.heatmap Character string naming the continuous colour palette,
-#'   following \code{\link[CellChat]{netVisual_bubble}}.  Any
+#'   following \code{netVisual_bubble}.  Any
 #'   \code{RColorBrewer} palette name (default \code{"Spectral"}); an
 #'   unrecognised name falls back to a \pkg{viridis} \code{option} (e.g.
 #'   \code{"magma"}).  Colours run low-to-high after CellChat's reversal
 #'   (\code{direction = -1}).  Ignored when \code{color.use} is a named vector.
 #' @param min.quantile,max.quantile Numeric quantile cutoffs in \code{[0, 1]}
 #'   (default \code{0} / \code{1}).  Following
-#'   \code{\link[CellChat]{netVisual_bubble}}, probabilities below/above these
+#'   \code{netVisual_bubble}, probabilities below/above these
 #'   quantiles are clamped before colouring, which sets the colour-scale range
 #'   and trims outliers; the two colourbar ends are labelled \code{"min"} and
 #'   \code{"max"}.  Defaults leave the data unchanged.
@@ -283,8 +285,8 @@ run_cellchat_analysis <- function(seurat,
 #'   \code{return.data = TRUE}) a named list; see above.
 #'
 #' @seealso
-#'   \code{\link[CellChat]{netVisual_bubble}} for the LR-pair-level equivalent,
-#'   \code{\link[CellChat]{computeCommunProbPathway}} to populate
+#'   \code{netVisual_bubble} for the LR-pair-level equivalent,
+#'   \code{computeCommunProbPathway} to populate
 #'   \code{@@netP$prob}.
 #'
 #' @examples
@@ -319,9 +321,6 @@ run_cellchat_analysis <- function(seurat,
 #' out$gg.obj
 #' }
 #'
-#' @importFrom ggplot2 ggplot aes geom_point scale_fill_manual scale_color_manual scale_fill_gradientn scale_color_gradientn scale_size_continuous scale_x_discrete scale_y_discrete labs theme_classic theme element_text element_rect element_line element_blank unit
-#' @importFrom rlang .data
-#' @importFrom methods .hasSlot
 #'
 #' @export
 netVisual_bubble_pathways <- function(

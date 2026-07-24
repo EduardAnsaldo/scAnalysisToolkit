@@ -39,6 +39,8 @@ annotate_seurat_with_SingleR_Eduard <- function(
     annotation_basis = c("cluster_fine", "cell_coarse", "cell_fine"),
     split_by_groups = TRUE
 ) {
+    rlang::check_installed(c("SingleR", "celldex"), reason = "to use `annotate_seurat_with_SingleR_Eduard()`")
+
     # Select database
     if (database == "ImmGen") {
         ref <- celldex::ImmGenData(ensembl = FALSE)
@@ -174,6 +176,8 @@ annotate_seurat_with_SingleR_Eduard <- function(
 #' @param filter_tcr Logical; whether to filter out T cell receptor genes (Trav, Trbv,
 #'   Trdv, Trgv, Traj, Trbj, Trdj, Trgj, Trac, Trbc, Trdc, Trgc) from FindAllMarkers
 #'   results. Default FALSE
+#' @param flip_axes Logical; whether to flip the dot-plot axes. Default TRUE
+#' @param dot_scale Numeric; scaling factor for dot sizes in the dot plot. Default 8
 #' @param ... Additional arguments passed to ClusterProfiler analysis
 #'
 #' @return List with elements:

@@ -97,6 +97,8 @@ return(plot)
 #' @export
 calculate_D50 <- function (seurat, cell_grouping_var, replicate_var, replicate_group_var = NULL, results_path, figures_path, tables_path, colors  = NULL) {
 
+    rlang::check_installed("scRepertoire", reason = "to use `calculate_D50()`")
+
     #Extracting TCR data for clusters of interest
     Idents(seurat) <- englue("{{cell_grouping_var}}")
     combined2 <- scRepertoire:::.expression2List(seurat, split.by ='ident')

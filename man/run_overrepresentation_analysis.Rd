@@ -10,7 +10,7 @@ run_overrepresentation_analysis(genes, method = NULL, ...)
 \item{genes}{Character vector; gene symbols to test for enrichment}
 
 \item{method}{Character vector; analysis method(s) to run. Options: 'ClusterProfiler',
-'gProfiler2', 'Metascape'. Can specify up to 3 methods. If NULL or empty,
+'Metascape'. Can specify up to 2 methods. If NULL or empty,
 returns invisible(NULL). Default NULL}
 
 \item{...}{Additional arguments passed to the specific analysis functions
@@ -22,7 +22,7 @@ with results from each method. If method is NULL: invisible(NULL)
 }
 \description{
 Dispatcher function that performs overrepresentation analysis (enrichment) on a
-gene list using one or more methods. Supports ClusterProfiler (GO/KEGG), gProfiler2,
+gene list using one or more methods. Supports ClusterProfiler (GO/KEGG)
 and Metascape web-based analysis. Tests which biological pathways/processes are
 statistically enriched in the gene list compared to a background.
 }

@@ -426,6 +426,7 @@ pathway_functional_analysis_cluster_identification <- function (scRNAseq, result
 #' @param nterms_to_plot Integer; number of terms to show per cluster in dot plot. Default 5
 #' @param font_size Numeric; font size for plots. Default 8
 #' @param grouping_var Character; label for x-axis grouping variable. Default ''
+#' @param wrap_length Integer; width at which to wrap pathway description labels. Default 60
 #' @param ... Additional arguments (unused)
 #'
 #' @return List with two elements: plot (ggplot object) and results (enrichment results)

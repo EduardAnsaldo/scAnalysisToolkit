@@ -96,6 +96,9 @@ Default: 3514}
 \item{remove_ig}{Logical indicating whether to filter out immunoglobulin-related
 features from both RNA and ATAC data. Default: FALSE}
 
+\item{genome}{Character; genome build used for the immunoglobulin ATAC region
+coordinates when \code{remove_ig = TRUE} (e.g. "GRCm38", "GRCm39"). Default: "GRCm39"}
+
 \item{generate_plots}{Logical indicating whether to generate and save final
 plots. Requires \code{figures_path} and \code{object_annotations} to be specified.
 Default: TRUE}

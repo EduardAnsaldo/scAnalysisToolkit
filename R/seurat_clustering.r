@@ -207,7 +207,7 @@ perform_seurat_clustering <- function(
     # Optionally split RNA assay for integration
     if (integrate_rna) {
         if (length(Layers(seurat[["RNA"]], search = "counts")) > 1) {
-            message("RNA assay is already split — skipping split step")
+            message("RNA assay is already split - skipping split step")
         } else {
             message("Splitting RNA assay by '", integration_column, "' for integration...")
             seurat[["RNA"]] <- split(seurat[["RNA"]], f = seurat[[integration_column, drop = TRUE]])
@@ -486,6 +486,8 @@ extract_cell_counts <- function(seurat, grouping_var, figures_path, tables_path,
 #'   split the RNA assay by for integration. Default: "Origin"
 #' @param remove_ig Logical indicating whether to filter out immunoglobulin-related
 #'   features from both RNA and ATAC data. Default: FALSE
+#' @param genome Character; genome build used for the immunoglobulin ATAC region
+#'   coordinates when `remove_ig = TRUE` (e.g. "GRCm38", "GRCm39"). Default: "GRCm39"
 #' @param generate_plots Logical indicating whether to generate and save final
 #'   plots. Requires `figures_path` and `object_annotations` to be specified.
 #'   Default: TRUE
@@ -623,7 +625,7 @@ process_multimodal_seurat <- function(
     if (integrate_rna) {
       # Only split if not already split (more than one counts layer means already split)
       if (length(Layers(seurat[["RNA"]], search = "counts")) > 1) {
-        message("RNA assay is already split — skipping split step")
+        message("RNA assay is already split - skipping split step")
       } else {
         message("Splitting RNA assay by '", integration_column, "' for integration...")
         seurat[["RNA"]] <- split(seurat[["RNA"]], f = seurat[[integration_column, drop = TRUE]])
@@ -661,9 +663,10 @@ process_multimodal_seurat <- function(
   
   # ========== ATAC Processing ==========
   if (!skip_preprocessing) {
+    rlang::check_installed("Signac", reason = "to use `process_multimodal_seurat()`")
     message("\nProcessing ATAC data...")
     DefaultAssay(seurat) <- 'ATAC'
-    seurat <- FindTopFeatures(seurat, min.cutoff = 5)
+    seurat <- Signac::FindTopFeatures(seurat, min.cutoff = 5)
     
     if (remove_ig) {
       message("Variable features before filtering: ", length(VariableFeatures(seurat)))
@@ -671,7 +674,7 @@ process_multimodal_seurat <- function(
       
       # Get Ig regions for the specified genome
       selected_regions <- ig_regions[[genome]]
-      Ig_peaks <- IntersectMatrix(
+      Ig_peaks <- Signac::IntersectMatrix(
         seurat@assays$ATAC$counts, 
         regions = c(selected_regions$Igh, selected_regions$Igk, selected_regions$Igl)
       ) |> rownames()
@@ -682,15 +685,15 @@ process_multimodal_seurat <- function(
       message("Variable features (Ig filtering disabled): ", length(VariableFeatures(seurat)))
     }
     
-    seurat <- RunTFIDF(seurat)
-    seurat <- RunSVD(seurat)
+    seurat <- Signac::RunTFIDF(seurat)
+    seurat <- Signac::RunSVD(seurat)
     
     # Always show elbow plot and depth correlation
     p1 <- ElbowPlot(seurat, reduction = 'lsi', ndims = ndims_lsi) + 
       labs(title = "ATAC LSI Elbow Plot") + 
       scale_y_log10()
     print(p1)
-    print(DepthCor(seurat))
+    print(Signac::DepthCor(seurat))
   } else {
     message("Skipping ATAC preprocessing (already completed)")
   }
@@ -872,12 +875,12 @@ process_multimodal_seurat <- function(
       labs(title = paste0('RNA UMAP R ', resolution_RNA)) + 
       theme(legend.position = "none")
     print(p1)
-    ggsave(file = paste0(figures_path, object_annotations, '_RNA_UMAP_R', resolution_RNA, '.pdf'))
+    ggsave(filename = paste0(figures_path, object_annotations, '_RNA_UMAP_R', resolution_RNA, '.pdf'))
     
     p2 <- DimPlot(seurat, reduction = "umap.rna", group.by = 'Samples', label = TRUE, shuffle = TRUE) + 
       labs(title = paste0('RNA UMAP R ', resolution_RNA), subtitle = 'RNA Leiden Clusters')
     print(p2)
-    ggsave(file = paste0(figures_path, object_annotations, '_RNA_UMAP_R', resolution_RNA, '_by_samples.pdf'))
+    ggsave(filename = paste0(figures_path, object_annotations, '_RNA_UMAP_R', resolution_RNA, '_by_samples.pdf'))
     
     # ATAC plots
     Idents(seurat) <- 'seurat_clusters_atac'
@@ -885,12 +888,12 @@ process_multimodal_seurat <- function(
       labs(title = paste0('ATAC UMAP R ', resolution_ATAC)) + 
       theme(legend.position = "none")
     print(p3)
-    ggsave(file = paste0(figures_path, object_annotations, '_ATAC_UMAP_R', resolution_ATAC, '.pdf'))
+    ggsave(filename = paste0(figures_path, object_annotations, '_ATAC_UMAP_R', resolution_ATAC, '.pdf'))
     
     p4 <- DimPlot(seurat, reduction = "umap.atac", group.by = 'Samples', label = TRUE, shuffle = TRUE) + 
       labs(title = paste0('ATAC UMAP R ', resolution_ATAC), subtitle = 'ATAC Leiden Clusters')
     print(p4)
-    ggsave(file = paste0(figures_path, object_annotations, '_ATAC_UMAP_R', resolution_ATAC, '_by_samples.pdf'))
+    ggsave(filename = paste0(figures_path, object_annotations, '_ATAC_UMAP_R', resolution_ATAC, '_by_samples.pdf'))
     
     # WNN plots
     Idents(seurat) <- 'seurat_clusters_wnn'
@@ -898,12 +901,12 @@ process_multimodal_seurat <- function(
       labs(title = paste0('WNN (joint) UMAP R ', resolution_WNN)) + 
       theme(legend.position = "none")
     print(p5)
-    ggsave(file = paste0(figures_path, object_annotations, '_WNN_UMAP_R', resolution_WNN, '.pdf'))
+    ggsave(filename = paste0(figures_path, object_annotations, '_WNN_UMAP_R', resolution_WNN, '.pdf'))
     
     p6 <- DimPlot(seurat, reduction = "umap.wnn", group.by = 'Samples', label = TRUE, shuffle = TRUE) + 
       labs(title = paste0('WNN (joint) UMAP R ', resolution_WNN), subtitle = 'WNN Leiden Clusters')
     print(p6)
-    ggsave(file = paste0(figures_path, object_annotations, '_WNN_UMAP_R', resolution_WNN, '_by_samples.pdf'))
+    ggsave(filename = paste0(figures_path, object_annotations, '_WNN_UMAP_R', resolution_WNN, '_by_samples.pdf'))
     
     # Split plots
     Idents(seurat) <- 'seurat_clusters_rna'
@@ -911,21 +914,21 @@ process_multimodal_seurat <- function(
       labs(title = 'RNA UMAP', subtitle = 'RNA Leiden Clusters') + 
       theme(legend.position = "none")
     print(p7)
-    ggsave(file = paste0(figures_path, object_annotations, '_RNA_UMAP_split_by_groups.pdf'), width = 8, height = 5)
+    ggsave(filename = paste0(figures_path, object_annotations, '_RNA_UMAP_split_by_groups.pdf'), width = 8, height = 5)
     
     Idents(seurat) <- 'seurat_clusters_atac'
     p8 <- DimPlot(seurat, reduction = 'umap.atac', label = TRUE, split.by = 'Groups') + 
       labs(title = 'ATAC UMAP', subtitle = 'ATAC Leiden Clusters') + 
       theme(legend.position = "none")
     print(p8)
-    ggsave(file = paste0(figures_path, object_annotations, '_ATAC_UMAP_split_by_groups.pdf'), width = 8, height = 5)
+    ggsave(filename = paste0(figures_path, object_annotations, '_ATAC_UMAP_split_by_groups.pdf'), width = 8, height = 5)
     
     Idents(seurat) <- 'seurat_clusters_wnn'
     p9 <- DimPlot(seurat, reduction = 'umap.wnn', label = TRUE, split.by = 'Groups') + 
       labs(title = 'WNN (joint) UMAP', subtitle = 'WNN Leiden Clusters') + 
       theme(legend.position = "none")
     print(p9)
-    ggsave(file = paste0(figures_path, object_annotations, '_WNN_UMAP_split_by_groups.pdf'), width = 8, height = 5)
+    ggsave(filename = paste0(figures_path, object_annotations, '_WNN_UMAP_split_by_groups.pdf'), width = 8, height = 5)
   }
   
   message("\n=== COMPLETE: All processing finished ===")

@@ -37,6 +37,8 @@ pathway_overrepresentation_analysis_multiple_lists(
 
 \item{grouping_var}{Character; label for x-axis grouping variable. Default ''}
 
+\item{wrap_length}{Integer; width at which to wrap pathway description labels. Default 60}
+
 \item{...}{Additional arguments (unused)}
 }
 \value{

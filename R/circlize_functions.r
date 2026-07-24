@@ -87,37 +87,37 @@ plot_circos_clonotypes <- function(
 
     circlize::circos.track(ylim = c(0,1),
         panel.fun = function(x, y) {
-            print(CELL_META$xrange[[1]])
-            if (CELL_META$cell.width < 45) {
+            print(circlize::CELL_META$xrange[[1]])
+            if (circlize::CELL_META$cell.width < 45) {
                 circlize::circos.text(
-                    CELL_META$xcenter, 
-                    CELL_META$cell.ylim[2] + circlize::mm_y(9), 
+                    circlize::CELL_META$xcenter, 
+                    circlize::CELL_META$cell.ylim[2] + circlize::mm_y(9), 
                     adj = c(0 , 1),
-                    CELL_META$sector.index,
+                    circlize::CELL_META$sector.index,
                     facing = 'clockwise', 
                     niceFacing = TRUE, 
                     cex  = cex
                 )
             } else {
                 circlize::circos.text(
-                    CELL_META$xcenter, 
-                    CELL_META$cell.ylim[2] + circlize::mm_y(11),
-                    CELL_META$sector.index,
+                    circlize::CELL_META$xcenter, 
+                    circlize::CELL_META$cell.ylim[2] + circlize::mm_y(11),
+                    circlize::CELL_META$sector.index,
                     facing = 'bending.inside', 
                     niceFacing = TRUE,
                     cex = cex + 0.2
                 )
             }
-            if (CELL_META$xrange[[1]] > major_ticks * 2) {
+            if (circlize::CELL_META$xrange[[1]] > major_ticks * 2) {
                 circlize::circos.axis(
                     labels.cex = 0.5, 
                     minor.ticks =  0,
                     major.tick = 1,
                     labels.facing = 'clockwise',
-                    major.at = seq(major_ticks, CELL_META$xrange[[1]], by = major_ticks)
+                    major.at = seq(major_ticks, circlize::CELL_META$xrange[[1]], by = major_ticks)
                 )
             }
-            circlize::highlight.sector(CELL_META$sector.index, col = grid_cols[CELL_META$sector.index])
+            circlize::highlight.sector(circlize::CELL_META$sector.index, col = grid_cols[circlize::CELL_META$sector.index])
         }
     )
 
@@ -230,6 +230,8 @@ overlap_circos_and_tables <- function(
         "skyblue", "darkorange", "wheat", "darkolivegreen", "orchid",
         "seagreen", "gold", "lavenderblush", "tomato")
 ) {
+    rlang::check_installed("scRepertoire", reason = "to use `overlap_circos_and_tables()`")
+
     Mode <- function(x) {
         ux <- unique(x)
         ux[which.max(tabulate(match(x, ux)))]
@@ -348,21 +350,21 @@ render_chord_diagram <- function(trbv_j_processed, grid_colors, colored_function
     circlize::circos.track(track.index = 1,
         bg.border = NA,
         panel.fun = function(x, y) {
-            if (CELL_META$cell.width < 365) {
+            if (circlize::CELL_META$cell.width < 365) {
                 circlize::circos.text(
-                    CELL_META$xcenter,
-                    CELL_META$ylim[1] + circlize::mm_y(3),
+                    circlize::CELL_META$xcenter,
+                    circlize::CELL_META$ylim[1] + circlize::mm_y(3),
                     adj = c(0, 1),
-                    CELL_META$sector.index,
+                    circlize::CELL_META$sector.index,
                     facing = 'clockwise',
                     niceFacing = T,
                     cex = cex
                 )
             } else {
                 circlize::circos.text(
-                    CELL_META$xcenter,
-                    CELL_META$ylim[1] + circlize::mm_y(6),
-                    CELL_META$sector.index,
+                    circlize::CELL_META$xcenter,
+                    circlize::CELL_META$ylim[1] + circlize::mm_y(6),
+                    circlize::CELL_META$sector.index,
                     facing = 'bending.inside',
                     niceFacing = T,
                     cex = cex + 0.2
@@ -406,6 +408,7 @@ create_V_J_chord_diagram <- function(trbv_j_table,
                                         cex = 0.7,
                                         major_ticks = 10) {
 
+    rlang::check_installed("scRepertoire", reason = "to use `create_V_J_chord_diagram()`")
 
     chain_pair <- paste0(chain_a, '_', chain_b)
 

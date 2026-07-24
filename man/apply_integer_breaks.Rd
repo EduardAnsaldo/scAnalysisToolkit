@@ -7,7 +7,7 @@
 apply_integer_breaks(
   plot,
   break_size = 1,
-  colors_use = viridis_plasma_dark_high,
+  colors_use = scCustomize::viridis_plasma_dark_high,
   na_color = "lightgray"
 )
 }

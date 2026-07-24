@@ -362,24 +362,24 @@ perform_seurat_clustering <- function(
 #' @export
 extract_cell_counts <- function(seurat, grouping_var, figures_path, tables_path, object_annotations='', plot_grouping = "Samples") {
     cell_counts <- FetchData(seurat, vars = c(englue("{{grouping_var}}"), "Samples", "Groups"))
-    cell_counts <- arrange(cell_counts, Samples)
+    cell_counts <- arrange(cell_counts, .data$Samples)
 
-    counts <- cell_counts |> add_count(Samples, name='total_cell_count_by_sample')
+    counts <- cell_counts |> add_count(.data$Samples, name='total_cell_count_by_sample')
 
     counts <- counts |>
-        dplyr::count(  {{grouping_var}},  , Samples, Groups,  total_cell_count_by_sample,name='cluster_count')  |>
-            mutate(frequency_within_sample=cluster_count*100/total_cell_count_by_sample)  |>
-            mutate(Samples = as.character(Samples)) |>
-            arrange(Samples, desc(Samples))
+        dplyr::count(  {{grouping_var}},  , .data$Samples, .data$Groups,  .data$total_cell_count_by_sample,name='cluster_count')  |>
+            mutate(frequency_within_sample=.data$cluster_count*100/.data$total_cell_count_by_sample)  |>
+            mutate(Samples = as.character(.data$Samples)) |>
+            arrange(.data$Samples, desc(.data$Samples))
 
     frequency_table <- counts |>
-        arrange(Samples) |>
-        pivot_wider(id_cols = {{grouping_var}},  names_from = 'Samples', values_from = frequency_within_sample)
+        arrange(.data$Samples) |>
+        pivot_wider(id_cols = {{grouping_var}},  names_from = 'Samples', values_from = "frequency_within_sample")
     write.csv(frequency_table,file=here::here(tables_path, paste0(englue("frequency per {{grouping_var}} per condition "), object_annotations, ".csv")), row.names=F)
 
     count_table <- counts |>
-        arrange(Samples) |>
-        pivot_wider(id_cols = {{grouping_var}}, names_from = 'Samples', values_from = cluster_count)
+        arrange(.data$Samples) |>
+        pivot_wider(id_cols = {{grouping_var}}, names_from = 'Samples', values_from = "cluster_count")
     write.csv(count_table,file = here::here(tables_path, paste0(englue("counts per {{grouping_var}} per condition "), object_annotations, ".csv")),row.names=F)
 
     # # Barplot of proportion of cells in each cluster by sample
@@ -396,9 +396,9 @@ extract_cell_counts <- function(seurat, grouping_var, figures_path, tables_path,
     # Barplot of proportion of cells in each cluster
     if (plot_grouping == "Samples") {
         # Grouped bar plot with individual sample points
-        plot2 <- ggplot(counts, aes(x={{grouping_var}} |> fct_reorder(frequency_within_sample) |> fct_rev(), y = frequency_within_sample, fill=Groups)) +
+        plot2 <- ggplot(counts, aes(x={{grouping_var}} |> fct_reorder(.data$frequency_within_sample) |> fct_rev(), y = .data$frequency_within_sample, fill=.data$Groups)) +
             geom_jitter(position = position_jitterdodge(jitter.width = 0.15, dodge.width = 0.8), show.legend = TRUE) +
-            stat_summary(fun = mean, geom = "bar", position = position_dodge(width = 0.9), aes(fill = Groups, alpha = 0.5)) +
+            stat_summary(fun = mean, geom = "bar", position = position_dodge(width = 0.9), aes(fill = .data$Groups, alpha = 0.5)) +
             stat_summary(fun.data = mean_se, fun.args = list(mult = 1),
                 geom = "errorbar", width = 0.2, position = position_dodge(width = 0.9) ) +
             scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
@@ -410,7 +410,7 @@ extract_cell_counts <- function(seurat, grouping_var, figures_path, tables_path,
         print(plot2)
     } else if (plot_grouping == "Groups") {
         # Stacked bar plot showing composition of Groups within each grouping_var
-        plot2 <- ggplot(seurat@meta.data, aes(x={{grouping_var}}, fill=Groups)) +
+        plot2 <- ggplot(seurat@meta.data, aes(x={{grouping_var}}, fill=.data$Groups)) +
             geom_bar(position=position_fill()) +
             scale_y_continuous(labels = scales::percent_format(), expand = expansion(mult = c(0, 0.01))) +
             theme_classic() +
@@ -420,7 +420,7 @@ extract_cell_counts <- function(seurat, grouping_var, figures_path, tables_path,
         print(plot2)
     } else if (plot_grouping == "grouping_var") {
         # Stacked bar plot showing composition of grouping_var within each Group (switched axes)
-        plot2 <- ggplot(seurat@meta.data, aes(x=Groups, fill={{grouping_var}})) +
+        plot2 <- ggplot(seurat@meta.data, aes(x=.data$Groups, fill={{grouping_var}})) +
             geom_bar(position=position_fill()) +
             scale_y_continuous(labels = scales::percent_format(), expand = expansion(mult = c(0, 0.01))) +
             theme_classic() +
@@ -771,7 +771,7 @@ process_multimodal_seurat <- function(
     seurat$seurat_clusters_rna <- Idents(seurat)
     seurat@meta.data <- seurat@meta.data |>
       dplyr::select(-starts_with('SCT_snn_res')) |>
-      mutate(seurat_clusters_rna = fct_inseq(seurat_clusters_rna))
+      mutate(seurat_clusters_rna = fct_inseq(.data$seurat_clusters_rna))
   }
   
   # ========== ATAC Clustering ==========
@@ -808,7 +808,7 @@ process_multimodal_seurat <- function(
     seurat$seurat_clusters_atac <- Idents(seurat)
     seurat@meta.data <- seurat@meta.data |>
       dplyr::select(-starts_with('ATAC_snn_res')) |>
-      mutate(seurat_clusters_atac = fct_inseq(seurat_clusters_atac))
+      mutate(seurat_clusters_atac = fct_inseq(.data$seurat_clusters_atac))
   }
   
   # ========== WNN Analysis ==========
@@ -854,7 +854,7 @@ process_multimodal_seurat <- function(
     seurat@meta.data <- seurat@meta.data |>
       dplyr::select(-ends_with('seurat_clusters')) |>
       dplyr::select(-starts_with('wsnn_res')) |>
-      mutate(seurat_clusters_wnn = fct_inseq(seurat_clusters_wnn))
+      mutate(seurat_clusters_wnn = fct_inseq(.data$seurat_clusters_wnn))
   }
   
   # Stop if any resolutions are missing

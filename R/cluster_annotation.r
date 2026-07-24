@@ -62,11 +62,11 @@ annotate_seurat_with_SingleR_Eduard <- function(
         row.names <- rownames(predictions)
         predictions_tbl <- predictions |>
             as_tibble() |>
-            dplyr::select(labels)
+            dplyr::select("labels")
         predictions_tbl$cluster <- row.names
         annotations <- seurat@meta.data |>
             left_join(predictions_tbl, by = join_by('seurat_clusters' == 'cluster')) |>
-            pull(labels)
+            pull("labels")
         seurat$labels_per_cluster_fine <- annotations
         Idents(seurat) <- 'labels_per_cluster_fine'
         p <- DimPlot(seurat, label = FALSE, label.size = 2.5)
@@ -87,11 +87,11 @@ annotate_seurat_with_SingleR_Eduard <- function(
         row.names <- rownames(predictions)
         predictions_tbl <- predictions |>
             as_tibble() |>
-            dplyr::select(labels)
+            dplyr::select("labels")
         predictions_tbl$cluster <- row.names
         annotations <- seurat@meta.data |>
             left_join(predictions_tbl, by = join_by('seurat_clusters' == 'cluster')) |>
-            pull(labels)
+            pull("labels")
         seurat$labels_per_cluster_coarse <- annotations
         Idents(seurat) <- 'labels_per_cluster_coarse'
         p <- DimPlot(seurat, label = TRUE, label.size = 2.5)
@@ -110,9 +110,9 @@ annotate_seurat_with_SingleR_Eduard <- function(
         )
         predictions_tbl <- predictions |>
             as_tibble() |>
-            dplyr::select(labels) |>
+            dplyr::select("labels") |>
             rename(labels_per_cell_coarse = labels)
-        seurat$labels_per_cell_coarse <- predictions_tbl |> pull(labels_per_cell_coarse)
+        seurat$labels_per_cell_coarse <- predictions_tbl |> pull("labels_per_cell_coarse")
         Idents(seurat) <- 'labels_per_cell_coarse'
         p <- DimPlot_scCustom(seurat, label = FALSE)
         print(p)
@@ -130,9 +130,9 @@ annotate_seurat_with_SingleR_Eduard <- function(
         )
         predictions_tbl <- predictions |>
             as_tibble() |>
-            dplyr::select(labels) |>
+            dplyr::select("labels") |>
             rename(labels_per_cell_fine = labels)
-        seurat$labels_per_cell_fine <- predictions_tbl |> pull(labels_per_cell_fine)
+        seurat$labels_per_cell_fine <- predictions_tbl |> pull("labels_per_cell_fine")
         Idents(seurat) <- 'labels_per_cell_fine'
         p <- DimPlot_scCustom(seurat, label = FALSE)
         print(p)
@@ -202,7 +202,7 @@ top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
         message("Filtering out Ig genes from FindAllMarkers results...")
         n_before <- nrow(seurat.markers)
         seurat.markers <- seurat.markers |>
-            filter(!str_detect(gene, "^Igh|^Igl|^Igk"))
+            filter(!str_detect(.data$gene, "^Igh|^Igl|^Igk"))
         n_after <- nrow(seurat.markers)
         message(sprintf("Removed %d Ig genes (%d -> %d markers)", n_before - n_after, n_before, n_after))
     }
@@ -212,7 +212,7 @@ top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
         message("Filtering out TCR genes from FindAllMarkers results...")
         n_before <- nrow(seurat.markers)
         seurat.markers <- seurat.markers |>
-            filter(!str_detect(gene, "^Trav|^Trbv|^Trdv|^Trgv|^Traj|^Trbj|^Trdj|^Trgj|^Trac|^Trbc|^Trdc|^Trgc"))
+            filter(!str_detect(.data$gene, "^Trav|^Trbv|^Trdv|^Trgv|^Traj|^Trbj|^Trdj|^Trgj|^Trac|^Trbc|^Trdc|^Trgc"))
         n_after <- nrow(seurat.markers)
         message(sprintf("Removed %d TCR genes (%d -> %d markers)", n_before - n_after, n_before, n_after))
     }
@@ -230,37 +230,37 @@ top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
     # Only convert to ordered factor if all cluster levels can be coerced to numeric
     if (all(!is.na(suppressWarnings(as.numeric(as.character(unique(seurat.markers$cluster))))))) {
         seurat.markers <- seurat.markers |>
-            mutate(cluster = fct_inseq(cluster))
+            mutate(cluster = fct_inseq(.data$cluster))
     }
 
     #Top10 markers
     seurat.markers |>
-        group_by(cluster) |>
-        arrange(p_val_adj, desc(avg_log2FC), .by_group = TRUE) |>
+        group_by(.data$cluster) |>
+        arrange(.data$p_val_adj, desc(.data$avg_log2FC), .by_group = TRUE) |>
         slice_head(n = 10) -> top10
 
     #Top25 markers
     seurat.markers |>
-        group_by(cluster) |>
-        arrange(p_val_adj, desc(avg_log2FC), .by_group = TRUE) |>
+        group_by(.data$cluster) |>
+        arrange(.data$p_val_adj, desc(.data$avg_log2FC), .by_group = TRUE) |>
         slice_head(n = 50) -> top50
 
     #Top100 markers
     seurat.markers |>
-        group_by(cluster) |>
-        arrange(p_val_adj, desc(avg_log2FC), .by_group = TRUE) |>
+        group_by(.data$cluster) |>
+        arrange(.data$p_val_adj, desc(.data$avg_log2FC), .by_group = TRUE) |>
         slice_head(n = 100) -> top100
 
     #Topn markers
     seurat.markers |>
-        group_by(cluster) |>
-        arrange(p_val_adj, desc(avg_log2FC), .by_group = TRUE) |>
+        group_by(.data$cluster) |>
+        arrange(.data$p_val_adj, desc(.data$avg_log2FC), .by_group = TRUE) |>
         slice_head(n = n_genes_to_plot) -> topn
 
     # Top markers for enrichment (controlled by n_genes_for_enrichment parameter)
     seurat.markers |>
-        group_by(cluster) |>
-        arrange(p_val_adj, desc(avg_log2FC), .by_group = TRUE) |>
+        group_by(.data$cluster) |>
+        arrange(.data$p_val_adj, desc(.data$avg_log2FC), .by_group = TRUE) |>
         slice_head(n = n_genes_for_enrichment) -> top_for_enrichment
 
     # Save the top markers to files
@@ -269,14 +269,14 @@ top_genes_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
     write.table(top10,file=here::here(tables_path, paste0('top10', '_',object_annotations, ".tsv")), sep="\t",row.names = FALSE)
 
     top100_genes_per_cluster <- top100 |>
-        group_by(cluster) |>
-        summarise(genes = str_flatten_comma(gene))
+        group_by(.data$cluster) |>
+        summarise(genes = str_flatten_comma(.data$gene))
 
     write.table(top100_genes_per_cluster,
                 file = here::here(tables_path, paste0('top100_gene_names_per_cluster_', object_annotations, ".tsv")),
                 sep = "\t", row.names = FALSE, quote = FALSE)
 
-    gene_list_plot <- topn |> pull(gene)
+    gene_list_plot <- topn |> pull("gene")
 
     gene_list_plot <- gene_list_plot |> unique() |> rev()
 

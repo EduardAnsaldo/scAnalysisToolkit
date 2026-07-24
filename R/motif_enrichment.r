@@ -36,10 +36,10 @@ find_enriched_motifs <- function(seurat_object,
 
   # Filter top accessible peaks for the specified cluster
   top_accessible_peaks <- da_results |>
-    filter(cluster == cluster_id) |>
-    filter(pct.1 > pct_threshold & avg_log2FC > log2fc_threshold) |>
-    arrange((p_val_adj)) |>
-    pull(peak) |>
+    filter(.data$cluster == cluster_id) |>
+    filter(.data$pct.1 > pct_threshold & .data$avg_log2FC > log2fc_threshold) |>
+    arrange((.data$p_val_adj)) |>
+    pull("peak") |>
     unique()
 
   # Print number of peaks

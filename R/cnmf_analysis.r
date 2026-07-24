@@ -130,18 +130,18 @@ run_cnmf_results <- function (
     # 8) Extracting top_n genes per program
     top_colnames <- spectra_score |>
         tibble::rownames_to_column("program") |>
-        tidyr::pivot_longer(-program, names_to = "gene", values_to = "score") |>
-        mutate(program = fct_inseq(program)) |>
-        arrange(program) |>
-        dplyr::group_by(program) |>
-        filter(score > 0) |>
-        dplyr::slice_max(order_by = score, n = top_n, with_ties = FALSE) |>
-        dplyr::arrange(desc(score), .by_group = TRUE) |>
-        dplyr::select(program, gene) |>
+        tidyr::pivot_longer(-any_of("program"), names_to = "gene", values_to = "score") |>
+        mutate(program = fct_inseq(.data$program)) |>
+        arrange(.data$program) |>
+        dplyr::group_by(.data$program) |>
+        filter(.data$score > 0) |>
+        dplyr::slice_max(order_by = .data$score, n = top_n, with_ties = FALSE) |>
+        dplyr::arrange(desc(.data$score), .by_group = TRUE) |>
+        dplyr::select("program", "gene") |>
         dplyr::mutate(rank = dplyr::row_number()) |>
         ungroup() |>
-        tidyr::pivot_wider(names_from = program, values_from = gene) |>
-        dplyr::select(-rank)
+        tidyr::pivot_wider(names_from = "program", values_from = "gene") |>
+        dplyr::select(-any_of("rank"))
 
     # spectra_score |>
     #     tibble::rownames_to_column("program") |>
@@ -158,8 +158,8 @@ run_cnmf_results <- function (
     #Add gene annotations:
     top_colnames_long <- top_colnames |>
         pivot_longer(everything(), names_to = 'gene_expression_program', values_to = 'gene')  |>
-        mutate(gene_expression_program = fct_inseq(gene_expression_program)) |>
-        arrange(gene_expression_program) |>
+        mutate(gene_expression_program = fct_inseq(.data$gene_expression_program)) |>
+        arrange(.data$gene_expression_program) |>
         left_join(y= unique(annotations[,c('gene_name', 'description')]), by = c('gene' = 'gene_name'))
     write.table(top_colnames_long,file=here::here(output_path, paste0('top50_per_gene_program_k_', k_used, ".tsv")), sep="\t",row.names = FALSE)
 
@@ -172,28 +172,28 @@ run_cnmf_results <- function (
         t() |>
         as.data.frame() |>
         rownames_to_column('gene')  |>
-        pivot_longer(-gene, names_to = 'GEP', values_to = 'loading')  |>
-        mutate(GEP = fct_inseq(GEP)) |>
-        group_by(GEP) |>
+        pivot_longer(-any_of("gene"), names_to = 'GEP', values_to = 'loading')  |>
+        mutate(GEP = fct_inseq(.data$GEP)) |>
+        group_by(.data$GEP) |>
         # Z-score normalize the loadings within each GEP
-        mutate(loading_zscore = loading) |>
-        arrange(desc(loading_zscore), .by_group = TRUE) #|>
+        mutate(loading_zscore = .data$loading) |>
+        arrange(desc(.data$loading_zscore), .by_group = TRUE) #|>
         # slice_max(order_by = loading_zscore, n = topn_plot, with_ties = FALSE)
 
     genes_to_plot <- genes_score |>
-        group_by(GEP) |>
-        slice_max(order_by = loading_zscore, n = topn_plot, with_ties = FALSE) |>
+        group_by(.data$GEP) |>
+        slice_max(order_by = .data$loading_zscore, n = topn_plot, with_ties = FALSE) |>
         ungroup() |>
-        distinct(gene) |>
-        pull(gene)
+        distinct(.data$gene) |>
+        pull("gene")
 
     genes_score <- genes_score  |>
-        filter(gene %in% genes_to_plot)  |>
-        mutate(gene = factor(gene, levels = genes_to_plot))
+        filter(.data$gene %in% genes_to_plot)  |>
+        mutate(gene = factor(.data$gene, levels = genes_to_plot))
 
     # Calculate symmetric limits for the color scale based on z-scores
     max_abs <- max(abs(genes_score$loading_zscore), na.rm = TRUE)
-    heatmap_plot <- ggplot(genes_score, aes(x = gene, y = GEP, fill = loading_zscore)) +
+    heatmap_plot <- ggplot(genes_score, aes(x = .data$gene, y = .data$GEP, fill = .data$loading_zscore)) +
         geom_tile(linewidth = 0) +
         scale_fill_gradientn(
             colors = color_palette,

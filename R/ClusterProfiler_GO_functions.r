@@ -122,8 +122,8 @@ GO_GSEA_analysis <- function (results, local_path, ontology = 'ALL', group, minG
 
           #### GSEA ####
 
-     fold_changes <- results |> arrange(padj, desc(log2FoldChange)) |> pull(log2FoldChange)
-     names(fold_changes) <- results |> arrange(padj, desc(log2FoldChange)) |> pull(genes)
+     fold_changes <- results |> arrange(.data$padj, desc(.data$log2FoldChange)) |> pull("log2FoldChange")
+     names(fold_changes) <- results |> arrange(.data$padj, desc(.data$log2FoldChange)) |> pull("genes")
 
      gsea_results <- clusterProfiler::gseGO(geneList     = fold_changes,
                OrgDb        = org.Mm.eg.db,
@@ -186,15 +186,15 @@ cluster <- grouping_var
       local_path <- create_analysis_directory(here::here(path, paste0('GO_functional_analysis_UP_in_', group2, '_', cluster)))
 
       significant_genes <- results |>
-            filter((padj < p_value_threshold) & (log2FoldChange > FC_threshold)) |>
-            arrange(padj)
+            filter((.data$padj < p_value_threshold) & (.data$log2FoldChange > FC_threshold)) |>
+            arrange(.data$padj)
 
       if (!is.null(top_n_genes)) {
             significant_genes <- significant_genes |> slice_head(n = top_n_genes)
       }
 
-      significant_genes <- significant_genes |> pull(genes)
-      all_genes <- results |> arrange(padj) |> pull(genes)
+      significant_genes <- significant_genes |> pull("genes")
+      all_genes <- results |> arrange(.data$padj) |> pull("genes")
 
       ######################## ORA ########################
 
@@ -211,15 +211,15 @@ cluster <- grouping_var
       local_path <- create_analysis_directory(here::here(path, paste0('GO_functional_analysis_UP_in_', group1, '_', cluster)))
 
       significant_genes <- results |>
-            filter((padj < p_value_threshold) & (log2FoldChange < -1*FC_threshold)) |>
-            arrange(padj)
+            filter((.data$padj < p_value_threshold) & (.data$log2FoldChange < -1*FC_threshold)) |>
+            arrange(.data$padj)
 
       if (!is.null(top_n_genes)) {
             significant_genes <- significant_genes |> slice_head(n = top_n_genes)
       }
 
-      significant_genes <- significant_genes |> pull(genes)
-      all_genes <- results |> arrange(padj) |> pull(genes)
+      significant_genes <- significant_genes |> pull("genes")
+      all_genes <- results |> arrange(.data$padj) |> pull("genes")
 
       ######################## ORA ########################
 
@@ -275,16 +275,16 @@ GO_functional_analysis_cluster_identification <- function (scRNAseq, results, pa
      all_genes <- Features(scRNAseq[['RNA']]) |>unique()
 
     gene_lists <- results |>
-        group_by(cluster) |>
-        arrange(p_val_adj, desc(avg_log2FC), .by_group = TRUE) |>
+        group_by(.data$cluster) |>
+        arrange(.data$p_val_adj, desc(.data$avg_log2FC), .by_group = TRUE) |>
         slice_head(n = top_gene_number)  |>
         ungroup() |>
-        select(cluster, gene)  |>
-        group_by(cluster) |>
+        select("cluster", "gene")  |>
+        group_by(.data$cluster) |>
         mutate(id = row_number()) |>
         ungroup() |>
-        pivot_wider(names_from = cluster, values_from = gene)  |>
-        select(-id) |>
+        pivot_wider(names_from = "cluster", values_from = "gene")  |>
+        select(-any_of("id")) |>
         as.list() |>
         map(~ .x[!is.na(.x)])
 
@@ -350,10 +350,10 @@ GO_overrepresentation_analysis_multiple_lists <- function (gene_list, all_genes,
      }
 
      enrichment_results <- enrichment_results |>
-          mutate(Cluster = if (all(!is.na(suppressWarnings(as.numeric(levels(factor(Cluster))))))) {
-               fct_inseq(Cluster)
+          mutate(Cluster = if (all(!is.na(suppressWarnings(as.numeric(levels(factor(.data$Cluster))))))) {
+               fct_inseq(.data$Cluster)
           } else {
-               factor(Cluster)
+               factor(.data$Cluster)
           })
 
      enrichment_results_table <- as_tibble(enrichment_results)

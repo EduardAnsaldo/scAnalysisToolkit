@@ -46,50 +46,50 @@ scatterplot <- function (results, group1, group2, local_figures_path, FC_thresho
 
     ## prepare for visualization
     results_scatter <- results |>
-        drop_na(pvalue) |>
+        drop_na("pvalue") |>
         mutate(
-            log10_pval = log10(padj+10^-300)*-1,
+            log10_pval = log10(.data$padj+10^-300)*-1,
             distance_from_diagonal =  (abs((log10(!!sym(paste0('Avg_', group2))+1)) - (log10(!!sym(paste0('Avg_', group1))+1)))/sqrt(2))) |>
         mutate(
             genes_to_label_first = ifelse(
-                (log2FoldChange >= FC_threshold | log2FoldChange <= -1 * FC_threshold) &
-                (padj < p_value_threshold) &
-                (distance_from_diagonal > distance_from_diagonal_threshold) &
+                (.data$log2FoldChange >= FC_threshold | .data$log2FoldChange <= -1 * FC_threshold) &
+                (.data$padj < p_value_threshold) &
+                (.data$distance_from_diagonal > distance_from_diagonal_threshold) &
                 ((!!sym(paste0('Avg_', group2)) > 100) | (!!sym(paste0('Avg_', group1)) > 100)),
-                genes, NA
+                .data$genes, NA
             ),
             genes_to_label_second = ifelse(
-                (log2FoldChange >= FC_threshold | log2FoldChange <= -1 * FC_threshold) &
-                (padj < p_value_threshold) &
+                (.data$log2FoldChange >= FC_threshold | .data$log2FoldChange <= -1 * FC_threshold) &
+                (.data$padj < p_value_threshold) &
                 ((!!sym(paste0('Avg_', group2)) > label_threshold) | (!!sym(paste0('Avg_', group1)) > label_threshold)) &
-                is.na(genes_to_label_first),
-                genes, NA
+                is.na(.data$genes_to_label_first),
+                .data$genes, NA
             ),
             genes_to_label = ifelse(
-                (log2FoldChange >= FC_threshold | log2FoldChange <= -1 * FC_threshold) &
-                (padj < p_value_threshold) &
-                is.na(genes_to_label_first) &
-                is.na(genes_to_label_second),
-                genes, NA
+                (.data$log2FoldChange >= FC_threshold | .data$log2FoldChange <= -1 * FC_threshold) &
+                (.data$padj < p_value_threshold) &
+                is.na(.data$genes_to_label_first) &
+                is.na(.data$genes_to_label_second),
+                .data$genes, NA
             ),
             diffexpressed = case_when(
-                log2FoldChange >= FC_threshold & padj < p_value_threshold ~ 'UP',
-                log2FoldChange <= -1 * FC_threshold & padj < p_value_threshold ~ "DOWN",
+                .data$log2FoldChange >= FC_threshold & .data$padj < p_value_threshold ~ 'UP',
+                .data$log2FoldChange <= -1 * FC_threshold & .data$padj < p_value_threshold ~ "DOWN",
                 TRUE ~ 'NO'
             )
         ) |>
         mutate(
-            diffexpressed = factor(diffexpressed, levels = c('NO', 'DOWN', 'UP'))
+            diffexpressed = factor(.data$diffexpressed, levels = c('NO', 'DOWN', 'UP'))
         ) |>
-        arrange(diffexpressed)
+        arrange(.data$diffexpressed)
 
       # Replace genes to label with provided gene list if applicable
       if (!is.null(genes_to_plot)) {
         results_scatter <- results_scatter |>
             mutate(
                 genes_to_label_first = ifelse(
-                    genes %in% genes_to_plot,
-                    genes, NA
+                    .data$genes %in% genes_to_plot,
+                    .data$genes, NA
                 ),
                 genes_to_label_second = NA,
                 genes_to_label = NA)
@@ -101,7 +101,7 @@ scatterplot <- function (results, group1, group2, local_figures_path, FC_thresho
     mylims <- max(limx, limy)*6
 
     scatter_plot <- results_scatter |>
-        ggplot(aes(x = !!sym(paste0('Avg_', group1)), y = !!sym(paste0('Avg_', group2)), col = diffexpressed))+
+        ggplot(aes(x = !!sym(paste0('Avg_', group1)), y = !!sym(paste0('Avg_', group2)), col = .data$diffexpressed))+
             geom_point(size=pt_size, stroke = 0) +
             geom_abline(slope = 1, intercept = 0)+
             add_gene_labels_layer('genes_to_label_first', results_scatter$diffexpressed,
@@ -194,41 +194,41 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
     if (is.null(nudge_y)) nudge_y <- 0
 
     results_volcano <- results |>
-        drop_na(pvalue) |>
+        drop_na("pvalue") |>
         mutate(
-            log10_pval = -log10(pmax(padj, 10^-pval_cap))) |>
+            log10_pval = -log10(pmax(.data$padj, 10^-pval_cap))) |>
         mutate(
             genes_to_label_UP = ifelse(
-                (log2FoldChange >= FC_threshold) &
-                (padj < p_value_threshold),
-                genes, NA
+                (.data$log2FoldChange >= FC_threshold) &
+                (.data$padj < p_value_threshold),
+                .data$genes, NA
             ),
             genes_to_label_DOWN = ifelse(
-                (log2FoldChange <= -1 * FC_threshold) &
-                (padj < p_value_threshold),
-                genes, NA
+                (.data$log2FoldChange <= -1 * FC_threshold) &
+                (.data$padj < p_value_threshold),
+                .data$genes, NA
             ),
             diffexpressed = case_when(
-                log2FoldChange >= FC_threshold & padj < p_value_threshold ~ 'UP',
-                log2FoldChange <= -1*FC_threshold & padj < p_value_threshold ~ "DOWN",
+                .data$log2FoldChange >= FC_threshold & .data$padj < p_value_threshold ~ 'UP',
+                .data$log2FoldChange <= -1*FC_threshold & .data$padj < p_value_threshold ~ "DOWN",
                 TRUE ~ 'NO'
             )
         ) |>
         mutate(
-            diffexpressed = factor(diffexpressed, levels = c('NO', 'DOWN', 'UP'))
+            diffexpressed = factor(.data$diffexpressed, levels = c('NO', 'DOWN', 'UP'))
         ) |>
-        arrange(diffexpressed)
+        arrange(.data$diffexpressed)
 
     if (!is.null(genes_to_plot)) {
         results_volcano <- results_volcano |>
             mutate(
                 genes_to_label_UP = ifelse((
-                    genes %in% genes_to_plot) & (log2FoldChange >= FC_threshold),
-                    genes, NA
+                    .data$genes %in% genes_to_plot) & (.data$log2FoldChange >= FC_threshold),
+                    .data$genes, NA
                 ),
                 genes_to_label_DOWN = ifelse((
-                    genes %in% genes_to_plot) & (log2FoldChange <= -1 * FC_threshold),
-                    genes, NA
+                    .data$genes %in% genes_to_plot) & (.data$log2FoldChange <= -1 * FC_threshold),
+                    .data$genes, NA
                 )
             )
             if (nudge_x == 0) nudge_x <- 3
@@ -236,8 +236,8 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
     }
 
     initial_number_of_genes <- nrow(results_volcano)
-    max_FC_up_significant <- results_volcano |> filter(diffexpressed != 'NO') |> dplyr::select(log2FoldChange) |> max(na.rm = T)
-    min_FC_up_significant <- results_volcano |> filter(diffexpressed != 'NO') |> dplyr::select(log2FoldChange) |> min(na.rm = T)
+    max_FC_up_significant <- results_volcano |> filter(.data$diffexpressed != 'NO') |> dplyr::select("log2FoldChange") |> max(na.rm = T)
+    min_FC_up_significant <- results_volcano |> filter(.data$diffexpressed != 'NO') |> dplyr::select("log2FoldChange") |> min(na.rm = T)
     # ChromVar (Z-score) plots use a tighter x-axis extent (±2) than other modalities (±3)
     axis_limit <- if (test_type == 'Wilcox_ChromVar_motif') 2 else 3
     if (min_FC_up_significant > -axis_limit | is.na(min_FC_up_significant)) {
@@ -247,8 +247,8 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
         max_FC_up_significant <- axis_limit
     }
     results_volcano <- results_volcano |>
-        filter(!(diffexpressed == 'NO' & (log2FoldChange < min_FC_up_significant | log2FoldChange > max_FC_up_significant))) |>
-        arrange(diffexpressed)
+        filter(!(.data$diffexpressed == 'NO' & (.data$log2FoldChange < min_FC_up_significant | .data$log2FoldChange > max_FC_up_significant))) |>
+        arrange(.data$diffexpressed)
     final_number_of_genes <- nrow(results_volcano)
     message('Removed ', initial_number_of_genes-final_number_of_genes, ' non-significant genes that would bias the plot visualization')
 
@@ -263,8 +263,8 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
     arrow_label_y <- y_max * 1.04  # vertical position of the text label (above the arrow)
 
     volcano_plot <- results_volcano |>
-        arrange(desc(padj)) |>
-        ggplot(aes(x=log2FoldChange, y=log10_pval, col=diffexpressed)) +
+        arrange(desc(.data$padj)) |>
+        ggplot(aes(x=.data$log2FoldChange, y=.data$log10_pval, col=.data$diffexpressed)) +
         geom_point(size=pt_size, stroke = 0) +
 
         # ── UP arrow (right, group2 color) ──────────────────────────────────
@@ -308,7 +308,7 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
             max.iter = 10000000,
             nudge_x = nudge_x,
             nudge_y = nudge_y,
-            aes(label = genes_to_label_UP, segment.size=label_line_width, segment.alpha=0.8, segment.curvature=0),
+            aes(label = .data$genes_to_label_UP, segment.size=label_line_width, segment.alpha=0.8, segment.curvature=0),
             fontface = 'italic') +
         geom_text_repel(
             size=label_size,
@@ -320,7 +320,7 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
             nudge_x = -1*nudge_x,
             nudge_y = nudge_y,
             fontface = 'italic',
-            aes(label = genes_to_label_DOWN, segment.size=label_line_width, segment.alpha=0.8, segment.curvature=0)) +
+            aes(label = .data$genes_to_label_DOWN, segment.size=label_line_width, segment.alpha=0.8, segment.curvature=0)) +
         scale_colour_manual(values=my_colors) +
         geom_vline(xintercept= FC_threshold, col="lavenderblush2", linetype=2, size=dashed_line_width) +
         geom_vline(xintercept=-FC_threshold, col="lavenderblush2", linetype=2, size=dashed_line_width) +
@@ -389,15 +389,15 @@ plot_deg_counts <- function(deg_counts_df, figures_path, group2 = NULL, group1 =
 
     # Transform data for plotting
     deg_counts_long <- deg_counts_df |>
-        mutate(total_genes = UP_count + DOWN_count) |>
-        arrange(desc(total_genes)) |>
-        mutate(cell_type = fct_inorder(cell_type) |> fct_rev()) |>
+        mutate(total_genes = .data$UP_count + .data$DOWN_count) |>
+        arrange(desc(.data$total_genes)) |>
+        mutate(cell_type = fct_inorder(.data$cell_type) |> fct_rev()) |>
         pivot_longer(
-            cols = c(UP_count, DOWN_count),
+            cols = any_of(c("UP_count", "DOWN_count")),
             names_to = "direction",
             values_to = "count"
         ) |>
-        mutate(direction = factor(direction, levels = c("DOWN_count", "UP_count")))
+        mutate(direction = factor(.data$direction, levels = c("DOWN_count", "UP_count")))
 
     # labels
         if (!is.null(group1) & !is.null(group2)) {
@@ -409,7 +409,7 @@ plot_deg_counts <- function(deg_counts_df, figures_path, group2 = NULL, group1 =
         }
 
     # Create plot
-    p <- ggplot(deg_counts_long, aes(x = count, y = cell_type, fill = direction)) +
+    p <- ggplot(deg_counts_long, aes(x = .data$count, y = .data$cell_type, fill = .data$direction)) +
         geom_col(position = position_dodge(width = 0.8), width = 0.7) +
         scale_fill_manual(
             values = c("UP_count" = up_color, "DOWN_count" = down_color),

@@ -55,45 +55,45 @@ top_peaks_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
         # Convert PeakRanges from colon format (chr1:start-end) to dash format (chr1-start-end)
         # to match Seurat's peak naming convention
         peak_gene_map <- peak_to_gene |>
-            mutate(PeakRanges = str_replace(PeakRanges, ':', '-')) |>
-            arrange(desc(abs(rObs))) |>
-            distinct(PeakRanges, .keep_all = TRUE) |>
-            select(PeakRanges, Gene)
+            mutate(PeakRanges = str_replace(.data$PeakRanges, ':', '-')) |>
+            arrange(desc(abs(.data$rObs))) |>
+            distinct(.data$PeakRanges, .keep_all = TRUE) |>
+            select("PeakRanges", "Gene")
 
         da_peaks <- da_peaks |>
-            rename(peak = gene) |>
+            rename(peak = "gene") |>
             left_join(peak_gene_map, by = c('peak' = 'PeakRanges'))
 
         # For peaks without a correlated gene, optionally fall back to ClosestFeature
-        unmapped_peaks <- da_peaks |> filter(is.na(Gene) | Gene == '')
+        unmapped_peaks <- da_peaks |> filter(is.na(.data$Gene) | .data$Gene == '')
         if (closest_feature_fallback && nrow(unmapped_peaks) > 0) {
             closest_genes <- Signac::ClosestFeature(seurat, unmapped_peaks$peak)
             da_peaks <- da_peaks |>
-                left_join(closest_genes |> select(query_region, gene_name),
+                left_join(closest_genes |> select("query_region", "gene_name"),
                           by = c('peak' = 'query_region')) |>
                 mutate(
-                    has_correlated_gene = !is.na(Gene) & Gene != '',
+                    has_correlated_gene = !is.na(.data$Gene) & .data$Gene != '',
                     gene = case_when(
-                        has_correlated_gene ~ Gene,
-                        !is.na(gene_name) ~ gene_name,
-                        TRUE ~ peak
+                        .data$has_correlated_gene ~ .data$Gene,
+                        !is.na(.data$gene_name) ~ .data$gene_name,
+                        TRUE ~ .data$peak
                     )
                 ) |>
-                select(-Gene, -gene_name)
+                select(-any_of(c("Gene","gene_name")))
         } else {
             da_peaks <- da_peaks |>
                 mutate(
-                    has_correlated_gene = !is.na(Gene) & Gene != '',
-                    gene = ifelse(has_correlated_gene, Gene, peak)
+                    has_correlated_gene = !is.na(.data$Gene) & .data$Gene != '',
+                    gene = ifelse(.data$has_correlated_gene, .data$Gene, .data$peak)
                 ) |>
-                select(-Gene)
+                select(-any_of("Gene"))
         }
     } else {
         genes <- Signac::ClosestFeature(seurat, rownames(da_peaks))
         da_peaks <- left_join(da_peaks, genes, by = c('gene' = 'query_region'))
         da_peaks <- da_peaks |>
-            select(-tx_id, -gene_id) |>
-            rename(peak = gene, gene = gene_name) |>
+            select(-any_of(c("tx_id","gene_id"))) |>
+            rename(peak = "gene", gene = "gene_name") |>
             mutate(has_correlated_gene = TRUE)
     }
 
@@ -105,31 +105,31 @@ top_peaks_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
     
     if (all(is.numeric(unique(da_peaks$cluster)))) {
         da_peaks <- da_peaks |>
-            mutate(cluster = fct_inseq(cluster))
+            mutate(cluster = fct_inseq(.data$cluster))
     }
 
     #Top10 markers
     da_peaks |>
-        group_by(cluster) |>
-        arrange(p_val_adj, desc(avg_log2FC), .by_group = TRUE) |>
+        group_by(.data$cluster) |>
+        arrange(.data$p_val_adj, desc(.data$avg_log2FC), .by_group = TRUE) |>
         slice_head(n = 10) -> top10
 
     #Top25 markers
     da_peaks |>
-        group_by(cluster) |>
-        arrange(p_val_adj, desc(avg_log2FC), .by_group = TRUE) |>
+        group_by(.data$cluster) |>
+        arrange(.data$p_val_adj, desc(.data$avg_log2FC), .by_group = TRUE) |>
         slice_head(n = 50) -> top50
 
     #Top100 markers
     da_peaks |>
-        group_by(cluster) |>
-        arrange(p_val_adj, desc(avg_log2FC), .by_group = TRUE) |>
+        group_by(.data$cluster) |>
+        arrange(.data$p_val_adj, desc(.data$avg_log2FC), .by_group = TRUE) |>
         slice_head(n = 100) -> top100
 
     #Topn markers
     da_peaks |>
-        group_by(cluster) |>
-        arrange(p_val_adj, desc(avg_log2FC), .by_group = TRUE) |>
+        group_by(.data$cluster) |>
+        arrange(.data$p_val_adj, desc(.data$avg_log2FC), .by_group = TRUE) |>
         slice_head(n = n_genes_to_plot) -> topn
 
     # Save the top markers to files
@@ -139,9 +139,9 @@ top_peaks_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
 
     top100_genes_per_cluster <- top100 |>
         ungroup() |>
-        filter(has_correlated_gene) |>
-        group_by(cluster, .drop = TRUE) |>
-        summarise(genes = str_flatten_comma(gene), .groups = 'drop')
+        filter(.data$has_correlated_gene) |>
+        group_by(.data$cluster, .drop = TRUE) |>
+        summarise(genes = str_flatten_comma(.data$gene), .groups = 'drop')
 
     write.table(top100_genes_per_cluster,
                 file = here::here(tables_path, paste0('top100_peak_gene_names_per_cluster_', object_annotations, ".tsv")),
@@ -153,8 +153,8 @@ top_peaks_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
         # Run pathway enrichment analysis
     if (!is.null(run_pathway_enrichment)) {
         # Filter out peaks without correlated genes for enrichment
-        top100_for_enrichment <- top100 |> ungroup() |> filter(has_correlated_gene)
-        da_peaks_for_enrichment <- da_peaks |> ungroup() |> filter(has_correlated_gene)
+        top100_for_enrichment <- top100 |> ungroup() |> filter(.data$has_correlated_gene)
+        da_peaks_for_enrichment <- da_peaks |> ungroup() |> filter(.data$has_correlated_gene)
 
         if ('Metascape' %in% run_pathway_enrichment) {
             metascape_results <- Metascape_functional_analysis_cluster_identification(seurat, top100_for_enrichment, identities = grouping_var, path=results_path, object_annotations = object_annotations)
@@ -166,8 +166,8 @@ top_peaks_per_cluster <- function (seurat, n_genes_to_plot = 3, grouping_var = '
     }
 
     # Remove internal tracking column before returning
-    da_peaks <- da_peaks |> select(-has_correlated_gene)
-    topn <- topn |> select(-has_correlated_gene)
+    da_peaks <- da_peaks |> select(-any_of("has_correlated_gene"))
+    topn <- topn |> select(-any_of("has_correlated_gene"))
 
     return(list(ClusterProfiler_results = ClusterProfiler_results, metascape_results = metascape_results, topn = topn, da_results =  da_peaks ) )
 
@@ -254,37 +254,37 @@ run_differential_accessibility_FindMarkers <- function(seurat, comparison, group
 
     if (!is.null(peak_to_gene)) {
         peak_gene_map <- peak_to_gene |>
-            mutate(PeakRanges = str_replace(PeakRanges, ':', '-')) |>
-            arrange(desc(abs(rObs))) |>
-            distinct(PeakRanges, .keep_all = TRUE) |>
-            select(PeakRanges, Gene)
+            mutate(PeakRanges = str_replace(.data$PeakRanges, ':', '-')) |>
+            arrange(desc(abs(.data$rObs))) |>
+            distinct(.data$PeakRanges, .keep_all = TRUE) |>
+            select("PeakRanges", "Gene")
 
         results <- results |>
             rownames_to_column('peak') |>
             left_join(peak_gene_map, by = c('peak' = 'PeakRanges'))
 
-        unmapped_peaks <- results |> filter(is.na(Gene) | Gene == '')
+        unmapped_peaks <- results |> filter(is.na(.data$Gene) | .data$Gene == '')
         if (closest_feature_fallback && nrow(unmapped_peaks) > 0) {
             closest_genes <- Signac::ClosestFeature(seurat, unmapped_peaks$peak)
             results <- results |>
-                left_join(closest_genes |> select(query_region, gene_name),
+                left_join(closest_genes |> select("query_region", "gene_name"),
                           by = c('peak' = 'query_region')) |>
                 mutate(
-                    has_correlated_gene = !is.na(Gene) & Gene != '',
+                    has_correlated_gene = !is.na(.data$Gene) & .data$Gene != '',
                     genes = case_when(
-                        has_correlated_gene ~ Gene,
-                        !is.na(gene_name) ~ gene_name,
-                        TRUE ~ peak
+                        .data$has_correlated_gene ~ .data$Gene,
+                        !is.na(.data$gene_name) ~ .data$gene_name,
+                        TRUE ~ .data$peak
                     )
                 ) |>
-                select(-Gene, -gene_name)
+                select(-any_of(c("Gene","gene_name")))
         } else {
             results <- results |>
                 mutate(
-                    has_correlated_gene = !is.na(Gene) & Gene != '',
-                    genes = ifelse(has_correlated_gene, Gene, peak)
+                    has_correlated_gene = !is.na(.data$Gene) & .data$Gene != '',
+                    genes = ifelse(.data$has_correlated_gene, .data$Gene, .data$peak)
                 ) |>
-                select(-Gene)
+                select(-any_of("Gene"))
         }
     } else {
         closest_genes <- Signac::ClosestFeature(seurat, rownames(results))
@@ -292,8 +292,8 @@ run_differential_accessibility_FindMarkers <- function(seurat, comparison, group
             rownames_to_column('gene') |>
             left_join(closest_genes, by = c('gene' = 'query_region'))
         results <- results |>
-            select(-tx_id, -gene_id) |>
-            rename(peak = gene, genes = gene_name) |>
+            select(-any_of(c("tx_id","gene_id"))) |>
+            rename(peak = "gene", genes = "gene_name") |>
             mutate(has_correlated_gene = TRUE)
     }
 
@@ -302,29 +302,29 @@ run_differential_accessibility_FindMarkers <- function(seurat, comparison, group
                 left_join(y= unique(annotations[,c('gene_name', 'description')]),
                     by = c('genes' = 'gene_name')) |>
                 rename(
-                    log2FoldChange = avg_log2FC,
-                    padj = p_val_adj,
-                    pvalue = p_val
+                    log2FoldChange = "avg_log2FC",
+                    padj = "p_val_adj",
+                    pvalue = "p_val"
                 ) |>
-                mutate(log2FoldChange = log2FoldChange * -1)
+                mutate(log2FoldChange = .data$log2FoldChange * -1)
 
     # Filter results
     results_filtered <- filter(
         results,
-        padj < p_value_threshold &
-            (log2FoldChange >= FC_threshold | log2FoldChange <= -1 * FC_threshold)
+        .data$padj < p_value_threshold &
+            (.data$log2FoldChange >= FC_threshold | .data$log2FoldChange <= -1 * FC_threshold)
     ) |>
-        arrange(padj)
+        arrange(.data$padj)
 
-    results_filtered_UP <- filter(results_filtered, log2FoldChange >= FC_threshold)
-    results_filtered_DOWN <- filter(results_filtered, log2FoldChange <= -1 * FC_threshold)
+    results_filtered_UP <- filter(results_filtered, .data$log2FoldChange >= FC_threshold)
+    results_filtered_DOWN <- filter(results_filtered, .data$log2FoldChange <= -1 * FC_threshold)
 
     # Write results to CSV files
-    write.csv(results |> arrange(padj),
+    write.csv(results |> arrange(.data$padj),
              file = here::here(gene_lists_path, paste('ALL_PEAKS_DA_Analysis', cluster, 'Wilcox', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_UP |> arrange(padj, desc(log2FoldChange)),
+    write.csv(results_filtered_UP |> arrange(.data$padj, desc(.data$log2FoldChange)),
              file = here::here(gene_lists_path, paste('PEAKS_UP_in', group2, cluster, 'Wilcox', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_DOWN |> arrange(padj, log2FoldChange),
+    write.csv(results_filtered_DOWN |> arrange(.data$padj, .data$log2FoldChange),
              file = here::here(gene_lists_path, paste('PEAKS_UP_in_DOWN_in', group2, cluster, 'Wilcox', group2, 'vs', group1, '.csv', sep = '_')))
 
     # Return counts and results
@@ -429,8 +429,8 @@ run_differential_accessibility <- function(seurat, comparison, group1, group2, i
     }
 
     results_regions <- da_results$results |>
-        select(-genes) |>
-        rename(genes = peak)
+        select(-any_of("genes")) |>
+        rename(genes = "peak")
 
     # Without gene names
     volcanoplot_output <- volcano_plot(
@@ -467,7 +467,7 @@ run_differential_accessibility <- function(seurat, comparison, group1, group2, i
     )
 
     # Overrepresentation analysis — use only correlated-gene peaks for enrichment
-    results_for_enrichment <- da_results$results |> filter(has_correlated_gene)
+    results_for_enrichment <- da_results$results |> filter(.data$has_correlated_gene)
 
     run_DEG_functional_analysis(
         results = results_for_enrichment,
@@ -484,7 +484,7 @@ run_differential_accessibility <- function(seurat, comparison, group1, group2, i
     )
 
     # Remove internal tracking column before returning
-    da_results$results <- da_results$results |> select(-has_correlated_gene)
+    da_results$results <- da_results$results |> select(-any_of("has_correlated_gene"))
 
     return(list(
         all_count = da_results$all_count,
@@ -603,28 +603,28 @@ compare_motive_activity_pairwise <- function(seurat, cluster_id, other_cluster_i
 
   
 
-  top_motif_activities_up <- differential_activity |> 
-    filter(avg_diff > 0) |> 
-    filter(p_val_adj < 0.05) |>
-    arrange(p_val_adj) |>
+  top_motif_activities_up <- differential_activity |>
+    filter(.data$avg_diff > 0) |>
+    filter(.data$p_val_adj < 0.05) |>
+    arrange(.data$p_val_adj) |>
     slice_head(n = topn) |>
     rownames_to_column(var = 'gene') |>
-    pull(gene) |> 
+    pull("gene") |>
     unique()
 
-  top_motif_activities_down <- differential_activity |> 
-    filter(avg_diff < 0) |> 
-    filter(p_val_adj < 0.05) |>
-    arrange(p_val_adj) |>
+  top_motif_activities_down <- differential_activity |>
+    filter(.data$avg_diff < 0) |>
+    filter(.data$p_val_adj < 0.05) |>
+    arrange(.data$p_val_adj) |>
     slice_head(n = topn) |>
     rownames_to_column(var = 'gene') |>
-    pull(gene) |> 
+    pull("gene") |>
     unique()
-  
-  differential_activity_cluster <- differential_activity |> 
+
+  differential_activity_cluster <- differential_activity |>
     rownames_to_column(var = 'gene') |>
-    rename(log2FoldChange = avg_diff, pvalue = p_val, padj = p_val_adj) |>
-    mutate(genes = map_chr(gene, ID_to_symbol)) 
+    rename(log2FoldChange = "avg_diff", pvalue = "p_val", padj = "p_val_adj") |>
+    mutate(genes = map_chr(.data$gene, ID_to_symbol))
 
 
   plot <- volcano_plot(differential_activity_cluster, group1 = other_cluster_id, group2 = cluster_id, cluster = cluster_title, local_figures_path = figures_path, FC_threshold = 0.25, p_value_threshold = 0.05, test_type = 'Wilcox_ChromVar_motif', ...)
@@ -717,7 +717,7 @@ compare_motive_activity_pairwise <- function(seurat, cluster_id, other_cluster_i
     differential_activity <- differential_activity |>
       rownames_to_column(var = 'motif_id') |>
       mutate(
-        motif_name = map_chr(motif_id, function(motif_id) {
+        motif_name = map_chr(.data$motif_id, function(motif_id) {
             motif_matrix <- TFBSTools::getMatrixByID(
               x = JASPARConnect,
               ID = motif_id

@@ -128,10 +128,10 @@ plot_circos_clonotypes <- function(
                 next
             } else {
                 table_one <- clonotype_data_plot |>
-                    filter(group == origin & group_counts != 0)  |>
+                    filter(.data$group == origin & .data$group_counts != 0)  |>
                     dplyr::select(all_of(c('clonotype', 'group', 'coordinates')))
                 table_two <- clonotype_data_plot |>
-                    filter(group == target & group_counts != 0) |>
+                    filter(.data$group == target & .data$group_counts != 0) |>
                     dplyr::select(all_of(c('clonotype', 'group', 'coordinates')))
                 link_table  <-  inner_join(table_one, table_two, by = 'clonotype') |> column_to_rownames(var = 'clonotype')
                 for (clonotype1 in rownames(link_table)) {
@@ -242,14 +242,14 @@ overlap_circos_and_tables <- function(
     clonotype_data <- combined2[[1]] |>
         as_tibble() |>
         dplyr::select(all_of(c('CTaa', 'CTgene', grouping_variable, cell_types_column))) |>
-        add_count(CTaa, !!as.name(grouping_variable), sort = TRUE, name = 'counts_per_condition') |>
-        group_by(CTaa, !!as.name(grouping_variable)) |>
+        add_count(.data$CTaa, !!as.name(grouping_variable), sort = TRUE, name = 'counts_per_condition') |>
+        group_by(.data$CTaa, !!as.name(grouping_variable)) |>
         summarize(across(everything(), Mode), .groups = 'drop') |>
-        arrange(desc(counts_per_condition)) |>
+        arrange(desc(.data$counts_per_condition)) |>
         pivot_wider(
             id_cols = c('CTaa'),
             names_from = !!as.name(grouping_variable),
-            values_from = counts_per_condition,
+            values_from = "counts_per_condition",
             unused_fn = Mode,
             values_fill = 0
         ) |>
@@ -268,30 +268,30 @@ overlap_circos_and_tables <- function(
             names_to = 'group',
             values_to = 'group_counts'
         ) |>
-        group_by(group) |>
-        mutate(sequence_count_by_grouping_variable = sum(group_counts)) |>
-        arrange(desc(group_counts)) |>
-        mutate(clonotype_position_on_circos_by_grouping_variable = cumsum(group_counts)) |>
+        group_by(.data$group) |>
+        mutate(sequence_count_by_grouping_variable = sum(.data$group_counts)) |>
+        arrange(desc(.data$group_counts)) |>
+        mutate(clonotype_position_on_circos_by_grouping_variable = cumsum(.data$group_counts)) |>
         mutate(clonotype_start_position_by_grouping_variable = c(
             0,
-            clonotype_position_on_circos_by_grouping_variable[-length(clonotype_position_on_circos_by_grouping_variable)]
+            .data$clonotype_position_on_circos_by_grouping_variable[-length(.data$clonotype_position_on_circos_by_grouping_variable)]
         )) |>
         ungroup() |>
         rowwise() |>
         mutate(coordinates = list(c(
-            clonotype_start_position_by_grouping_variable,
-            clonotype_position_on_circos_by_grouping_variable
+            .data$clonotype_start_position_by_grouping_variable,
+            .data$clonotype_position_on_circos_by_grouping_variable
         ))) |>
         ungroup() |>
-        mutate(group = fct(group, levels = group_levels))
+        mutate(group = fct(.data$group, levels = group_levels))
     
     clonotype_data_plot_distinct <- clonotype_data_plot |>
         dplyr::select(all_of(c('group', 'sequence_count_by_grouping_variable'))) |>
         distinct() |>
-        arrange(group) |>
+        arrange(.data$group) |>
         mutate(origin = 0) |>
         column_to_rownames('group') |>
-        relocate(origin) |>
+        relocate("origin") |>
         as.matrix()
     
     plot_circos_clonotypes(
@@ -422,8 +422,8 @@ create_V_J_chord_diagram <- function(trbv_j_table,
 
     # Calculate transparency
     trbv_j_transparency <- trbv_j_processed |>
-        mutate(transparency = (interaction - min(interaction)) / (max(interaction) - min(interaction))) |>
-        mutate(transparency = 1 - transparency * 1.5)
+        mutate(transparency = (.data$interaction - min(.data$interaction)) / (max(.data$interaction) - min(.data$interaction))) |>
+        mutate(transparency = 1 - .data$transparency * 1.5)
 
     # Generate colors
     trbv_colors <- grDevices::hcl.colors(length(unique(trbv_j_processed[[chain_a]])), trbv_palette, rev = TRUE)

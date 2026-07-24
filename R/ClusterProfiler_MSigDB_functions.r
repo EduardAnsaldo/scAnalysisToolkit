@@ -67,7 +67,7 @@ pathway_overrepresentation_analysis <- function (significant_genes, all_genes, l
                     msigdbr::msigdbr(db_species = "MM", species = "mouse", collection = pc[1])
                }
           }
-     ) |> select(gs_name, ncbi_gene)
+     ) |> select("gs_name", "ncbi_gene")
 
      enrichment_results <- clusterProfiler::enricher(gene = significant_genes_entrez,
                     universe = all_genes_entrez,
@@ -106,10 +106,10 @@ pathway_overrepresentation_analysis <- function (significant_genes, all_genes, l
 
 
      if (nrow(enrichment_results_table) > 1) {
-          p1 <- enrichment_results_table |>       
-               mutate(log_q_value = -log10(qvalue)) |>
-               slice_max(order_by = log_q_value, n = nterms_to_plot) |>
-          ggplot(aes(x = log_q_value, y = fct_reorder(Description, log_q_value , .desc = F), fill = log_q_value)) +
+          p1 <- enrichment_results_table |>
+               mutate(log_q_value = -log10(.data$qvalue)) |>
+               slice_max(order_by = .data$log_q_value, n = nterms_to_plot) |>
+          ggplot(aes(x = .data$log_q_value, y = fct_reorder(.data$Description, .data$log_q_value , .desc = F), fill = .data$log_q_value)) +
                geom_col(width = 0.7) +
                scale_fill_stepsn(
                     colours = grDevices::hcl.colors(n = 6, 'YlOrRd', rev = TRUE),
@@ -170,7 +170,7 @@ pathway_GSEA_analysis <- function (results, local_path, group, minGSSize = 5, ma
      # Merge with results to keep fold changes
      results_with_ids <- results |>
           inner_join(gene_ids, by = c("genes" = "SYMBOL")) |>
-          arrange(padj, desc(log2FoldChange))
+          arrange(.data$padj, desc(.data$log2FoldChange))
 
      # Create TERM2GENE database from MSigDB pathway collections
      pathway_collections <- list(c('MH'), c('M2', 'CP:BIOCARTA'), c('M2', 'CP:REACTOME'), c('M2', 'CP:WIKIPATHWAYS'), c('M5', 'GO:BP'))
@@ -183,10 +183,10 @@ pathway_GSEA_analysis <- function (results, local_path, group, minGSSize = 5, ma
                     msigdbr::msigdbr(db_species = "MM", species = "mouse", collection = pc[1])
                }
           }
-     ) |> select(gs_name, ncbi_gene)
+     ) |> select("gs_name", "ncbi_gene")
 
-     fold_changes <- results_with_ids |> pull(log2FoldChange)
-     names(fold_changes) <- results_with_ids |> pull(ENTREZID)
+     fold_changes <- results_with_ids |> pull("log2FoldChange")
+     names(fold_changes) <- results_with_ids |> pull("ENTREZID")
 
      gsea_results <- clusterProfiler::GSEA(geneList     = fold_changes,
                minGSSize    = minGSSize,
@@ -246,15 +246,15 @@ cluster <- grouping_var
       local_path <- create_analysis_directory(here::here(path, paste0('Pathway_functional_analysis_UP_in_', group2, '_', cluster)))
 
       significant_genes <- results |>
-            filter((padj < p_value_threshold) & (log2FoldChange > FC_threshold)) |>
-            arrange(padj)
+            filter((.data$padj < p_value_threshold) & (.data$log2FoldChange > FC_threshold)) |>
+            arrange(.data$padj)
 
       if (!is.null(top_n_genes)) {
             significant_genes <- significant_genes |> slice_head(n = top_n_genes)
       }
 
-      significant_genes <- significant_genes |> pull(genes)
-      all_genes <- results |> arrange(padj) |> pull(genes)
+      significant_genes <- significant_genes |> pull("genes")
+      all_genes <- results |> arrange(.data$padj) |> pull("genes")
 
       ######################## ORA ########################
 
@@ -272,15 +272,15 @@ cluster <- grouping_var
       local_path <- create_analysis_directory(here::here(path, paste0('Pathway_functional_analysis_UP_in_', group1, '_', cluster)))
 
       significant_genes <- results |>
-            filter((padj < p_value_threshold) & (log2FoldChange < -1*FC_threshold)) |>
-            arrange(padj)
+            filter((.data$padj < p_value_threshold) & (.data$log2FoldChange < -1*FC_threshold)) |>
+            arrange(.data$padj)
 
       if (!is.null(top_n_genes)) {
             significant_genes <- significant_genes |> slice_head(n = top_n_genes)
       }
 
-      significant_genes <- significant_genes |> pull(genes)
-      all_genes <- results |> arrange(padj) |> pull(genes)
+      significant_genes <- significant_genes |> pull("genes")
+      all_genes <- results |> arrange(.data$padj) |> pull("genes")
 
       ######################## ORA ########################
 
@@ -344,10 +344,10 @@ pathway_functional_analysis_cluster_identification <- function (scRNAseq, result
     if (per_cluster) {
         # Run enrichment independently for each cluster
         results <- results |>
-            mutate(cluster = if (all(!is.na(suppressWarnings(as.numeric(as.character(unique(cluster))))))) {
-                fct_inseq(cluster)
+            mutate(cluster = if (all(!is.na(suppressWarnings(as.numeric(as.character(unique(.data$cluster))))))) {
+                fct_inseq(.data$cluster)
             } else {
-                factor(cluster)
+                factor(.data$cluster)
             })
 
         plot_list <- list()
@@ -356,10 +356,10 @@ pathway_functional_analysis_cluster_identification <- function (scRNAseq, result
             local_path_cluster <- create_analysis_directory(here::here(local_path, name))
 
             significant_results_cluster <- results |>
-                filter(cluster == !!cl) |>
-                arrange(p_val_adj, desc(avg_log2FC)) |>
+                filter(.data$cluster == !!cl) |>
+                arrange(.data$p_val_adj, desc(.data$avg_log2FC)) |>
                 slice_head(n = top_gene_number) |>
-                pull(gene) |>
+                pull("gene") |>
                 unique()
 
             plot_list[[cl]] <- pathway_overrepresentation_analysis(
@@ -392,16 +392,16 @@ pathway_functional_analysis_cluster_identification <- function (scRNAseq, result
 
     # Default behavior: run all clusters simultaneously with compareCluster
     gene_lists <- results |>
-        group_by(cluster) |>
-        arrange(p_val_adj, desc(avg_log2FC), .by_group = TRUE) |>
+        group_by(.data$cluster) |>
+        arrange(.data$p_val_adj, desc(.data$avg_log2FC), .by_group = TRUE) |>
         slice_head(n = top_gene_number)  |>
         ungroup() |>
-        select(cluster, gene)  |>
-        group_by(cluster) |>
+        select("cluster", "gene")  |>
+        group_by(.data$cluster) |>
         mutate(id = row_number()) |>
         ungroup() |>
-        pivot_wider(names_from = cluster, values_from = gene)  |>
-        select(-id) |>
+        pivot_wider(names_from = "cluster", values_from = "gene")  |>
+        select(-any_of("id")) |>
         as.list() |>
         map(~ .x[!is.na(.x)])
 
@@ -467,7 +467,7 @@ pathway_overrepresentation_analysis_multiple_lists <- function (gene_list, all_g
                     msigdbr::msigdbr(db_species = "MM", species = "mouse", collection = pc[1])
                }
           }
-     ) |> select(gs_name, ncbi_gene)
+     ) |> select("gs_name", "ncbi_gene")
 
      enrichment_results <- clusterProfiler::compareCluster(
           geneCluster = gene_list_entrez,
@@ -495,10 +495,10 @@ pathway_overrepresentation_analysis_multiple_lists <- function (gene_list, all_g
      )
 
      enrichment_results <- enrichment_results |>
-          mutate(Cluster = if (all(!is.na(suppressWarnings(as.numeric(levels(factor(Cluster))))))) {
-               fct_inseq(Cluster)
+          mutate(Cluster = if (all(!is.na(suppressWarnings(as.numeric(levels(factor(.data$Cluster))))))) {
+               fct_inseq(.data$Cluster)
           } else {
-               factor(Cluster)
+               factor(.data$Cluster)
           })
 
      enrichment_results_table <- as_tibble(enrichment_results)

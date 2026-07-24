@@ -69,18 +69,18 @@ Metascape_overrepresentation_analysis <- function (significant_genes_FC_ordered,
 if (nrow(enrichment_results) > 1) {
      # Filter and prepare for plotting
      enrichment_results <- enrichment_results |>
-          filter(str_detect(GroupID, 'Summary') ) |>
+          filter(str_detect(.data$GroupID, 'Summary') ) |>
           #select(Description, `Log(q-value)`) |>
-          select(Description, LogP) |>
-          rename(term = Description, log_q_value = LogP)  |>
-          mutate(log_q_value = -1*log_q_value) |> 
-          # rename(term = Description, log_q_value = LogP)  |>
+          select("Description", "LogP") |>
+          rename(term = "Description", log_q_value = "LogP")  |>
+          mutate(log_q_value = -1*.data$log_q_value) |>
+          # rename(term = "Description", log_q_value = "LogP")  |>
           head(n = nterms_to_plot_metascape)
 
      if (nrow(enrichment_results) > 1) {
           
      plot2 <- enrichment_results |>       
-          ggplot(aes(x = log_q_value, y = fct_reorder(term, log_q_value , .desc = F), fill = log_q_value)) +
+          ggplot(aes(x = .data$log_q_value, y = fct_reorder(.data$term, .data$log_q_value , .desc = F), fill = .data$log_q_value)) +
                geom_col(width = 0.7) +
                scale_fill_binned(palette = grDevices::hcl.colors(n = 6, 'YlOrRd', rev = T), breaks = c(2, 4, 6, 10, 20)) +
                labs(x = '-log10(p-value)', y = '', title = paste0('UP in ', group, ' - ', grouping_var)) +
@@ -132,17 +132,17 @@ Metascape_functional_analysis <- function (results, grouping_var, group2, group1
 
       local_path <- create_analysis_directory(here::here(path, paste0('Functional_analysis_metascape_UP_in_', group2_kebab_case, '_', grouping_var_kebab_case)))
 
-      significant_genes <- results |> 
-            filter((padj < p_value_threshold) & (log2FoldChange > FC_threshold)) |> 
-            arrange(desc(log2FoldChange)) |> 
-            arrange(padj)
-      
+      significant_genes <- results |>
+            filter((.data$padj < p_value_threshold) & (.data$log2FoldChange > FC_threshold)) |>
+            arrange(desc(.data$log2FoldChange)) |>
+            arrange(.data$padj)
+
       if (!is.null(top_n_genes)) {
             significant_genes <- significant_genes |> head(top_n_genes)
       }
-      
-      significant_genes <- significant_genes |> pull(genes)
-      
+
+      significant_genes <- significant_genes |> pull("genes")
+
       if (length(significant_genes) > 2) {
             p1 <- Metascape_overrepresentation_analysis(significant_genes, local_path =  local_path , group = group2, grouping_var = grouping_var, filename = '', ...)
             print(p1)
@@ -156,16 +156,16 @@ Metascape_functional_analysis <- function (results, grouping_var, group2, group1
 
       local_path <- create_analysis_directory(here::here(path, paste0('Functional_analysis_metascape_DOWN_in', group1_kebab_case, '_', grouping_var_kebab_case)))
 
-      significant_genes <- results |> 
-            filter((padj < p_value_threshold) & (log2FoldChange < -1*FC_threshold)) |> 
-            arrange(log2FoldChange) |> 
-            arrange(padj)
-      
+      significant_genes <- results |>
+            filter((.data$padj < p_value_threshold) & (.data$log2FoldChange < -1*FC_threshold)) |>
+            arrange(.data$log2FoldChange) |>
+            arrange(.data$padj)
+
       if (!is.null(top_n_genes)) {
             significant_genes <- significant_genes |> head(top_n_genes)
       }
-      
-      significant_genes <- significant_genes |> pull(genes)
+
+      significant_genes <- significant_genes |> pull("genes")
 
       if (length(significant_genes) > 2) {
             p1 <- Metascape_overrepresentation_analysis(significant_genes, local_path = local_path , group = group1, grouping_var = grouping_var, filename = '', ...)
@@ -200,8 +200,8 @@ Metascape_functional_analysis <- function (results, grouping_var, group2, group1
 Metascape_functional_analysis_cluster_identification <- function (seurat, results, identities = 'seurat_clusters', path='./', object_annotations = '', ...) {
 
      local_path <- create_analysis_directory(here::here(path, paste0(object_annotations, '_Cluster_identification_functional_analysis')))
-     results <- results |> 
-          mutate(cluster = fct_inseq(cluster))
+     results <- results |>
+          mutate(cluster = fct_inseq(.data$cluster))
 
      plot_list <- list()
      for (cluster in levels(results$cluster)) {
@@ -209,9 +209,9 @@ Metascape_functional_analysis_cluster_identification <- function (seurat, result
           name <- paste0('Cluster_', cluster)
           local_path_cluster <- create_analysis_directory(here::here(local_path, name))
 
-          significant_results_cluster <- results |> 
-               filter(cluster == {{cluster}}) |>
-               pull(gene) |>
+          significant_results_cluster <- results |>
+               filter(.data$cluster == {{cluster}}) |>
+               pull("gene") |>
                unique()
      
 

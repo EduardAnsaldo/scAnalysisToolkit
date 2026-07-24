@@ -23,11 +23,11 @@
 plot_clonal_repertoire <- function(seurat, group_name, figures_path, viridis_option = 'D', label_size_range = c(3,10)) {
   # Prepare repertoire data
   repertoire <- seurat@meta.data |>
-    filter(Groups == group_name & !is.na(CTaa)) |>
-    arrange(desc(clonalFrequency))
+    filter(.data$Groups == group_name & !is.na(.data$CTaa)) |>
+    arrange(desc(.data$clonalFrequency))
 
   # Determine unique clone sizes and generate appropriate number of colors
-  repertoire2 <- repertoire |> arrange(cloneSize)
+  repertoire2 <- repertoire |> arrange(.data$cloneSize)
   clone_sizes <- unique(repertoire2$cloneSize[!is.na(repertoire$cloneSize)]) |> as.character()
   n_colors <- length(clone_sizes)
   viridis_colors <- viridis::viridis(n = n_colors, option = viridis_option, direction = 1)
@@ -36,14 +36,14 @@ plot_clonal_repertoire <- function(seurat, group_name, figures_path, viridis_opt
   # Create color mapping
   repertoire <- repertoire |>
     mutate(color = case_when(
-      str_equal(cloneSize, clone_sizes[1]) ~ viridis_colors[1],
-      str_equal(cloneSize, clone_sizes[min(2, n_colors)]) ~ viridis_colors[min(2, n_colors)],
-      str_equal(cloneSize, clone_sizes[min(3, n_colors)]) ~ viridis_colors[min(3, n_colors)],
-      str_equal(cloneSize, clone_sizes[min(4, n_colors)]) ~ viridis_colors[min(4, n_colors)],
-      str_equal(cloneSize, clone_sizes[min(5, n_colors)]) ~ viridis_colors[n_colors],
-      is.na(cloneSize) ~ 'grey90'
+      str_equal(.data$cloneSize, clone_sizes[1]) ~ viridis_colors[1],
+      str_equal(.data$cloneSize, clone_sizes[min(2, n_colors)]) ~ viridis_colors[min(2, n_colors)],
+      str_equal(.data$cloneSize, clone_sizes[min(3, n_colors)]) ~ viridis_colors[min(3, n_colors)],
+      str_equal(.data$cloneSize, clone_sizes[min(4, n_colors)]) ~ viridis_colors[min(4, n_colors)],
+      str_equal(.data$cloneSize, clone_sizes[min(5, n_colors)]) ~ viridis_colors[n_colors],
+      is.na(.data$cloneSize) ~ 'grey90'
     )) |>
-    select(clonalFrequency, CTaa, color) |>
+    select("clonalFrequency", "CTaa", "color") |>
     distinct()
 
   # Calculate circle packing layout
@@ -55,11 +55,11 @@ plot_clonal_repertoire <- function(seurat, group_name, figures_path, viridis_opt
 
   # Create plot
   plot <- ggplot(data = ggplot_data_circles) +
-    geom_polygon(aes(x, y, group = id, fill = factor(id)),
+    geom_polygon(aes(.data$x, .data$y, group = .data$id, fill = factor(.data$id)),
                  colour = "black", linewidth = 0.1, alpha = 0.7, show.legend = FALSE) +
     scale_fill_manual(values = repertoire$color, labels = repertoire$cloneSize) +
     geom_text(data = repertoire,
-              aes(x, y, size = clonalFrequency, label = clonalFrequency)) +
+              aes(.data$x, .data$y, size = .data$clonalFrequency, label = .data$clonalFrequency)) +
     guides(fill = guide_legend(title = 'Clonotype size'), size = "none") +
     scale_size_continuous(range = label_size_range) +
     labs(title = paste0("Clonal repertoire for group: ", group_name)) +
@@ -118,14 +118,14 @@ calculate_D50 <- function (seurat, cell_grouping_var, replicate_var, replicate_g
 
         cell_type_HTO_data <- combined3[[1]]|>
                                         filter({{replicate_var}} == HTO) |>
-                                        add_count(CTaa, sort=TRUE)
+                                        add_count(.data$CTaa, sort=TRUE)
             #Calculating D50
             if (nrow(cell_type_HTO_data) < 20) {
                 D50 <- NA
             } else {
                 L50 <- floor(nrow(cell_type_HTO_data)/2)
-                number_unique_50 <- cell_type_HTO_data[1:L50,] |> summarise(n_distinct(CTaa)) |> as.numeric()
-                number_unique_total <- cell_type_HTO_data[] |> summarise(n_distinct(CTaa)) |> as.numeric()
+                number_unique_50 <- cell_type_HTO_data[1:L50,] |> summarise(n_distinct(.data$CTaa)) |> as.numeric()
+                number_unique_total <- cell_type_HTO_data[] |> summarise(n_distinct(.data$CTaa)) |> as.numeric()
                 D50 <- number_unique_50/number_unique_total
             }
             result <- c(result, D50)
@@ -135,15 +135,15 @@ calculate_D50 <- function (seurat, cell_grouping_var, replicate_var, replicate_g
             #Extracting data for cell type and HTO
             cell_type_HTO_data <- combined2[[cell_type]]|>
                                         filter({{replicate_var}} == HTO) |>
-                                        add_count(CTaa, sort=TRUE)
+                                        add_count(.data$CTaa, sort=TRUE)
 
             #Calculating D50
             if (nrow(cell_type_HTO_data) < 20) {
                 D50 <- NA
             } else {
                 L50 <- floor(nrow(cell_type_HTO_data)/2)
-                number_unique_50 <- cell_type_HTO_data[1:L50,] |> summarise(n_distinct(CTaa)) |> as.numeric()
-                number_unique_total <- cell_type_HTO_data[] |> summarise(n_distinct(CTaa)) |> as.numeric()
+                number_unique_50 <- cell_type_HTO_data[1:L50,] |> summarise(n_distinct(.data$CTaa)) |> as.numeric()
+                number_unique_total <- cell_type_HTO_data[] |> summarise(n_distinct(.data$CTaa)) |> as.numeric()
                 D50 <- number_unique_50/number_unique_total
             }
             result <- c(result, D50)
@@ -178,10 +178,10 @@ calculate_D50 <- function (seurat, cell_grouping_var, replicate_var, replicate_g
 
 
     # Remove NA values for plotting
-    results_long <- results_long |> filter(!is.na(D50))
+    results_long <- results_long |> filter(!is.na(.data$D50))
 
     # Plot: x axis is {{replicate_var}}, show only dots (no columns)
-    plot1 <- ggplot(results_long, aes(x = {{replicate_group_var}}, y = D50, color = {{replicate_group_var}})) +
+    plot1 <- ggplot(results_long, aes(x = {{replicate_group_var}}, y = .data$D50, color = {{replicate_group_var}})) +
         geom_quasirandom(size = 1.5) +
         stat_summary(fun = mean, geom = "bar", position = position_dodge(width = 0.7), width = 0.5, aes(fill = {{replicate_group_var}}, alpha = 0.5)) +
         stat_summary(fun.data = mean_se, fun.args = list(mult = 1),

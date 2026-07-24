@@ -90,21 +90,21 @@ pseudobulk_de <- function(scRNAseq, comparison, group1, group2, cluster = 'all_c
 
     # Generate sample level metadata
     colData <- data.frame(samples = colnames(counts)) |>
-        mutate(condition = ifelse(grepl(str_replace_all(as.character(group1), '_', '-'), samples), group1, group2))
+        mutate(condition = ifelse(grepl(str_replace_all(as.character(group1), '_', '-'), .data$samples), group1, group2))
 
     # Filter
     counts <- counts |>
         mutate(row_sums = rowSums(counts)) |>
-        filter(row_sums >= 10) |>
-        dplyr::select(-row_sums)
+        filter(.data$row_sums >= 10) |>
+        dplyr::select(-any_of("row_sums"))
 
-    message('Group 1 replicates: ', nrow(colData |> filter(condition == group1)))
-    message('Group 2 replicates: ', nrow(colData |> filter(condition == group2)))
+    message('Group 1 replicates: ', nrow(colData |> filter(.data$condition == group1)))
+    message('Group 2 replicates: ', nrow(colData |> filter(.data$condition == group2)))
 
     # Check for sufficient replicates
     if ((length(unique(colData$condition)) != 2) |
-        (nrow(colData |> filter(condition == group1)) < 2) |
-        (nrow(colData |> filter(condition == group2)) < 2)) {
+        (nrow(colData |> filter(.data$condition == group1)) < 2) |
+        (nrow(colData |> filter(.data$condition == group2)) < 2)) {
         warning('Not enough biological replicates per group (minimum 2 per group required)')
         return(list(
             all_count = 'Not enough biological replicates per group',
@@ -161,22 +161,22 @@ pseudobulk_de <- function(scRNAseq, comparison, group1, group2, cluster = 'all_c
     # Filter results
     results_filtered <- filter(
         results,
-        padj < p_value_threshold &
+        .data$padj < p_value_threshold &
             ((!!sym(paste0('Avg_', group2)) > expression_threshold_for_gene_list) |
              (!!sym(paste0('Avg_', group1)) > expression_threshold_for_gene_list)) &
-            (log2FoldChange >= FC_threshold | log2FoldChange <= -1 * FC_threshold)
+            (.data$log2FoldChange >= FC_threshold | .data$log2FoldChange <= -1 * FC_threshold)
     ) |>
-        arrange(padj)
+        arrange(.data$padj)
 
-    results_filtered_UP <- filter(results_filtered, log2FoldChange >= FC_threshold)
-    results_filtered_DOWN <- filter(results_filtered, log2FoldChange <= -1 * FC_threshold)
+    results_filtered_UP <- filter(results_filtered, .data$log2FoldChange >= FC_threshold)
+    results_filtered_DOWN <- filter(results_filtered, .data$log2FoldChange <= -1 * FC_threshold)
 
     # Write results to CSV files
-    write.csv(results |> arrange(padj),
+    write.csv(results |> arrange(.data$padj),
              file = here::here(gene_lists_path, paste('ALL_GENES_DEG_Analysis', cluster, 'pseudobulk', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_UP |> arrange(padj, desc(log2FoldChange)),
+    write.csv(results_filtered_UP |> arrange(.data$padj, desc(.data$log2FoldChange)),
              file = here::here(gene_lists_path, paste('DEG_UP_in', group2, cluster, 'pseudobulk', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_DOWN |> arrange(padj, log2FoldChange),
+    write.csv(results_filtered_DOWN |> arrange(.data$padj, .data$log2FoldChange),
              file = here::here(gene_lists_path, paste('DEG_DOWN_in', group2, cluster, 'pseudobulk', group2, 'vs', group1, '.csv', sep = '_')))
 
     # Return counts and results
@@ -279,11 +279,11 @@ DEG_FindMarkers_RNA_assay_de <- function(scRNAseq, comparison, group1, group2,
     results <- results |>
                     rownames_to_column('genes') |>
                     rename(
-                        log2FoldChange = avg_log2FC,
-                        padj = p_val_adj,
-                        pvalue = p_val
+                        log2FoldChange = "avg_log2FC",
+                        padj = "p_val_adj",
+                        pvalue = "p_val"
                     ) |>
-                    mutate(log2FoldChange = log2FoldChange * -1) |>
+                    mutate(log2FoldChange = .data$log2FoldChange * -1) |>
                     left_join(y = unique(annotations[, c('gene_name', 'description')]),
                              by = c('genes' = 'gene_name')) |>
                     left_join(y = counts_CPM, by = c('genes' = 'gene'))
@@ -300,7 +300,7 @@ DEG_FindMarkers_RNA_assay_de <- function(scRNAseq, comparison, group1, group2,
         if (n_removed > 0) {
             message('Removing ', n_removed, ' sex chromosome genes from results')
         }
-        results <- results |> filter(!genes %in% sex_chr_genes)
+        results <- results |> filter(!.data$genes %in% sex_chr_genes)
     }
 
     # Exclude requested genes (regex patterns and/or VDJ defaults)
@@ -312,19 +312,19 @@ DEG_FindMarkers_RNA_assay_de <- function(scRNAseq, comparison, group1, group2,
 
     # Filter results
     results_filtered <- filter(results,
-                               padj < p_value_threshold &
-                               (log2FoldChange >= FC_threshold | log2FoldChange <= -1 * FC_threshold)) |>
-                        arrange(padj)
+                               .data$padj < p_value_threshold &
+                               (.data$log2FoldChange >= FC_threshold | .data$log2FoldChange <= -1 * FC_threshold)) |>
+                        arrange(.data$padj)
 
-    results_filtered_UP <- filter(results_filtered, log2FoldChange >= FC_threshold)
-    results_filtered_DOWN <- filter(results_filtered, log2FoldChange <= -1 * FC_threshold)
+    results_filtered_UP <- filter(results_filtered, .data$log2FoldChange >= FC_threshold)
+    results_filtered_DOWN <- filter(results_filtered, .data$log2FoldChange <= -1 * FC_threshold)
 
     # Write results to CSV files
-    write.csv(results_filtered |> arrange(padj),
+    write.csv(results_filtered |> arrange(.data$padj),
              file = here::here(gene_lists_path, paste('ALL_GENES_DEG_Analysis', cluster, 'Wilcox', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_UP |> arrange(padj, desc(log2FoldChange)),
+    write.csv(results_filtered_UP |> arrange(.data$padj, desc(.data$log2FoldChange)),
              file = here::here(gene_lists_path, paste('DEG_UP_in', group2, cluster, 'Wilcox', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_DOWN |> arrange(padj, log2FoldChange),
+    write.csv(results_filtered_DOWN |> arrange(.data$padj, .data$log2FoldChange),
              file = here::here(gene_lists_path, paste('DEG_DOWN_in', group2, cluster, 'Wilcox', group2, 'vs', group1, '.csv', sep = '_')))
 
     # Return counts and results
@@ -433,11 +433,11 @@ DEG_FindMarkers_SCT_assay_de <- function(scRNAseq, comparison, group1, group2, i
     results <- results |>
         rownames_to_column('genes') |>
         rename(
-            log2FoldChange = avg_log2FC,
-            padj = p_val_adj,
-            pvalue = p_val
+            log2FoldChange = "avg_log2FC",
+            padj = "p_val_adj",
+            pvalue = "p_val"
         ) |>
-        mutate(log2FoldChange = log2FoldChange * -1) |>
+        mutate(log2FoldChange = .data$log2FoldChange * -1) |>
         left_join(y = unique(annotations[, c('gene_name', 'description')]),
                  by = c('genes' = 'gene_name')) |>
         left_join(y = counts_CPM, by = c('genes' = 'gene'))
@@ -454,7 +454,7 @@ DEG_FindMarkers_SCT_assay_de <- function(scRNAseq, comparison, group1, group2, i
         if (n_removed > 0) {
             message('Removing ', n_removed, ' sex chromosome genes from results')
         }
-        results <- results |> filter(!genes %in% sex_chr_genes)
+        results <- results |> filter(!.data$genes %in% sex_chr_genes)
     }
 
     # Exclude requested genes (regex patterns and/or VDJ defaults)
@@ -467,20 +467,20 @@ DEG_FindMarkers_SCT_assay_de <- function(scRNAseq, comparison, group1, group2, i
     # Filter results
     results_filtered <- filter(
         results,
-        padj < p_value_threshold &
-            (log2FoldChange >= FC_threshold | log2FoldChange <= -1 * FC_threshold)
+        .data$padj < p_value_threshold &
+            (.data$log2FoldChange >= FC_threshold | .data$log2FoldChange <= -1 * FC_threshold)
     ) |>
-        arrange(padj)
+        arrange(.data$padj)
 
-    results_filtered_UP <- filter(results_filtered, log2FoldChange >= FC_threshold)
-    results_filtered_DOWN <- filter(results_filtered, log2FoldChange <= -1 * FC_threshold)
+    results_filtered_UP <- filter(results_filtered, .data$log2FoldChange >= FC_threshold)
+    results_filtered_DOWN <- filter(results_filtered, .data$log2FoldChange <= -1 * FC_threshold)
 
     # Write results to CSV files
-    write.csv(results |> arrange(padj),
+    write.csv(results |> arrange(.data$padj),
              file = here::here(gene_lists_path, paste('ALL_GENES_DEG_Analysis', cluster, 'Wilcox', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_UP |> arrange(padj, desc(log2FoldChange)),
+    write.csv(results_filtered_UP |> arrange(.data$padj, desc(.data$log2FoldChange)),
              file = here::here(gene_lists_path, paste('DEG_UP_in', group2, cluster, 'Wilcox', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_DOWN |> arrange(padj, log2FoldChange),
+    write.csv(results_filtered_DOWN |> arrange(.data$padj, .data$log2FoldChange),
              file = here::here(gene_lists_path, paste('DEG_DOWN_in', group2, cluster, 'Wilcox', group2, 'vs', group1, '.csv', sep = '_')))
 
     # Return counts and results
@@ -550,19 +550,19 @@ bulk_analysis_de <- function(counts_table, comparison = 'Groups', group1, group2
 
     # Generate sample level metadata
     colData <- data.frame(samples = colnames(counts)) |>
-                mutate(condition = ifelse(grepl(group1, samples), group1, group2))
+                mutate(condition = ifelse(grepl(group1, .data$samples), group1, group2))
 
     # Filter
     counts <- counts |> mutate(row_sums = rowSums(counts)) |>
-              filter(row_sums >= 10) |> dplyr::select(-row_sums)
+              filter(.data$row_sums >= 10) |> dplyr::select(-any_of("row_sums"))
 
-    message('Group 1 replicates: ', nrow(colData |> filter(condition == group1)))
-    message('Group 2 replicates: ', nrow(colData |> filter(condition == group2)))
+    message('Group 1 replicates: ', nrow(colData |> filter(.data$condition == group1)))
+    message('Group 2 replicates: ', nrow(colData |> filter(.data$condition == group2)))
 
     # Check for sufficient replicates
     if ((length(unique(colData$condition)) != 2) |
-        (nrow(colData |> filter(condition == group1)) < 2) |
-        (nrow(colData |> filter(condition == group2)) < 2)) {
+        (nrow(colData |> filter(.data$condition == group1)) < 2) |
+        (nrow(colData |> filter(.data$condition == group2)) < 2)) {
         warning('Not enough biological replicates per group (minimum 2 per group required)')
         return(list(
             all_count = 'Not enough biological replicates per group',
@@ -619,22 +619,22 @@ bulk_analysis_de <- function(counts_table, comparison = 'Groups', group1, group2
     # Filter results
     results_filtered <- filter(
         results,
-        padj < p_value_threshold &
+        .data$padj < p_value_threshold &
             ((!!sym(paste0('Avg_', group2)) > expression_threshold_for_gene_list) |
              (!!sym(paste0('Avg_', group1)) > expression_threshold_for_gene_list)) &
-            (log2FoldChange >= FC_threshold | log2FoldChange <= -1 * FC_threshold)
+            (.data$log2FoldChange >= FC_threshold | .data$log2FoldChange <= -1 * FC_threshold)
     ) |>
-        arrange(padj)
+        arrange(.data$padj)
 
-    results_filtered_UP <- filter(results_filtered, log2FoldChange >= FC_threshold)
-    results_filtered_DOWN <- filter(results_filtered, log2FoldChange <= -1 * FC_threshold)
+    results_filtered_UP <- filter(results_filtered, .data$log2FoldChange >= FC_threshold)
+    results_filtered_DOWN <- filter(results_filtered, .data$log2FoldChange <= -1 * FC_threshold)
 
     # Write results to CSV files
-    write.csv(results |> arrange(padj),
+    write.csv(results |> arrange(.data$padj),
              file = here::here(gene_lists_path, paste('ALL_GENES_DEG_Analysis', cluster, 'bulk', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_UP |> arrange(padj, desc(log2FoldChange)),
+    write.csv(results_filtered_UP |> arrange(.data$padj, desc(.data$log2FoldChange)),
              file = here::here(gene_lists_path, paste('DEG_UP_in', group2, cluster, 'bulk', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_DOWN |> arrange(padj, log2FoldChange),
+    write.csv(results_filtered_DOWN |> arrange(.data$padj, .data$log2FoldChange),
              file = here::here(gene_lists_path, paste('DEG_DOWN_in', group2, cluster, 'bulk', group2, 'vs', group1, '.csv', sep = '_')))
 
     # Return counts and results

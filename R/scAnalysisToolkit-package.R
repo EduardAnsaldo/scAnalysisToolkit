@@ -11,7 +11,6 @@
 
 
 ## usethis namespace: start
-#' @importFrom cowplot plot_grid
 #' @importFrom forcats fct
 #' @importFrom forcats fct_inorder
 #' @importFrom forcats fct_inseq
@@ -19,7 +18,6 @@
 #' @importFrom forcats fct_rev
 #' @importFrom ggbeeswarm geom_quasirandom
 #' @importFrom ggrepel geom_text_repel
-#' @importFrom glue glue
 #' @importFrom graphics title
 #' @importFrom grDevices dev.cur
 #' @importFrom grDevices dev.off
@@ -27,7 +25,6 @@
 #' @importFrom grDevices png
 #' @importFrom grDevices recordPlot
 #' @importFrom grid arrow
-#' @importFrom lifecycle deprecated
 #' @importFrom methods .hasSlot
 #' @importFrom org.Mm.eg.db org.Mm.eg.db
 #' @importFrom patchwork plot_annotation

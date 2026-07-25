@@ -21,6 +21,8 @@
 #'
 #' @export
 plot_clonal_repertoire <- function(seurat, group_name, figures_path, viridis_option = 'D', label_size_range = c(3,10)) {
+  rlang::check_installed("packcircles", reason = "to use `plot_clonal_repertoire()`")
+
   # Prepare repertoire data
   repertoire <- seurat@meta.data |>
     filter(Groups == group_name & !is.na(CTaa)) |>

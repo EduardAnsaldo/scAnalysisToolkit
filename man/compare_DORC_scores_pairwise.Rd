@@ -7,6 +7,7 @@
 compare_DORC_scores_pairwise(
   seurat,
   dorcMat.s,
+  RNAmat.s,
   umap.d,
   cluster_id,
   other_cluster_id,
@@ -21,6 +22,8 @@ compare_DORC_scores_pairwise(
 \item{seurat}{A Seurat object containing DORCs assay with chromatin accessibility data}
 
 \item{dorcMat.s}{Matrix containing DORC (Domain of Regulatory Chromatin) activity scores}
+
+\item{RNAmat.s}{Smoothed RNA expression matrix (genes x cells) used for the paired RNA feature plots.}
 
 \item{umap.d}{Data frame or matrix containing UMAP coordinates for dimensionality reduction}
 

@@ -14,7 +14,8 @@ plot_deg_counts(
   width = 10,
   height = 6,
   up_color = "#8E063B",
-  down_color = "#023FA5"
+  down_color = "#023FA5",
+  file_suffix = NULL
 )
 }
 \arguments{
@@ -27,7 +28,8 @@ DOWN_count (numeric)}
 
 \item{group1}{Character; the first group being compared (used in labels). Default NULL}
 
-\item{title}{Character; plot title. Default 'Differentially Expressed Genes by Cell Type'}
+\item{title}{Character; plot title. Default NULL, which builds one from \code{data_type} and,
+when both are supplied, \code{group1} and \code{group2}.}
 
 \item{data_type}{Character; type of features counted; one of 'genes', 'peaks', 'motifs', 'dorcs'.}
 
@@ -38,6 +40,11 @@ DOWN_count (numeric)}
 \item{up_color}{Character; color for upregulated genes. Default '#E64B35' (red)}
 
 \item{down_color}{Character; color for downregulated genes. Default '#4DBBD5' (blue)}
+
+\item{file_suffix}{Character; appended to the saved PDF filename, which is
+\code{DEG_counts_barplot_<data_type><file_suffix>.pdf}. Use it to keep summaries for several
+comparisons in one directory from overwriting each other, e.g. by passing the \code{file_tag}
+from \code{pseudobulk()}'s \code{contrast_labels}. Default NULL}
 }
 \value{
 A ggplot object

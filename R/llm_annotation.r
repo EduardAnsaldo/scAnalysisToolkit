@@ -215,7 +215,7 @@
     meta <- seurat@meta.data
     cluster_ids <- as.character(meta[[cluster_col]])
     n_cells <- tibble::tibble(cluster = cluster_ids) |>
-        count(cluster, name = "n_cells")
+        count(.data$cluster, name = "n_cells")
 
     if (is.null(markers)) {
         Idents(seurat) <- factor(cluster_ids)
@@ -230,23 +230,23 @@
     }
 
     arrange_expr <- if ("p_val_adj" %in% colnames(markers)) {
-        function(df) arrange(df, p_val_adj, desc(avg_log2FC), .by_group = TRUE)
+        function(df) arrange(df, .data$p_val_adj, desc(.data$avg_log2FC), .by_group = TRUE)
     } else {
-        function(df) arrange(df, desc(avg_log2FC), .by_group = TRUE)
+        function(df) arrange(df, desc(.data$avg_log2FC), .by_group = TRUE)
     }
 
     top <- markers |>
         tibble::as_tibble() |>
-        mutate(cluster = as.character(cluster)) |>
-        group_by(cluster) |>
+        mutate(cluster = as.character(.data$cluster)) |>
+        group_by(.data$cluster) |>
         arrange_expr() |>
         slice_head(n = n) |>
-        summarise(markers = list(gene), .groups = "drop")
+        summarise(markers = list(.data$gene), .groups = "drop")
 
     n_cells |>
         left_join(top, by = "cluster") |>
-        mutate(markers = lapply(markers, function(m) if (is.null(m)) character() else m)) |>
-        arrange(cluster)
+        mutate(markers = lapply(.data$markers, function(m) if (is.null(m)) character() else m)) |>
+        arrange(.data$cluster)
 }
 
 # ----------------------------------------------------------------------------

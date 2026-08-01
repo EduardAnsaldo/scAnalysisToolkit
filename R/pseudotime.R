@@ -185,10 +185,10 @@ plot_pseudotime_heatmap <- function(seurat_obj,
   # ---- 8. Long-format data for ggplot --------------------------------------
   df <- as.data.frame(expr) |>
     tibble::rownames_to_column("gene") |>
-    tidyr::pivot_longer(-gene, names_to = "cell", values_to = "expression") |>
+    tidyr::pivot_longer(-any_of("gene"), names_to = "cell", values_to = "expression") |>
     mutate(
-      cell = factor(cell, levels = cells),
-      gene = factor(gene, levels = rev(gene_levels))
+      cell = factor(.data$cell, levels = cells),
+      gene = factor(.data$gene, levels = rev(gene_levels))
     )
 
   # ---- 9. Resolve palette --> a ggplot fill scale --------------------------
@@ -262,7 +262,7 @@ plot_pseudotime_heatmap <- function(seurat_obj,
     direction = palette_direction
   )
 
-  p <- ggplot(df, aes(x = cell, y = gene, fill = expression)) +
+  p <- ggplot(df, aes(x = .data$cell, y = .data$gene, fill = .data$expression)) +
     geom_raster() +
     fill_scale +
     scale_x_discrete(expand = c(0, 0)) +
@@ -285,7 +285,7 @@ plot_pseudotime_heatmap <- function(seurat_obj,
     pt_scale <- make_fill_scale(pseudotime_palette,
                                 name = NULL,
                                 guide = "none")
-    pbar <- ggplot(bar_df, aes(x = cell, y = 1, fill = pseudotime)) +
+    pbar <- ggplot(bar_df, aes(x = .data$cell, y = 1, fill = .data$pseudotime)) +
       geom_raster() +
       pt_scale +
       scale_x_discrete(expand = c(0, 0)) +

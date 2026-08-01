@@ -26,19 +26,19 @@ plot_pathways_heatmap <- function(genes_to_plot, seurat, title, color_palette = 
         as.data.frame() |>
         rownames_to_column('gene') |>
         as_tibble() |>
-        filter(gene %in% genes_to_plot) |>
-        mutate(gene = factor(gene, levels = genes_to_plot)) |>
-        pivot_longer(cols = -gene, names_to = 'Sample', values_to = 'expression') |>
-        mutate(Sample = factor(Sample, levels = colnames(Aggregated_expression[['RNA']]))) |>
-        group_by(gene) |>
-        mutate(scaled_expression = scale(expression)[,1]) |>
+        filter(.data$gene %in% genes_to_plot) |>
+        mutate(gene = factor(.data$gene, levels = genes_to_plot)) |>
+        pivot_longer(cols = -any_of("gene"), names_to = 'Sample', values_to = 'expression') |>
+        mutate(Sample = factor(.data$Sample, levels = colnames(Aggregated_expression[['RNA']]))) |>
+        group_by(.data$gene) |>
+        mutate(scaled_expression = scale(.data$expression)[,1]) |>
         ungroup() |>
-        mutate(Sample = fct_rev(factor(Sample)))
+        mutate(Sample = fct_rev(factor(.data$Sample)))
 
     # Calculate symmetric limits for the color scale
     max_abs <- max(abs(data_to_plot$scaled_expression), na.rm = TRUE)
 
-    plot <- ggplot(data_to_plot, aes(x = gene, y = Sample, fill = scaled_expression)) +
+    plot <- ggplot(data_to_plot, aes(x = .data$gene, y = .data$Sample, fill = .data$scaled_expression)) +
         geom_tile(color = "grey60", linewidth = 0.3) +
         scale_fill_gradientn(
             colors = color_palette,
@@ -82,19 +82,19 @@ plot_pathways_heatmap2 <- function(genes_to_plot, seurat, title, color_palette =
         as.data.frame() |>
         rownames_to_column('gene') |>
         as_tibble() |>
-        filter(gene %in% genes_to_plot) |>
-        mutate(gene = factor(gene, levels = genes_to_plot)) |>
-        pivot_longer(cols = -gene, names_to = 'Sample', values_to = 'expression') |>
-        mutate(Sample = factor(Sample, levels = colnames(Aggregated_expression[['RNA']]))) |>
-        group_by(gene) |>
-        mutate(scaled_expression = scale(expression)[,1]) |>
+        filter(.data$gene %in% genes_to_plot) |>
+        mutate(gene = factor(.data$gene, levels = genes_to_plot)) |>
+        pivot_longer(cols = -any_of("gene"), names_to = 'Sample', values_to = 'expression') |>
+        mutate(Sample = factor(.data$Sample, levels = colnames(Aggregated_expression[['RNA']]))) |>
+        group_by(.data$gene) |>
+        mutate(scaled_expression = scale(.data$expression)[,1]) |>
         ungroup() |>
-        mutate(Sample = fct_rev(factor(Sample)))
+        mutate(Sample = fct_rev(factor(.data$Sample)))
 
     # Calculate symmetric limits for the color scale
     max_abs <- max(abs(data_to_plot$scaled_expression), na.rm = TRUE)
 
-    plot <- ggplot(data_to_plot, aes(x = Sample, y = gene, fill = scaled_expression)) +
+    plot <- ggplot(data_to_plot, aes(x = .data$Sample, y = .data$gene, fill = .data$scaled_expression)) +
         geom_tile(color = "grey60", linewidth = 0.3) +
         scale_fill_gradientn(
             colors = color_palette,
@@ -212,17 +212,17 @@ plot_chromvar_heatmap <- function(motifs_to_plot,
   data_to_plot <- aggregated |>
     rownames_to_column('motif') |>
     as_tibble() |>
-    filter(motif %in% motifs_to_plot) |>
-    mutate(motif = factor(motif, levels = motifs_to_plot)) |>
-    pivot_longer(cols = -motif, names_to = 'Sample', values_to = 'activity') |>
-    mutate(Sample = factor(Sample, levels = colnames(aggregated))) |>
-    mutate(Sample = fct_rev(Sample))
-  
+    filter(.data$motif %in% motifs_to_plot) |>
+    mutate(motif = factor(.data$motif, levels = motifs_to_plot)) |>
+    pivot_longer(cols = -any_of("motif"), names_to = 'Sample', values_to = 'activity') |>
+    mutate(Sample = factor(.data$Sample, levels = colnames(aggregated))) |>
+    mutate(Sample = fct_rev(.data$Sample))
+
   # Symmetric color limits centered at 0 (baseline activity)
   max_abs <- max(abs(data_to_plot$activity), na.rm = TRUE)
-  
+
   # Build heatmap
-  plot <- ggplot(data_to_plot, aes(x = Sample, y = motif, fill = activity)) +
+  plot <- ggplot(data_to_plot, aes(x = .data$Sample, y = .data$motif, fill = .data$activity)) +
     geom_tile(color = "grey60", linewidth = 0.3) +
     scale_fill_gradientn(
       colors = color_palette,
@@ -301,21 +301,21 @@ plot_dorcs_heatmap <- function(dorcs_to_plot, seurat, title, color_palette = grD
         as.data.frame() |>
         rownames_to_column('dorc') |>
         as_tibble() |>
-        filter(dorc %in% dorcs_to_plot) |>
-        mutate(dorc = factor(dorc, levels = dorcs_to_plot |> rev())) |>
-        pivot_longer(cols = -dorc, names_to = 'Sample', values_to = 'accessibility') |>
-        mutate(Sample = str_replace(Sample, 'g', '')) |>
-        mutate(Sample = fct_inseq(Sample)) |>
-        mutate(Sample = fct_rev(Sample)) |>
-        group_by(dorc) |>
-        mutate(scaled_accessibility = scale(accessibility)[,1]) |>
+        filter(.data$dorc %in% dorcs_to_plot) |>
+        mutate(dorc = factor(.data$dorc, levels = dorcs_to_plot |> rev())) |>
+        pivot_longer(cols = -any_of("dorc"), names_to = 'Sample', values_to = 'accessibility') |>
+        mutate(Sample = str_replace(.data$Sample, 'g', '')) |>
+        mutate(Sample = fct_inseq(.data$Sample)) |>
+        mutate(Sample = fct_rev(.data$Sample)) |>
+        group_by(.data$dorc) |>
+        mutate(scaled_accessibility = scale(.data$accessibility)[,1]) |>
         ungroup() |>
-        mutate(Sample = fct_rev(factor(Sample)))
+        mutate(Sample = fct_rev(factor(.data$Sample)))
 
     # Calculate symmetric limits for the color scale
     max_abs <- max(abs(data_to_plot$scaled_accessibility), na.rm = TRUE)
 
-    plot <- ggplot(data_to_plot, aes(x = Sample, y = dorc, fill = scaled_accessibility)) +
+    plot <- ggplot(data_to_plot, aes(x = .data$Sample, y = .data$dorc, fill = .data$scaled_accessibility)) +
         geom_tile(color = "grey60", linewidth = 0.3) +
         scale_fill_gradientn(
             colors = color_palette,
@@ -459,24 +459,24 @@ plotfigRHeatmap_EA_gg <- function(figR.d,
         message("DORCs specified; applying score.cut (", score.cut, ") to TFs only.\n")
         DORCsToKeep <- DORCs
         TFsToKeep   <- figR.d |>
-            dplyr::filter(DORC %in% DORCsToKeep & abs(Score) >= score.cut) |>
-            dplyr::pull(Motif) |> unique()
+            dplyr::filter(.data$DORC %in% DORCsToKeep & abs(.data$Score) >= score.cut) |>
+            dplyr::pull("Motif") |> unique()
     } else if (!is.null(TFs)) {
         message("TFs specified; applying score.cut (", score.cut, ") to DORCs only.\n")
         TFsToKeep   <- TFs
         DORCsToKeep <- figR.d |>
-            dplyr::filter(Motif %in% TFsToKeep & abs(Score) >= score.cut) |>
-            dplyr::pull(DORC) |> unique()
+            dplyr::filter(.data$Motif %in% TFsToKeep & abs(.data$Score) >= score.cut) |>
+            dplyr::pull("DORC") |> unique()
     } else {
         message("Using absolute score cut-off of: ", score.cut, " ..\n")
-        DORCsToKeep <- figR.d |> dplyr::filter(abs(Score) >= score.cut) |> dplyr::pull(DORC) |> unique()
-        TFsToKeep   <- figR.d |> dplyr::filter(abs(Score) >= score.cut) |> dplyr::pull(Motif) |> unique()
+        DORCsToKeep <- figR.d |> dplyr::filter(abs(.data$Score) >= score.cut) |> dplyr::pull("DORC") |> unique()
+        TFsToKeep   <- figR.d |> dplyr::filter(abs(.data$Score) >= score.cut) |> dplyr::pull("Motif") |> unique()
     }
 
     # Build matrix (DORCs x TFs)
     net.d <- figR.d |>
-        dplyr::filter(DORC %in% DORCsToKeep & Motif %in% TFsToKeep) |>
-        tidyr::pivot_wider(id_cols = DORC, names_from = Motif, values_from = Score) |>
+        dplyr::filter(.data$DORC %in% DORCsToKeep & .data$Motif %in% TFsToKeep) |>
+        tidyr::pivot_wider(id_cols = "DORC", names_from = "Motif", values_from = "Score") |>
         tibble::column_to_rownames("DORC") |>
         as.matrix()
 
@@ -510,10 +510,10 @@ plotfigRHeatmap_EA_gg <- function(figR.d,
         as.data.frame() |>
         tibble::rownames_to_column("DORC") |>
         tibble::as_tibble() |>
-        tidyr::pivot_longer(cols = -DORC, names_to = "Motif", values_to = "Score") |>
+        tidyr::pivot_longer(cols = -any_of("DORC"), names_to = "Motif", values_to = "Score") |>
         dplyr::mutate(
-            DORC  = factor(DORC,  levels = row_order),
-            Motif = factor(Motif, levels = col_order)
+            DORC  = factor(.data$DORC,  levels = row_order),
+            Motif = factor(.data$Motif, levels = col_order)
         )
 
     # Per-tick styling vectors matching col_order
@@ -526,10 +526,10 @@ plotfigRHeatmap_EA_gg <- function(figR.d,
             Group = factor(DORC_groups, levels = unique(DORC_groups))
         )
         data_to_plot <- dplyr::left_join(data_to_plot, group_lookup, by = "DORC") |>
-            dplyr::mutate(DORC = factor(DORC, levels = row_order))
+            dplyr::mutate(DORC = factor(.data$DORC, levels = row_order))
     }
 
-    p <- ggplot2::ggplot(data_to_plot, ggplot2::aes(x = Motif, y = DORC, fill = Score)) +
+    p <- ggplot2::ggplot(data_to_plot, ggplot2::aes(x = .data$Motif, y = .data$DORC, fill = .data$Score)) +
         ggplot2::geom_tile(color = "grey60", linewidth = 0.2) +
         ggplot2::scale_fill_gradientn(
             colors = color_palette,
@@ -570,18 +570,18 @@ plotfigRHeatmap_EA_gg <- function(figR.d,
                 run  = run_id,
                 pos  = highlight_positions
             ) |>
-                dplyr::group_by(run) |>
+                dplyr::group_by(.data$run) |>
                 dplyr::summarise(
-                    xmin = min(pos) - 0.5,
-                    xmax = max(pos) + 0.5,
+                    xmin = min(.data$pos) - 0.5,
+                    xmax = max(.data$pos) + 0.5,
                     .groups = "drop"
                 )
 
             if (!is.null(DORC_groups)) {
                 # Per-facet rectangles: cross runs with each Group's height
                 facet_heights <- data_to_plot |>
-                    dplyr::group_by(Group) |>
-                    dplyr::summarise(ymax = dplyr::n_distinct(DORC) + 0.5,
+                    dplyr::group_by(.data$Group) |>
+                    dplyr::summarise(ymax = dplyr::n_distinct(.data$DORC) + 0.5,
                                      .groups = "drop") |>
                     dplyr::mutate(ymin = 0.5)
 
@@ -597,14 +597,14 @@ plotfigRHeatmap_EA_gg <- function(figR.d,
             p <- p + ggplot2::geom_rect(
                 data = highlight_data,
                 inherit.aes = FALSE,
-                ggplot2::aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+                ggplot2::aes(xmin = .data$xmin, xmax = .data$xmax, ymin = .data$ymin, ymax = .data$ymax),
                 color = highlight_box_color, fill = NA, linewidth = highlight_box_linewidth
             )
         }
     }
 
     if (!is.null(DORC_groups)) {
-        p <- p + ggplot2::facet_grid(rows = ggplot2::vars(Group), scales = "free_y", space = "free_y") +
+        p <- p + ggplot2::facet_grid(rows = ggplot2::vars(.data$Group), scales = "free_y", space = "free_y") +
             ggplot2::labs(tag = group_tag) +
             ggplot2::theme(
                 plot.tag.position = c(0.86, 0.5),

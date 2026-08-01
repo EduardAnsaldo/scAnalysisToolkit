@@ -14,6 +14,16 @@
 #' @param group2 Character; pattern to match for second group (treatment)
 #' @param cluster Character; cluster or cell type identifier. Default 'all_clusters'
 #' @param path Character; output directory path. Default './'
+#' @param shrink_LFC Logical; if TRUE, performs log fold change shrinkage for more accurate estimates, especially for low count genes. Default FALSE
+#' @param shrink_type Character; shrinkage estimator passed to \code{DESeq2::lfcShrink}, one of
+#'   'apeglm', 'ashr' or 'normal'. Default NULL, which selects 'apeglm' when no \code{contrast} is
+#'   given and 'ashr' when one is, because \code{lfcShrink} rejects a contrast with 'apeglm'.
+#'   Requires the corresponding package to be installed.
+#' @param design_formula Formula; custom design formula for DESeq2 analysis. Default NULL (uses ~condition)
+#' @param parameter_2 Character; name of the second parameter in the design formula, if applicable. Default NULL 
+#' @param group1_parameter_2 Character; value of the second parameter for the first group. Default NULL
+#' @param group2_parameter_2 Character; value of the second parameter for the second group. Default NULL
+#' @param contrast Character vector or list; specifies the contrast for DESeq2 results. Default NULL (uses the default contrast based on the default ~condition design) See DESeq2 documentation and ?DESeq2::results for details on specifying contrasts.
 #' @param FC_threshold Numeric; log2 fold change threshold for filtering. Default 0.3
 #' @param p_value_threshold Numeric; adjusted p-value threshold. Default 0.05
 #' @param expression_threshold_for_gene_list Numeric; minimum average normalized counts
@@ -30,11 +40,18 @@
 #'   \item{all_count}{Integer; number of significant DEGs}
 #'   \item{UP_count}{Integer; number of upregulated genes}
 #'   \item{DOWN_count}{Integer; number of downregulated genes}
-#'   \item{results}{Data frame; complete DE results with gene annotations and counts}
+#'   \item{results}{Data frame; complete DE results with gene annotations and counts. With
+#'     \code{parameter_2} set, this also carries per-stratum average count columns
+#'     (\code{Avg_<stratum>} and \code{Avg_<group>_<stratum>})}
+#'   \item{dds}{The fitted DESeqDataSet}
+#'   \item{contrast_labels}{List; the plot labels describing the comparison the contrast
+#'     encodes, as returned by the internal \code{de_contrast_labels}}
 #'
 #' @export
 pseudobulk_de <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clusters',
-                          path = './', FC_threshold = 0.3, p_value_threshold = 0.05,
+                          path = './', shrink_LFC = FALSE, design_formula = NULL, parameter_2 = NULL, group1_parameter_2 = NULL, 
+                          group2_parameter_2 = NULL, contrast = NULL, shrink_type = NULL,
+                          FC_threshold = 0.3, p_value_threshold = 0.05,
                           expression_threshold_for_gene_list = 20, minimum_cell_number = 10,
                           genes_to_exclude = c(), exclude_vdj = FALSE, ...) {
 
@@ -68,11 +85,18 @@ pseudobulk_de <- function(scRNAseq, comparison, group1, group2, cluster = 'all_c
         ))
     }
 
-    # Aggregate counts
-    counts <- AggregateExpression(scRNAseq, group.by = c(comparison),
+  # Aggregate counts
+    if (!is.null(parameter_2)) {
+        counts <- AggregateExpression(scRNAseq, group.by = c(comparison, parameter_2),
                                  assays = 'RNA',
                                  slot = 'counts',
                                  return.seurat = FALSE)
+    } else {
+        counts <- AggregateExpression(scRNAseq, group.by = c(comparison),
+                                 assays = 'RNA',
+                                 slot = 'counts',
+                                 return.seurat = FALSE)
+    }
 
     counts <- counts$RNA |>
         as.data.frame() |>
@@ -89,22 +113,35 @@ pseudobulk_de <- function(scRNAseq, comparison, group1, group2, cluster = 'all_c
         column_to_rownames('genes')
 
     # Generate sample level metadata
-    colData <- data.frame(samples = colnames(counts)) |>
-        mutate(condition = ifelse(grepl(str_replace_all(as.character(group1), '_', '-'), samples), group1, group2))
+    colData <- data.frame(samples = colnames(counts))
+    colData <- colData |> mutate(samples = fct(.data$samples, levels = colnames(counts)))
 
-    # Filter
-    counts <- counts |>
-        mutate(row_sums = rowSums(counts)) |>
-        filter(row_sums >= 10) |>
-        dplyr::select(-row_sums)
+    if (!is.null(parameter_2)) {
+        colData <- colData  |> separate_wider_delim(cols = 'samples', delim = '_', names = c('samples', parameter_2)) 
+        colData <- colData |> mutate(!!parameter_2 := fct(!!as.name(parameter_2), levels = c(group1_parameter_2, group2_parameter_2)))
 
-    message('Group 1 replicates: ', nrow(colData |> filter(condition == group1)))
-    message('Group 2 replicates: ', nrow(colData |> filter(condition == group2)))
+        # Remove parameter_2 values from counts column names
+        counts <- counts |>
+            rename_with(~ str_remove(.x, paste0('_', group1_parameter_2, '$', '|_', group2_parameter_2, '$')), everything())
+    }
+        colData <- colData |> mutate(condition = ifelse(grepl(str_replace_all(as.character(group1), '_', '-'), .data$samples), group1, group2))
+
+        colData  <- colData |> mutate(condition = fct(.data$condition, levels = c(group1, group2)))
+
+    
+  # # Filter
+    # counts <- counts |>
+    #     mutate(row_sums = rowSums(counts)) |>
+    #     filter(.data$row_sums >= 10) |>
+    #     dplyr::select(-any_of("row_sums"))
+
+    message('Group 1 replicates: ', nrow(colData |> filter(.data$condition == group1)))
+    message('Group 2 replicates: ', nrow(colData |> filter(.data$condition == group2)))
 
     # Check for sufficient replicates
     if ((length(unique(colData$condition)) != 2) |
-        (nrow(colData |> filter(condition == group1)) < 2) |
-        (nrow(colData |> filter(condition == group2)) < 2)) {
+        (nrow(colData |> filter(.data$condition == group1)) < 2) |
+        (nrow(colData |> filter(.data$condition == group2)) < 2)) {
         warning('Not enough biological replicates per group (minimum 2 per group required)')
         return(list(
             all_count = 'Not enough biological replicates per group',
@@ -115,10 +152,35 @@ pseudobulk_de <- function(scRNAseq, comparison, group1, group2, cluster = 'all_c
     }
 
     # Create DESeq2 object
-    dds <- DESeq2::DESeqDataSetFromMatrix(countData = counts,
+    if (!is.null(design_formula)) {
+        dds <- DESeq2::DESeqDataSetFromMatrix(countData = counts,
+                                      colData = colData,
+                                      design = design_formula)    
+    } else {
+        dds <- DESeq2::DESeqDataSetFromMatrix(countData = counts,
                                   colData = colData,
                                   design = ~condition)
+    }
+
+    # Set the order of the condition factor to ensure correct reference level
     dds$condition <- factor(dds$condition, levels = c(group1, group2))
+
+    if (!is.null(parameter_2)) {
+        dds[[parameter_2]] <- factor(dds[[parameter_2]], levels = c(group1_parameter_2, group2_parameter_2))
+    }
+
+    # Filter genes with less than 10 counts in at least n replicates, where n is the size of the smallest group
+    smallestGroupSize <- min(nrow(colData |> filter(.data$condition == group1)),
+                             nrow(colData |> filter(.data$condition == group2)))
+    keep <- rowSums(DESeq2::counts(dds) >= 10) >= smallestGroupSize
+    dds <- dds[keep,]
+
+    # Work out what comparison the contrast actually encodes, for plot labels, the gene-list
+    # expression filter, and output filenames. Everything is read off dds: design() gives the
+    # terms and colData() gives each variable's levels with the reference first, both available
+    # before DESeq() is run.
+    contrast_labels <- de_contrast_labels(dds = dds, contrast = contrast)
+    file_tag <- contrast_labels$file_tag
 
     # DESeq2 QC
     rld <- DESeq2::rlog(dds, blind = TRUE)
@@ -126,21 +188,64 @@ pseudobulk_de <- function(scRNAseq, comparison, group1, group2, cluster = 'all_c
     dir.create(local_figures_path, showWarnings = FALSE, recursive = TRUE)
 
     DESeq2::plotPCA(rld, ntop = 500, intgroup = 'condition')
-    ggsave(filename = paste0('Pseudobulk_PCA_', cluster, '.pdf'), path = local_figures_path)
+    ggsave(filename = paste0('Pseudobulk_PCA_', cluster, file_tag, '.pdf'), path = local_figures_path)
 
     PCA_table <- DESeq2::plotPCA(rld, ntop = 500, intgroup = 'condition', returnData = TRUE)
-    write.csv(PCA_table, file = here::here(path, paste('PCA_pseudobulk', cluster, group2, 'vs', group1, '.csv', sep = '_')))
+    write.csv(PCA_table, file = here::here(path, paste0(paste('PCA_pseudobulk', cluster, group2, 'vs', group1, sep = '_'), file_tag, '_.csv')))
 
     # Run DESeq2
     dds <- DESeq2::DESeq(dds)
-    DESeq2::resultsNames(dds)
+
+    # Now that the coefficients exist, check the contrast actually names some of them. Fails with
+    # the available names rather than letting DESeq2 raise a bare error further down.
+    validate_contrast_coefs(contrast, dds)
+
+    # Pick the shrinkage estimator. lfcShrink() does accept a contrast, but its type='apeglm'
+    # branch refuses one -- "type='apeglm' shrinkage only for use with 'coef'" -- and only ever
+    # passes coef through to apeglm::apeglm(). That is DESeq2's own restriction, not a limit of
+    # apeglm. ashr takes an arbitrary contrast (including the list form) because it shrinks from
+    # the LFC and its standard error; type='normal' refuses interaction designs entirely.
+    if (shrink_LFC && is.null(shrink_type)) {
+        shrink_type <- if (is.null(contrast)) 'apeglm' else 'ashr'
+    }
+    if (shrink_LFC) {
+        rlang::check_installed(
+            if (shrink_type == 'ashr') 'ashr' else shrink_type,
+            reason = paste0("for log fold change shrinkage (shrink_LFC = TRUE, type = '",
+                            shrink_type, "')")
+        )
+        if (shrink_type == 'apeglm' && !is.null(contrast)) {
+            stop("shrink_type = 'apeglm' cannot be combined with a custom contrast; ",
+                 "DESeq2::lfcShrink() rejects it. Use shrink_type = 'ashr' (the default when a ",
+                 "contrast is supplied) or 'normal'.", call. = FALSE)
+        }
+    }
 
     # Generate results object
-    results <- DESeq2::results(dds) |> as.data.frame()
+    if (!is.null(contrast)) {
+        # Optionally, perform log fold change shrinkage for more accurate estimates, especially for low count genes
+        if (shrink_LFC) {
+            results <- DESeq2::lfcShrink(dds, contrast = contrast, type = shrink_type) |> as.data.frame()
+        } else {
+            results <- DESeq2::results(dds, contrast = contrast, alpha = p_value_threshold) |> as.data.frame()
+        }
+    } else {
+        # Optionally, perform log fold change shrinkage for more accurate estimates, especially for low count genes
+        if (shrink_LFC) {
+            # Shrink the condition coefficient by name; a custom design_formula can put something
+            # else in position 2, so do not assume coef = 2.
+            condition_coef <- make.names(paste0('condition_', as.character(group2), '_vs_',
+                                                as.character(group1)))
+            coef_to_shrink <- if (condition_coef %in% DESeq2::resultsNames(dds)) condition_coef else 2
+            results <- DESeq2::lfcShrink(dds, coef = coef_to_shrink, type = shrink_type) |> as.data.frame()
+        } else {
+            results <- DESeq2::results(dds, alpha = p_value_threshold) |> as.data.frame()
+        }
+    }
 
     # Get Normalized Counts
-    normalized_counts <- DESeq2::counts(dds, normalized = TRUE)
-    normalized_counts <- normalized_counts |>
+    normalized_counts_matrix <- DESeq2::counts(dds, normalized = TRUE)
+    normalized_counts <- normalized_counts_matrix |>
         as.data.frame() |>
         rownames_to_column('genes') |>
         as_tibble() |>
@@ -151,6 +256,43 @@ pseudobulk_de <- function(scRNAseq, comparison, group1, group2, cluster = 'all_c
         ) |>
         ungroup()
 
+    # Add per-stratum averages so the scatterplot can show the groups the contrast actually
+    # compared. Derived from colData rather than from parameter_2, so the columns exist for
+    # whichever variable de_contrast_labels() names -- and colData is the only remaining source of
+    # the sample -> stratum mapping anyway, since the stratum suffix was stripped off the count
+    # column names above.
+    # Only discrete columns qualify: as.factor() on a continuous covariate would make one
+    # "stratum" per unique value.
+    stratum_vars <- names(select(colData, where(is.factor) | where(is.character),
+                                 -any_of(c('samples', 'condition'))))
+    if (length(stratum_vars)) {
+        avg_columns <- list()
+        # as.character() matters: samples may be a factor, and indexing a matrix with a factor
+        # selects by integer code rather than by column name
+        sample_names <- as.character(colData$samples)
+        for (v in stratum_vars) {
+            strata <- levels(as.factor(colData[[v]]))
+            for (stratum in strata) {
+                stratum_samples <- sample_names[colData[[v]] == stratum]
+                avg_columns[[paste0('Avg_', stratum)]] <-
+                    rowMeans(normalized_counts_matrix[, stratum_samples, drop = FALSE])
+            }
+            for (group in levels(as.factor(colData$condition))) {
+                for (stratum in strata) {
+                    cell_samples <- sample_names[colData$condition == group &
+                                                 colData[[v]] == stratum]
+                    if (length(cell_samples) == 0) next
+                    avg_columns[[paste0('Avg_', group, '_', stratum)]] <-
+                        rowMeans(normalized_counts_matrix[, cell_samples, drop = FALSE])
+                    # the other orientation, for a contrast on v stratified by condition
+                    avg_columns[[paste0('Avg_', stratum, '_', group)]] <-
+                        avg_columns[[paste0('Avg_', group, '_', stratum)]]
+                }
+            }
+        }
+        normalized_counts <- bind_cols(normalized_counts, as_tibble(avg_columns))
+    }
+
     # Add gene annotations
     results <- results |>
         rownames_to_column('genes') |>
@@ -158,33 +300,41 @@ pseudobulk_de <- function(scRNAseq, comparison, group1, group2, cluster = 'all_c
                  by = c('genes' = 'gene_name')) |>
         left_join(y = normalized_counts, by = c('genes' = 'genes'))
 
-    # Filter results
+    # Filter results. Threshold on the two groups the contrast actually compared, so the
+    # reported counts and gene lists describe the same comparison as the plots.
+    filter_columns <- c(contrast_labels$x_column, contrast_labels$y_column)
+    if (!all(filter_columns %in% names(results))) {
+        filter_columns <- c(paste0('Avg_', group1), paste0('Avg_', group2))
+    }
     results_filtered <- filter(
         results,
-        padj < p_value_threshold &
-            ((!!sym(paste0('Avg_', group2)) > expression_threshold_for_gene_list) |
-             (!!sym(paste0('Avg_', group1)) > expression_threshold_for_gene_list)) &
-            (log2FoldChange >= FC_threshold | log2FoldChange <= -1 * FC_threshold)
+        .data$padj < p_value_threshold &
+            ((!!sym(filter_columns[2]) > expression_threshold_for_gene_list) |
+             (!!sym(filter_columns[1]) > expression_threshold_for_gene_list)) &
+            (.data$log2FoldChange >= FC_threshold | .data$log2FoldChange <= -1 * FC_threshold)
     ) |>
-        arrange(padj)
+        arrange(.data$padj)
 
-    results_filtered_UP <- filter(results_filtered, log2FoldChange >= FC_threshold)
-    results_filtered_DOWN <- filter(results_filtered, log2FoldChange <= -1 * FC_threshold)
+    results_filtered_UP <- filter(results_filtered, .data$log2FoldChange >= FC_threshold)
+    results_filtered_DOWN <- filter(results_filtered, .data$log2FoldChange <= -1 * FC_threshold)
 
-    # Write results to CSV files
-    write.csv(results |> arrange(padj),
-             file = here::here(gene_lists_path, paste('ALL_GENES_DEG_Analysis', cluster, 'pseudobulk', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_UP |> arrange(padj, desc(log2FoldChange)),
-             file = here::here(gene_lists_path, paste('DEG_UP_in', group2, cluster, 'pseudobulk', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_DOWN |> arrange(padj, log2FoldChange),
-             file = here::here(gene_lists_path, paste('DEG_DOWN_in', group2, cluster, 'pseudobulk', group2, 'vs', group1, '.csv', sep = '_')))
+    # Write results to CSV files. file_tag keeps different contrasts on the same cluster from
+    # overwriting each other; it is '' for the default design.
+    write.csv(results |> arrange(.data$padj),
+             file = here::here(gene_lists_path, paste0(paste('ALL_GENES_DEG_Analysis', cluster, 'pseudobulk', group2, 'vs', group1, sep = '_'), file_tag, '_.csv')))
+    write.csv(results_filtered_UP |> arrange(.data$padj, desc(.data$log2FoldChange)),
+             file = here::here(gene_lists_path, paste0(paste('DEG_UP_in', group2, cluster, 'pseudobulk', group2, 'vs', group1, sep = '_'), file_tag, '_.csv')))
+    write.csv(results_filtered_DOWN |> arrange(.data$padj, .data$log2FoldChange),
+             file = here::here(gene_lists_path, paste0(paste('DEG_DOWN_in', group2, cluster, 'pseudobulk', group2, 'vs', group1, sep = '_'), file_tag, '_.csv')))
 
     # Return counts and results
     list(
         all_count = nrow(results_filtered),
         UP_count = nrow(results_filtered_UP),
         DOWN_count = nrow(results_filtered_DOWN),
-        results = results
+        results = results,
+        dds = dds,
+        contrast_labels = contrast_labels
     )
 }
 
@@ -279,11 +429,11 @@ DEG_FindMarkers_RNA_assay_de <- function(scRNAseq, comparison, group1, group2,
     results <- results |>
                     rownames_to_column('genes') |>
                     rename(
-                        log2FoldChange = avg_log2FC,
-                        padj = p_val_adj,
-                        pvalue = p_val
+                        log2FoldChange = "avg_log2FC",
+                        padj = "p_val_adj",
+                        pvalue = "p_val"
                     ) |>
-                    mutate(log2FoldChange = log2FoldChange * -1) |>
+                    mutate(log2FoldChange = .data$log2FoldChange * -1) |>
                     left_join(y = unique(annotations[, c('gene_name', 'description')]),
                              by = c('genes' = 'gene_name')) |>
                     left_join(y = counts_CPM, by = c('genes' = 'gene'))
@@ -300,7 +450,7 @@ DEG_FindMarkers_RNA_assay_de <- function(scRNAseq, comparison, group1, group2,
         if (n_removed > 0) {
             message('Removing ', n_removed, ' sex chromosome genes from results')
         }
-        results <- results |> filter(!genes %in% sex_chr_genes)
+        results <- results |> filter(!.data$genes %in% sex_chr_genes)
     }
 
     # Exclude requested genes (regex patterns and/or VDJ defaults)
@@ -312,19 +462,19 @@ DEG_FindMarkers_RNA_assay_de <- function(scRNAseq, comparison, group1, group2,
 
     # Filter results
     results_filtered <- filter(results,
-                               padj < p_value_threshold &
-                               (log2FoldChange >= FC_threshold | log2FoldChange <= -1 * FC_threshold)) |>
-                        arrange(padj)
+                               .data$padj < p_value_threshold &
+                               (.data$log2FoldChange >= FC_threshold | .data$log2FoldChange <= -1 * FC_threshold)) |>
+                        arrange(.data$padj)
 
-    results_filtered_UP <- filter(results_filtered, log2FoldChange >= FC_threshold)
-    results_filtered_DOWN <- filter(results_filtered, log2FoldChange <= -1 * FC_threshold)
+    results_filtered_UP <- filter(results_filtered, .data$log2FoldChange >= FC_threshold)
+    results_filtered_DOWN <- filter(results_filtered, .data$log2FoldChange <= -1 * FC_threshold)
 
     # Write results to CSV files
-    write.csv(results_filtered |> arrange(padj),
+    write.csv(results_filtered |> arrange(.data$padj),
              file = here::here(gene_lists_path, paste('ALL_GENES_DEG_Analysis', cluster, 'Wilcox', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_UP |> arrange(padj, desc(log2FoldChange)),
+    write.csv(results_filtered_UP |> arrange(.data$padj, desc(.data$log2FoldChange)),
              file = here::here(gene_lists_path, paste('DEG_UP_in', group2, cluster, 'Wilcox', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_DOWN |> arrange(padj, log2FoldChange),
+    write.csv(results_filtered_DOWN |> arrange(.data$padj, .data$log2FoldChange),
              file = here::here(gene_lists_path, paste('DEG_DOWN_in', group2, cluster, 'Wilcox', group2, 'vs', group1, '.csv', sep = '_')))
 
     # Return counts and results
@@ -433,11 +583,11 @@ DEG_FindMarkers_SCT_assay_de <- function(scRNAseq, comparison, group1, group2, i
     results <- results |>
         rownames_to_column('genes') |>
         rename(
-            log2FoldChange = avg_log2FC,
-            padj = p_val_adj,
-            pvalue = p_val
+            log2FoldChange = "avg_log2FC",
+            padj = "p_val_adj",
+            pvalue = "p_val"
         ) |>
-        mutate(log2FoldChange = log2FoldChange * -1) |>
+        mutate(log2FoldChange = .data$log2FoldChange * -1) |>
         left_join(y = unique(annotations[, c('gene_name', 'description')]),
                  by = c('genes' = 'gene_name')) |>
         left_join(y = counts_CPM, by = c('genes' = 'gene'))
@@ -454,7 +604,7 @@ DEG_FindMarkers_SCT_assay_de <- function(scRNAseq, comparison, group1, group2, i
         if (n_removed > 0) {
             message('Removing ', n_removed, ' sex chromosome genes from results')
         }
-        results <- results |> filter(!genes %in% sex_chr_genes)
+        results <- results |> filter(!.data$genes %in% sex_chr_genes)
     }
 
     # Exclude requested genes (regex patterns and/or VDJ defaults)
@@ -467,20 +617,20 @@ DEG_FindMarkers_SCT_assay_de <- function(scRNAseq, comparison, group1, group2, i
     # Filter results
     results_filtered <- filter(
         results,
-        padj < p_value_threshold &
-            (log2FoldChange >= FC_threshold | log2FoldChange <= -1 * FC_threshold)
+        .data$padj < p_value_threshold &
+            (.data$log2FoldChange >= FC_threshold | .data$log2FoldChange <= -1 * FC_threshold)
     ) |>
-        arrange(padj)
+        arrange(.data$padj)
 
-    results_filtered_UP <- filter(results_filtered, log2FoldChange >= FC_threshold)
-    results_filtered_DOWN <- filter(results_filtered, log2FoldChange <= -1 * FC_threshold)
+    results_filtered_UP <- filter(results_filtered, .data$log2FoldChange >= FC_threshold)
+    results_filtered_DOWN <- filter(results_filtered, .data$log2FoldChange <= -1 * FC_threshold)
 
     # Write results to CSV files
-    write.csv(results |> arrange(padj),
+    write.csv(results |> arrange(.data$padj),
              file = here::here(gene_lists_path, paste('ALL_GENES_DEG_Analysis', cluster, 'Wilcox', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_UP |> arrange(padj, desc(log2FoldChange)),
+    write.csv(results_filtered_UP |> arrange(.data$padj, desc(.data$log2FoldChange)),
              file = here::here(gene_lists_path, paste('DEG_UP_in', group2, cluster, 'Wilcox', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_DOWN |> arrange(padj, log2FoldChange),
+    write.csv(results_filtered_DOWN |> arrange(.data$padj, .data$log2FoldChange),
              file = here::here(gene_lists_path, paste('DEG_DOWN_in', group2, cluster, 'Wilcox', group2, 'vs', group1, '.csv', sep = '_')))
 
     # Return counts and results
@@ -550,19 +700,19 @@ bulk_analysis_de <- function(counts_table, comparison = 'Groups', group1, group2
 
     # Generate sample level metadata
     colData <- data.frame(samples = colnames(counts)) |>
-                mutate(condition = ifelse(grepl(group1, samples), group1, group2))
+                mutate(condition = ifelse(grepl(group1, .data$samples), group1, group2))
 
     # Filter
     counts <- counts |> mutate(row_sums = rowSums(counts)) |>
-              filter(row_sums >= 10) |> dplyr::select(-row_sums)
+              filter(.data$row_sums >= 10) |> dplyr::select(-any_of("row_sums"))
 
-    message('Group 1 replicates: ', nrow(colData |> filter(condition == group1)))
-    message('Group 2 replicates: ', nrow(colData |> filter(condition == group2)))
+    message('Group 1 replicates: ', nrow(colData |> filter(.data$condition == group1)))
+    message('Group 2 replicates: ', nrow(colData |> filter(.data$condition == group2)))
 
     # Check for sufficient replicates
     if ((length(unique(colData$condition)) != 2) |
-        (nrow(colData |> filter(condition == group1)) < 2) |
-        (nrow(colData |> filter(condition == group2)) < 2)) {
+        (nrow(colData |> filter(.data$condition == group1)) < 2) |
+        (nrow(colData |> filter(.data$condition == group2)) < 2)) {
         warning('Not enough biological replicates per group (minimum 2 per group required)')
         return(list(
             all_count = 'Not enough biological replicates per group',
@@ -619,22 +769,22 @@ bulk_analysis_de <- function(counts_table, comparison = 'Groups', group1, group2
     # Filter results
     results_filtered <- filter(
         results,
-        padj < p_value_threshold &
+        .data$padj < p_value_threshold &
             ((!!sym(paste0('Avg_', group2)) > expression_threshold_for_gene_list) |
              (!!sym(paste0('Avg_', group1)) > expression_threshold_for_gene_list)) &
-            (log2FoldChange >= FC_threshold | log2FoldChange <= -1 * FC_threshold)
+            (.data$log2FoldChange >= FC_threshold | .data$log2FoldChange <= -1 * FC_threshold)
     ) |>
-        arrange(padj)
+        arrange(.data$padj)
 
-    results_filtered_UP <- filter(results_filtered, log2FoldChange >= FC_threshold)
-    results_filtered_DOWN <- filter(results_filtered, log2FoldChange <= -1 * FC_threshold)
+    results_filtered_UP <- filter(results_filtered, .data$log2FoldChange >= FC_threshold)
+    results_filtered_DOWN <- filter(results_filtered, .data$log2FoldChange <= -1 * FC_threshold)
 
     # Write results to CSV files
-    write.csv(results |> arrange(padj),
+    write.csv(results |> arrange(.data$padj),
              file = here::here(gene_lists_path, paste('ALL_GENES_DEG_Analysis', cluster, 'bulk', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_UP |> arrange(padj, desc(log2FoldChange)),
+    write.csv(results_filtered_UP |> arrange(.data$padj, desc(.data$log2FoldChange)),
              file = here::here(gene_lists_path, paste('DEG_UP_in', group2, cluster, 'bulk', group2, 'vs', group1, '.csv', sep = '_')))
-    write.csv(results_filtered_DOWN |> arrange(padj, log2FoldChange),
+    write.csv(results_filtered_DOWN |> arrange(.data$padj, .data$log2FoldChange),
              file = here::here(gene_lists_path, paste('DEG_DOWN_in', group2, cluster, 'bulk', group2, 'vs', group1, '.csv', sep = '_')))
 
     # Return counts and results

@@ -11,6 +11,13 @@ pseudobulk(
   group2,
   cluster = "all_clusters",
   path = "./",
+  shrink_LFC = FALSE,
+  design_formula = NULL,
+  parameter_2 = NULL,
+  group1_parameter_2 = NULL,
+  group2_parameter_2 = NULL,
+  contrast = NULL,
+  shrink_type = NULL,
   FC_threshold = 0.3,
   p_value_threshold = 0.05,
   max_overlaps = 15,
@@ -35,6 +42,23 @@ pseudobulk(
 
 \item{path}{Character; output directory path. Default './'}
 
+\item{shrink_LFC}{Logical; if TRUE, performs log fold change shrinkage for more accurate estimates, especially for low count genes. Default FALSE}
+
+\item{design_formula}{Formula; custom design formula for DESeq2 analysis. Default NULL (uses ~condition)}
+
+\item{parameter_2}{Character; name of the second parameter in the design formula, if applicable. Default NULL}
+
+\item{group1_parameter_2}{Character; value of the second parameter for the first group. Default NULL}
+
+\item{group2_parameter_2}{Character; value of the second parameter for the second group. Default NULL}
+
+\item{contrast}{Character vector or list; specifies the contrast for DESeq2 results. Default NULL (uses the default contrast based on the default ~condition design) See DESeq2 documentation and ?DESeq2::results for details on specifying contrasts.}
+
+\item{shrink_type}{Character; shrinkage estimator passed to \code{DESeq2::lfcShrink}, one of
+'apeglm', 'ashr' or 'normal'. Default NULL, which selects 'apeglm' when no \code{contrast} is
+given and 'ashr' when one is, because \code{lfcShrink} rejects a contrast with 'apeglm'.
+Requires the corresponding package to be installed.}
+
 \item{FC_threshold}{Numeric; log2 fold change threshold for filtering. Default 0.3}
 
 \item{p_value_threshold}{Numeric; adjusted p-value threshold. Default 0.05}
@@ -56,7 +80,11 @@ Default c()}
 \item{exclude_vdj}{Logical; if TRUE, also exclude VDJ (immunoglobulin and T-cell
 receptor) genes. Default FALSE}
 
-\item{...}{Additional arguments passed to visualization and enrichment functions}
+\item{...}{Additional arguments passed to visualization and enrichment functions. Note that the
+plot label arguments (\code{plot_subtitle}, \code{x_axis_label}, \code{up_label},
+\code{down_label}, \code{x_column}, \code{y_column}, \code{x_group_label},
+\code{y_group_label}, \code{scatter_applicable}, \code{file_suffix}) are set from the contrast
+and must not be passed here.}
 }
 \value{
 List with elements:
@@ -64,6 +92,8 @@ List with elements:
 \item{UP_count}{Integer; number of upregulated genes}
 \item{DOWN_count}{Integer; number of downregulated genes}
 \item{results}{Data frame; complete DE results}
+\item{dds}{The fitted DESeqDataSet}
+\item{contrast_labels}{List; the plot labels describing the comparison the contrast encodes}
 \item{scatterplot}{ggplot; scatterplot object}
 \item{volcanoplot}{ggplot; volcano plot object}
 \item{enrichment}{Enrichment analysis results (plot_up and plot_down), or NULL}
@@ -73,3 +103,15 @@ Orchestrates a full pseudobulk differential expression analysis workflow includi
 statistical testing with DESeq2, scatter and volcano plot generation, and optional
 pathway enrichment analysis. Returns both statistical results and visualizations.
 }
+\section{Plot labels}{
+
+Plot subtitles, the volcano x-axis title and its direction arrows, and the scatterplot axes
+are derived from \code{design_formula} and \code{contrast}, so they describe the comparison
+DESeq2 actually performed rather than always reading as \code{group2} vs \code{group1}. Under
+an interaction design the scatterplot is replaced by a placeholder, since an
+expression-vs-expression plot cannot represent a difference of fold changes. Contrasts that
+cannot be classified fall back to neutral, direction-agnostic wording and emit a warning rather
+than guessing. Output filenames gain a contrast-specific suffix so several contrasts on one
+cluster do not overwrite each other.
+}
+

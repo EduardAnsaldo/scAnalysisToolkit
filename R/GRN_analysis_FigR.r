@@ -384,7 +384,7 @@ run_figr_analysis <- function(seurat,
   
   # Step 6: Filter correlations and identify DORCs
   message("Identifying DORCs...")
-  cisCorrelation_filtered <- cisCorrelation |> dplyr::filter(pvalZ < p_cutoff)
+  cisCorrelation_filtered <- cisCorrelation |> dplyr::filter(.data$pvalZ < p_cutoff)
   dorcGenes <- FigR::dorcJPlot(cisCorrelation_filtered,
                  cutoff = dorc_cutoff,
                  labelTop = 25,
@@ -530,7 +530,7 @@ analyze_figr_results <- function(figR.d,
   # 1. Scatter plot of FigR results
   tryCatch({
   results$scatter_plot <- figR.d |>
-    ggplot(aes(Corr.log10P, Enrichment.log10P, color = Score)) +
+    ggplot(aes(.data$Corr.log10P, .data$Enrichment.log10P, color = .data$Score)) +
     ggrastr::geom_point_rast(size = 0.01, shape = 16) +
     theme_classic() +
     scale_color_gradientn(
@@ -683,14 +683,14 @@ analyze_figr_results <- function(figR.d,
   
   # 6. TF Chromvar visualization
   tryCatch({
-  figR.summ <- figR.d %>% 
-    group_by(Motif) %>%
-    dplyr::summarise(Score = mean(Score)) %>%
-    arrange(desc(Score)) %>%
-    mutate(Motif = factor(Motif, levels = as.character(Motif)))
-  
-  drivers_UP <- figR.summ |> pull(Motif) |> head(8)
-  drivers_DOWN <- figR.summ |> pull(Motif) |> tail(4)
+  figR.summ <- figR.d %>%
+    group_by(.data$Motif) %>%
+    dplyr::summarise(Score = mean(.data$Score)) %>%
+    arrange(desc(.data$Score)) %>%
+    mutate(Motif = factor(.data$Motif, levels = as.character(.data$Motif)))
+
+  drivers_UP <- figR.summ |> pull("Motif") |> head(8)
+  drivers_DOWN <- figR.summ |> pull("Motif") |> tail(4)
   
   drivers_names <- c(drivers_UP, drivers_DOWN)
   drivers_ID <- map(drivers_names, ~ gene_to_jaspar(.x, species = species, collection = "CORE"))
@@ -813,27 +813,27 @@ plotfigRHeatmap_EA <- function(figR.d,
 
   message("Using absolute score cut-off of: ",score.cut," ..\n")
   
-  DORCsToKeep <- figR.d %>% dplyr::filter(abs(Score) >= score.cut) %>% pull(DORC) %>% unique()
-  TFsToKeep <- figR.d %>% dplyr::filter(abs(Score) >= score.cut) %>% pull(Motif) %>% unique()
-  
-  
+  DORCsToKeep <- figR.d %>% dplyr::filter(abs(.data$Score) >= score.cut) %>% pull("DORC") %>% unique()
+  TFsToKeep <- figR.d %>% dplyr::filter(abs(.data$Score) >= score.cut) %>% pull("Motif") %>% unique()
+
+
   if(!is.null(DORCs)){
   if(!all(DORCs %in% figR.d$DORC))
     stop("One or more DORCs specified is not a valid DORC symbol found in the data.frame")
   DORCsToKeep <- intersect(DORCsToKeep,DORCs)
-  TFsToKeep <- figR.d %>% dplyr::filter(abs(Score) >= score.cut & DORC %in% DORCsToKeep) %>% pull(Motif) %>% unique()
+  TFsToKeep <- figR.d %>% dplyr::filter(abs(.data$Score) >= score.cut & .data$DORC %in% DORCsToKeep) %>% pull("Motif") %>% unique()
   }
-  
-  
+
+
   if(!is.null(TFs)){
   if(!all(TFs %in% figR.d$Motif))
     stop("One or more TFs specified is not a valid TF symbol found in the data.frame")
   TFsToKeep <- intersect(TFsToKeep,TFs)
-  DORCsToKeep <- figR.d %>% dplyr::filter(abs(Score) >= score.cut & Motif %in% TFsToKeep) %>% pull(DORC) %>% unique()
+  DORCsToKeep <- figR.d %>% dplyr::filter(abs(.data$Score) >= score.cut & .data$Motif %in% TFsToKeep) %>% pull("DORC") %>% unique()
   }
-  
-  
-  net.d <- figR.d %>% dplyr::filter(DORC %in% DORCsToKeep & Motif %in% TFsToKeep) %>%
+
+
+  net.d <- figR.d %>% dplyr::filter(.data$DORC %in% DORCsToKeep & .data$Motif %in% TFsToKeep) %>%
   reshape2::dcast(DORC ~ Motif) %>%
   tibble::column_to_rownames("DORC") %>% as.matrix()
   
@@ -865,6 +865,7 @@ plotfigRHeatmap_EA <- function(figR.d,
 #'
 #' @param seurat A Seurat object containing DORCs assay with chromatin accessibility data
 #' @param dorcMat.s Matrix containing DORC (Domain of Regulatory Chromatin) activity scores
+#' @param RNAmat.s Smoothed RNA expression matrix (genes x cells) used for the paired RNA feature plots.
 #' @param umap.d Data frame or matrix containing UMAP coordinates for dimensionality reduction
 #' @param cluster_id Character or numeric. The primary cluster identifier (ident.1) for comparison
 #' @param other_cluster_id Character or numeric. The comparison cluster identifier (ident.2)
@@ -912,7 +913,7 @@ plotfigRHeatmap_EA <- function(figR.d,
 #' \code{\link[Seurat]{FindMarkers}} for differential expression testing
 #' 
 #' @export
-compare_DORC_scores_pairwise <- function(seurat, dorcMat.s, umap.d, cluster_id, other_cluster_id, figures_path, identities='seurat_clusters_atac', topn=9,  cluster = NULL, ...) {
+compare_DORC_scores_pairwise <- function(seurat, dorcMat.s, RNAmat.s, umap.d, cluster_id, other_cluster_id, figures_path, identities='seurat_clusters_atac', topn=9,  cluster = NULL, ...) {
   
   rlang::check_installed("FigR", reason = "to use `compare_DORC_scores_pairwise()`")
 
@@ -938,32 +939,32 @@ compare_DORC_scores_pairwise <- function(seurat, dorcMat.s, umap.d, cluster_id, 
   # Extract top upregulated genes (positive avg_log2FC) with significant adjusted p-values
   # Filter for positive fold change, significant p-value, sort by significance,
   # and select the top n genes
-  top_motif_activities_up <- differential_activity |> 
-    filter(avg_log2FC > 0) |> 
-    filter(p_val_adj < 0.05) |>
-    arrange(p_val_adj) |>
+  top_motif_activities_up <- differential_activity |>
+    filter(.data$avg_log2FC > 0) |>
+    filter(.data$p_val_adj < 0.05) |>
+    arrange(.data$p_val_adj) |>
     slice_head(n = topn) |>
     rownames_to_column(var = 'gene') |>
-    pull(gene) |> 
+    pull("gene") |>
     unique()
 
   # Extract top downregulated genes (negative avg_log2FC) with significant adjusted p-values
   # Filter for negative fold change, significant p-value, sort by significance,
   # and select the top n genes
-  top_motif_activities_down <- differential_activity |> 
-    filter(avg_log2FC < 0) |> 
-    filter(p_val_adj < 0.05) |>
-    arrange(p_val_adj) |>
+  top_motif_activities_down <- differential_activity |>
+    filter(.data$avg_log2FC < 0) |>
+    filter(.data$p_val_adj < 0.05) |>
+    arrange(.data$p_val_adj) |>
     slice_head(n = topn) |>
     rownames_to_column(var = 'gene') |>
-    pull(gene) |> 
+    pull("gene") |>
     unique()
   
   # Reformat differential activity results for volcano plot
   # Rename columns to match expected input format
   differential_activity_cluster <- differential_activity |> 
     rownames_to_column(var = 'genes') |>
-    rename(log2FoldChange = avg_log2FC, pvalue = p_val, padj = p_val_adj)
+    rename(log2FoldChange = "avg_log2FC", pvalue = "p_val", padj = "p_val_adj")
 
   cluster_title  <- ifelse(is.null(cluster), paste0(cluster_id, ' vs ', other_cluster_id), cluster)
   # Generate volcano plot showing differential activity between clusters

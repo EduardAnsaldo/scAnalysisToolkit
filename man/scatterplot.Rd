@@ -20,6 +20,13 @@ scatterplot(
   test_type = c("Wilcox", "Pseudobulk", "Bulk"),
   genes_to_plot = NULL,
   pt_size = 1.3,
+  x_column = NULL,
+  y_column = NULL,
+  x_group_label = NULL,
+  y_group_label = NULL,
+  plot_subtitle = NULL,
+  file_suffix = NULL,
+  scatter_applicable = TRUE,
   ...
 )
 }
@@ -55,6 +62,22 @@ for labeling. Default 0.5}
 \item{genes_to_plot}{Character vector; specific genes to highlight. Default NULL}
 
 \item{pt_size}{Numeric; point size. Default 1.3}
+
+\item{x_column, y_column}{Character; names of the columns in \code{results} to plot on each
+axis. Default NULL (\code{Avg_<group1>} and \code{Avg_<group2>}). Used to point the plot at
+subgroup-specific averages when a custom DESeq2 contrast compared only part of the data.}
+
+\item{x_group_label, y_group_label}{Character; group descriptors used in the axis titles,
+e.g. 'CT (Female)'. Default NULL (\code{group1} and \code{group2})}
+
+\item{plot_subtitle}{Character; subtitle describing the comparison. Default NULL (no subtitle)}
+
+\item{file_suffix}{Character; appended to the saved PDF filename, to keep several contrasts
+on the same cluster from overwriting each other. Default NULL}
+
+\item{scatter_applicable}{Logical; if FALSE, returns a placeholder plot instead. Used for
+contrasts such as an interaction term, where an expression-vs-expression scatterplot
+cannot represent the quantity being tested. Default TRUE}
 
 \item{...}{Additional arguments passed to plotting functions}
 }

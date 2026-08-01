@@ -13,6 +13,7 @@ Metascape_functional_analysis(
   FC_threshold,
   p_value_threshold = 0.05,
   top_n_genes = NULL,
+  file_suffix = "",
   ...
 )
 }
@@ -34,6 +35,12 @@ log2FoldChange, padj}
 
 \item{top_n_genes}{Integer; maximum number of top genes to include based on p-value.
 Default NULL (include all significant genes)}
+
+\item{file_suffix}{Character; appended to the output directory names. Needed when several
+comparisons share a \code{path}: the directory names encode only one group plus
+\code{grouping_var}, so two contrasts on the same groups (e.g. within different subgroups)
+otherwise resolve to the same directory, and \code{create_analysis_directory} deletes the
+earlier one. Default ''}
 
 \item{...}{Additional arguments passed to Metascape_overrepresentation_analysis}
 }

@@ -55,7 +55,7 @@ run_cellchat_analysis <- function(seurat,
 
   ## Extract expression data and metadata from the Seurat object
   if ("Samples" %in% colnames(seurat@meta.data)) {
-    seurat@meta.data <- seurat@meta.data |> mutate(samples = Samples)
+    seurat@meta.data <- seurat@meta.data |> mutate(samples = .data$Samples)
   }
 
   message("Creating CellChat object...")

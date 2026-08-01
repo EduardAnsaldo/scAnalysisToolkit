@@ -13,7 +13,17 @@
 #' @param group2 Character; pattern to match for second group (treatment)
 #' @param cluster Character; cluster or cell type identifier. Default 'all_clusters'
 #' @param path Character; output directory path. Default './'
-#' @param FC_threshold Numeric; log2 fold change threshold for filtering. Default 0.3
+#' @param shrink_LFC Logical; if TRUE, performs log fold change shrinkage for more accurate estimates, especially for low count genes. Default FALSE
+#' @param shrink_type Character; shrinkage estimator passed to \code{DESeq2::lfcShrink}, one of
+#'   'apeglm', 'ashr' or 'normal'. Default NULL, which selects 'apeglm' when no \code{contrast} is
+#'   given and 'ashr' when one is, because \code{lfcShrink} rejects a contrast with 'apeglm'.
+#'   Requires the corresponding package to be installed.
+#' @param design_formula Formula; custom design formula for DESeq2 analysis. Default NULL (uses ~condition)
+#' @param parameter_2 Character; name of the second parameter in the design formula, if applicable. Default NULL
+#' @param group1_parameter_2 Character; value of the second parameter for the first group. Default NULL
+#' @param group2_parameter_2 Character; value of the second parameter for the second group. Default NULL
+#' @param contrast Character vector or list; specifies the contrast for DESeq2 results. Default NULL (uses the default contrast based on the default ~condition design) See DESeq2 documentation and ?DESeq2::results for details on specifying contrasts.
+#' @param FC_threshold Numeric; log2 fold change threshold for filtering. Default 0.3  
 #' @param p_value_threshold Numeric; adjusted p-value threshold. Default 0.05
 #' @param max_overlaps Integer; maximum label overlaps in plots. Default 15
 #' @param expression_threshold_for_gene_list Numeric; minimum average normalized counts
@@ -26,20 +36,37 @@
 #'   Default c()
 #' @param exclude_vdj Logical; if TRUE, also exclude VDJ (immunoglobulin and T-cell
 #'   receptor) genes. Default FALSE
-#' @param ... Additional arguments passed to visualization and enrichment functions
+#' @param ... Additional arguments passed to visualization and enrichment functions. Note that the
+#'   plot label arguments (\code{plot_subtitle}, \code{x_axis_label}, \code{up_label},
+#'   \code{down_label}, \code{x_column}, \code{y_column}, \code{x_group_label},
+#'   \code{y_group_label}, \code{scatter_applicable}, \code{file_suffix}) are set from the contrast
+#'   and must not be passed here.
+#'
+#' @section Plot labels:
+#' Plot subtitles, the volcano x-axis title and its direction arrows, and the scatterplot axes
+#' are derived from \code{design_formula} and \code{contrast}, so they describe the comparison
+#' DESeq2 actually performed rather than always reading as \code{group2} vs \code{group1}. Under
+#' an interaction design the scatterplot is replaced by a placeholder, since an
+#' expression-vs-expression plot cannot represent a difference of fold changes. Contrasts that
+#' cannot be classified fall back to neutral, direction-agnostic wording and emit a warning rather
+#' than guessing. Output filenames gain a contrast-specific suffix so several contrasts on one
+#' cluster do not overwrite each other.
 #'
 #' @return List with elements:
 #'   \item{all_count}{Integer; number of significant DEGs}
 #'   \item{UP_count}{Integer; number of upregulated genes}
 #'   \item{DOWN_count}{Integer; number of downregulated genes}
 #'   \item{results}{Data frame; complete DE results}
+#'   \item{dds}{The fitted DESeqDataSet}
+#'   \item{contrast_labels}{List; the plot labels describing the comparison the contrast encodes}
 #'   \item{scatterplot}{ggplot; scatterplot object}
 #'   \item{volcanoplot}{ggplot; volcano plot object}
 #'   \item{enrichment}{Enrichment analysis results (plot_up and plot_down), or NULL}
 #'
 #' @export
 pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clusters',
-                       path = './', FC_threshold = 0.3, p_value_threshold = 0.05,
+                       path = './', shrink_LFC = FALSE, design_formula = NULL, parameter_2 = NULL, group1_parameter_2 = NULL, group2_parameter_2 = NULL,
+                       contrast = NULL, shrink_type = NULL, FC_threshold = 0.3, p_value_threshold = 0.05,
                        max_overlaps = 15,
                        expression_threshold_for_gene_list = 20, minimum_cell_number = 10,
                        run_pathway_enrichment = NULL, genes_to_exclude = c(),
@@ -59,6 +86,13 @@ pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clus
         group2 = group2,
         cluster = cluster,
         path = path,
+        shrink_LFC = shrink_LFC,
+        design_formula = design_formula,
+        parameter_2 = parameter_2,
+        group1_parameter_2 = group1_parameter_2,
+        group2_parameter_2 = group2_parameter_2,
+        contrast = contrast,
+        shrink_type = shrink_type,
         FC_threshold = FC_threshold,
         p_value_threshold = p_value_threshold,
         expression_threshold_for_gene_list = expression_threshold_for_gene_list,
@@ -77,7 +111,12 @@ pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clus
         ))
     }
 
-    # Generate scatter and volcano plots
+    # Labels describing the comparison the DESeq2 contrast actually encodes
+    contrast_labels <- de_results$contrast_labels
+
+    # Generate scatter and volcano plots. The label arguments are derived from the contrast, not
+    # caller-supplied: x_column / y_column / scatter_applicable in particular select which Avg_
+    # columns exist to be plotted, so overriding them would name columns absent from results.
     scatterplot_output <- scatterplot(
         results = de_results$results,
         group1 = group1,
@@ -88,6 +127,13 @@ pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clus
         cluster = cluster,
         max_overlaps = max_overlaps,
         test_type = 'Pseudobulk',
+        x_column = contrast_labels$x_column,
+        y_column = contrast_labels$y_column,
+        x_group_label = contrast_labels$x_group_label,
+        y_group_label = contrast_labels$y_group_label,
+        plot_subtitle = contrast_labels$subtitle,
+        scatter_applicable = contrast_labels$scatter_applicable,
+        file_suffix = contrast_labels$file_tag,
         ...
     )
 
@@ -101,10 +147,16 @@ pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clus
         p_value_threshold = p_value_threshold,
         max_overlaps = max_overlaps,
         test_type = 'Pseudobulk',
+        plot_subtitle = contrast_labels$subtitle,
+        x_axis_label = contrast_labels$volcano_x,
+        up_label = contrast_labels$up_label,
+        down_label = contrast_labels$down_label,
+        file_suffix = contrast_labels$file_tag,
         ...
     )
 
-    # Overrepresentation analysis
+    # Overrepresentation analysis. Use the contrast's own groups so enrichment output is
+    # labelled with the same comparison as the plots.
     enrichment_output <- run_DEG_functional_analysis(
         results = de_results$results,
         method = run_pathway_enrichment,
@@ -112,8 +164,12 @@ pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clus
         path = path,
         FC_threshold = FC_threshold,
         p_value_threshold = p_value_threshold,
-        group1 = group1,
-        group2 = group2,
+        group1 = if (is.na(contrast_labels$denominator)) group1 else contrast_labels$denominator,
+        group2 = if (is.na(contrast_labels$numerator)) group2 else contrast_labels$numerator,
+        # The enrichment output directories are named from one group plus the cluster only, so two
+        # contrasts sharing those would collide -- and create_analysis_directory() unlinks first,
+        # deleting the earlier result rather than merging.
+        file_suffix = contrast_labels$file_tag,
         ...
     )
 
@@ -122,6 +178,8 @@ pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clus
         UP_count = de_results$UP_count,
         DOWN_count = de_results$DOWN_count,
         results = de_results$results,
+        dds = de_results$dds,
+        contrast_labels = contrast_labels,
         scatterplot = scatterplot_output,
         volcanoplot = volcanoplot_output,
         enrichment = enrichment_output

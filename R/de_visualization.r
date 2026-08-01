@@ -24,12 +24,42 @@
 #' @param test_type Character; type of test ('Wilcox', 'Pseudobulk', or 'Bulk')
 #' @param genes_to_plot Character vector; specific genes to highlight. Default NULL
 #' @param pt_size Numeric; point size. Default 1.3
+#' @param x_column,y_column Character; names of the columns in \code{results} to plot on each
+#'   axis. Default NULL (\code{Avg_<group1>} and \code{Avg_<group2>}). Used to point the plot at
+#'   subgroup-specific averages when a custom DESeq2 contrast compared only part of the data.
+#' @param x_group_label,y_group_label Character; group descriptors used in the axis titles,
+#'   e.g. 'CT (Female)'. Default NULL (\code{group1} and \code{group2})
+#' @param plot_subtitle Character; subtitle describing the comparison. Default NULL (no subtitle)
+#' @param file_suffix Character; appended to the saved PDF filename, to keep several contrasts
+#'   on the same cluster from overwriting each other. Default NULL
+#' @param scatter_applicable Logical; if FALSE, returns a placeholder plot instead. Used for
+#'   contrasts such as an interaction term, where an expression-vs-expression scatterplot
+#'   cannot represent the quantity being tested. Default TRUE
 #' @param ... Additional arguments passed to plotting functions
 #'
 #' @return A ggplot object
 #'
 #' @export
-scatterplot <- function (results, group1, group2, local_figures_path, FC_threshold, p_value_threshold, cluster = 'all_clusters', my_colors = c('#023FA5', '#8E063B', 'gray'), max_overlaps = 15, label_size = 5, label_threshold = 10000, distance_from_diagonal_threshold = 0.5, test_type = c('Wilcox', 'Pseudobulk', 'Bulk'), genes_to_plot = NULL, pt_size = 1.3, ...) {
+scatterplot <- function (results, group1, group2, local_figures_path, FC_threshold, p_value_threshold, cluster = 'all_clusters', my_colors = c('#023FA5', '#8E063B', 'gray'), max_overlaps = 15, label_size = 5, label_threshold = 10000, distance_from_diagonal_threshold = 0.5, test_type = c('Wilcox', 'Pseudobulk', 'Bulk'), genes_to_plot = NULL, pt_size = 1.3, x_column = NULL, y_column = NULL, x_group_label = NULL, y_group_label = NULL, plot_subtitle = NULL, file_suffix = NULL, scatter_applicable = TRUE, ...) {
+
+    if (is.null(file_suffix)) file_suffix <- ''
+
+    # Some contrasts have no meaningful two-group expression scatterplot; emit a labelled
+    # placeholder so the figure set stays complete rather than silently missing a file.
+    if (!scatter_applicable) {
+        message('Scatterplot is not applicable for this contrast; saving a placeholder')
+        placeholder <- create_no_data_plot('Scatterplot not applicable\nfor this contrast')
+        print(placeholder)
+        ggsave(plot = placeholder, filename = paste0(test_type, '_scatter_DEG_in_', cluster, file_suffix, '.pdf'), path = local_figures_path)
+        return(placeholder)
+    }
+
+    # Resolve which columns to plot and how to name them; defaults reproduce the plain
+    # two-group comparison.
+    if (is.null(x_column)) x_column <- paste0('Avg_', group1)
+    if (is.null(y_column)) y_column <- paste0('Avg_', group2)
+    if (is.null(x_group_label)) x_group_label <- as.character(group1)
+    if (is.null(y_group_label)) y_group_label <- as.character(group2)
 
     # Set colors for the plot
     names(my_colors) <- c("DOWN", "UP", "NO")
@@ -46,62 +76,62 @@ scatterplot <- function (results, group1, group2, local_figures_path, FC_thresho
 
     ## prepare for visualization
     results_scatter <- results |>
-        drop_na(pvalue) |>
+        drop_na("pvalue") |>
         mutate(
-            log10_pval = log10(padj+10^-300)*-1,
-            distance_from_diagonal =  (abs((log10(!!sym(paste0('Avg_', group2))+1)) - (log10(!!sym(paste0('Avg_', group1))+1)))/sqrt(2))) |>
+            log10_pval = log10(.data$padj+10^-300)*-1,
+            distance_from_diagonal =  (abs((log10(!!sym(y_column)+1)) - (log10(!!sym(x_column)+1)))/sqrt(2))) |>
         mutate(
             genes_to_label_first = ifelse(
-                (log2FoldChange >= FC_threshold | log2FoldChange <= -1 * FC_threshold) &
-                (padj < p_value_threshold) &
-                (distance_from_diagonal > distance_from_diagonal_threshold) &
-                ((!!sym(paste0('Avg_', group2)) > 100) | (!!sym(paste0('Avg_', group1)) > 100)),
-                genes, NA
+                (.data$log2FoldChange >= FC_threshold | .data$log2FoldChange <= -1 * FC_threshold) &
+                (.data$padj < p_value_threshold) &
+                (.data$distance_from_diagonal > distance_from_diagonal_threshold) &
+                ((!!sym(y_column) > 100) | (!!sym(x_column) > 100)),
+                .data$genes, NA
             ),
             genes_to_label_second = ifelse(
-                (log2FoldChange >= FC_threshold | log2FoldChange <= -1 * FC_threshold) &
-                (padj < p_value_threshold) &
-                ((!!sym(paste0('Avg_', group2)) > label_threshold) | (!!sym(paste0('Avg_', group1)) > label_threshold)) &
-                is.na(genes_to_label_first),
-                genes, NA
+                (.data$log2FoldChange >= FC_threshold | .data$log2FoldChange <= -1 * FC_threshold) &
+                (.data$padj < p_value_threshold) &
+                ((!!sym(y_column) > label_threshold) | (!!sym(x_column) > label_threshold)) &
+                is.na(.data$genes_to_label_first),
+                .data$genes, NA
             ),
             genes_to_label = ifelse(
-                (log2FoldChange >= FC_threshold | log2FoldChange <= -1 * FC_threshold) &
-                (padj < p_value_threshold) &
-                is.na(genes_to_label_first) &
-                is.na(genes_to_label_second),
-                genes, NA
+                (.data$log2FoldChange >= FC_threshold | .data$log2FoldChange <= -1 * FC_threshold) &
+                (.data$padj < p_value_threshold) &
+                is.na(.data$genes_to_label_first) &
+                is.na(.data$genes_to_label_second),
+                .data$genes, NA
             ),
             diffexpressed = case_when(
-                log2FoldChange >= FC_threshold & padj < p_value_threshold ~ 'UP',
-                log2FoldChange <= -1 * FC_threshold & padj < p_value_threshold ~ "DOWN",
+                .data$log2FoldChange >= FC_threshold & .data$padj < p_value_threshold ~ 'UP',
+                .data$log2FoldChange <= -1 * FC_threshold & .data$padj < p_value_threshold ~ "DOWN",
                 TRUE ~ 'NO'
             )
         ) |>
         mutate(
-            diffexpressed = factor(diffexpressed, levels = c('NO', 'DOWN', 'UP'))
+            diffexpressed = factor(.data$diffexpressed, levels = c('NO', 'DOWN', 'UP'))
         ) |>
-        arrange(diffexpressed)
+        arrange(.data$diffexpressed)
 
       # Replace genes to label with provided gene list if applicable
       if (!is.null(genes_to_plot)) {
         results_scatter <- results_scatter |>
             mutate(
                 genes_to_label_first = ifelse(
-                    genes %in% genes_to_plot,
-                    genes, NA
+                    .data$genes %in% genes_to_plot,
+                    .data$genes, NA
                 ),
                 genes_to_label_second = NA,
                 genes_to_label = NA)
               }
 
     # Scatterplot
-    limx <- results_scatter |> pull(paste0('Avg_', group1)) |> max()
-    limy <- results_scatter |> pull(paste0('Avg_', group2)) |> max()
+    limx <- results_scatter |> pull(x_column) |> max()
+    limy <- results_scatter |> pull(y_column) |> max()
     mylims <- max(limx, limy)*6
 
     scatter_plot <- results_scatter |>
-        ggplot(aes(x = !!sym(paste0('Avg_', group1)), y = !!sym(paste0('Avg_', group2)), col = diffexpressed))+
+        ggplot(aes(x = !!sym(x_column), y = !!sym(y_column), col = .data$diffexpressed))+
             geom_point(size=pt_size, stroke = 0) +
             geom_abline(slope = 1, intercept = 0)+
             add_gene_labels_layer('genes_to_label_first', results_scatter$diffexpressed,
@@ -113,17 +143,19 @@ scatterplot <- function (results, group1, group2, local_figures_path, FC_thresho
         scale_colour_manual(values=my_colors)+
         theme(text=element_text(size=20), legend.position="none")+
         labs(title=paste0(test_type, ' DEGs in ', str_replace(cluster,pattern = '_',replacement = ' ') ),
-                    x=paste0(axis_test, ' in ', group1),
-                    y=paste0(axis_test, ' in ',  group2))+
+                    subtitle=plot_subtitle,
+                    x=paste0(axis_test, ' in ', x_group_label),
+                    y=paste0(axis_test, ' in ',  y_group_label))+
         theme_classic(base_size = 28, base_line_size=1) +
         theme(legend.position="none",
             title = element_text(size=15),
+            plot.subtitle = element_text(size=12),
             axis.text= element_text(size=10),
             axis.title= element_text(size=13))+
        scale_x_log10(limits =  c(0.5, mylims), expand = expansion(mult = c(0.01, 0.1)))+
        scale_y_log10(limits =  c(0.5, mylims), expand = expansion(mult = c(0.01, 0.1)))
 
-    ggsave(plot = scatter_plot, filename = paste0(test_type,'_scatter_DEG_in_', cluster, '.pdf'), path = local_figures_path)
+    ggsave(plot = scatter_plot, filename = paste0(test_type,'_scatter_DEG_in_', cluster, file_suffix, '.pdf'), path = local_figures_path)
     print(scatter_plot)
     return(scatter_plot)
 }
@@ -165,14 +197,23 @@ scatterplot <- function (results, group1, group2, local_figures_path, FC_thresho
 #'   gene labels to their points (the geom_text_repel `segment.size`). Default 0.5
 #' @param dashed_line_width Numeric; line width of the dashed fold-change and
 #'   p-value threshold guide lines. Default 0.5
+#' @param plot_subtitle Character; subtitle describing the comparison. Default NULL (no subtitle)
+#' @param x_axis_label Character; overrides the x-axis title. Default NULL (auto-generated from
+#'   \code{test_type} and the group names)
+#' @param up_label,down_label Character; text for the two direction arrows drawn above the
+#'   panel. Default NULL ('UP in \code{group2}' and 'UP in \code{group1}')
+#' @param file_suffix Character; appended to the saved PDF filename, to keep several contrasts
+#'   on the same cluster from overwriting each other. Default NULL
 #' @param ... Additional arguments passed to plotting functions
 #'
 #' @return A ggplot object
 #'
 #' @export
-volcano_plot <- function (results, group1, group2, cluster, local_figures_path, FC_threshold, p_value_threshold, max_overlaps = 15, label_size = 5, my_colors = c('#023FA5', '#8E063B', 'gray'), test_type = c('Wilcox', 'Pseudobulk', 'Bulk', 'Wilcox_ATAC', 'Wilcox_DORC', 'Wilcox_ATAC_closest_genes', 'Wilcox_ChromVar_motif'), genes_to_plot = NULL, pt_size = 1.5, pval_cap = 300, y_axis_max = NULL, nudge_x = NULL, nudge_y = NULL, label_line_width = 0.5, dashed_line_width = 0.5, ...) {
+volcano_plot <- function (results, group1, group2, cluster, local_figures_path, FC_threshold, p_value_threshold, max_overlaps = 15, label_size = 5, my_colors = c('#023FA5', '#8E063B', 'gray'), test_type = c('Wilcox', 'Pseudobulk', 'Bulk', 'Wilcox_ATAC', 'Wilcox_DORC', 'Wilcox_ATAC_closest_genes', 'Wilcox_ChromVar_motif'), genes_to_plot = NULL, pt_size = 1.5, pval_cap = 300, y_axis_max = NULL, nudge_x = NULL, nudge_y = NULL, label_line_width = 0.5, dashed_line_width = 0.5, plot_subtitle = NULL, x_axis_label = NULL, up_label = NULL, down_label = NULL, file_suffix = NULL, ...) {
 
     test_type <- match.arg(test_type)
+
+    if (is.null(file_suffix)) file_suffix <- ''
 
     if (test_type == 'Wilcox_ATAC') {
         plot_title <- paste0('Differentially Accessible Regions in ', str_replace(cluster,pattern = '_',replacement = ' ') )
@@ -188,47 +229,53 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
 
     x_axis_title <- ifelse(test_type == 'Wilcox_ChromVar_motif', paste('Mean Z score difference (', group2, ' - ', group1, ')', sep=''), paste('Average log2 FC (', group2, '/', group1, ')', sep=''))
 
+    # A custom DESeq2 contrast may compare groups other than group2 vs group1, so let the
+    # caller supply wording that matches what was actually tested.
+    if (!is.null(x_axis_label)) x_axis_title <- x_axis_label
+    if (is.null(up_label)) up_label <- paste0('UP in ', as.character(group2))
+    if (is.null(down_label)) down_label <- paste0('UP in ', as.character(group1))
+
     names(my_colors) <- c("DOWN", "UP", "NO")
 
     if (is.null(nudge_x)) nudge_x <- 0
     if (is.null(nudge_y)) nudge_y <- 0
 
     results_volcano <- results |>
-        drop_na(pvalue) |>
+        drop_na("pvalue") |>
         mutate(
-            log10_pval = -log10(pmax(padj, 10^-pval_cap))) |>
+            log10_pval = -log10(pmax(.data$padj, 10^-pval_cap))) |>
         mutate(
             genes_to_label_UP = ifelse(
-                (log2FoldChange >= FC_threshold) &
-                (padj < p_value_threshold),
-                genes, NA
+                (.data$log2FoldChange >= FC_threshold) &
+                (.data$padj < p_value_threshold),
+                .data$genes, NA
             ),
             genes_to_label_DOWN = ifelse(
-                (log2FoldChange <= -1 * FC_threshold) &
-                (padj < p_value_threshold),
-                genes, NA
+                (.data$log2FoldChange <= -1 * FC_threshold) &
+                (.data$padj < p_value_threshold),
+                .data$genes, NA
             ),
             diffexpressed = case_when(
-                log2FoldChange >= FC_threshold & padj < p_value_threshold ~ 'UP',
-                log2FoldChange <= -1*FC_threshold & padj < p_value_threshold ~ "DOWN",
+                .data$log2FoldChange >= FC_threshold & .data$padj < p_value_threshold ~ 'UP',
+                .data$log2FoldChange <= -1*FC_threshold & .data$padj < p_value_threshold ~ "DOWN",
                 TRUE ~ 'NO'
             )
         ) |>
         mutate(
-            diffexpressed = factor(diffexpressed, levels = c('NO', 'DOWN', 'UP'))
+            diffexpressed = factor(.data$diffexpressed, levels = c('NO', 'DOWN', 'UP'))
         ) |>
-        arrange(diffexpressed)
+        arrange(.data$diffexpressed)
 
     if (!is.null(genes_to_plot)) {
         results_volcano <- results_volcano |>
             mutate(
                 genes_to_label_UP = ifelse((
-                    genes %in% genes_to_plot) & (log2FoldChange >= FC_threshold),
-                    genes, NA
+                    .data$genes %in% genes_to_plot) & (.data$log2FoldChange >= FC_threshold),
+                    .data$genes, NA
                 ),
                 genes_to_label_DOWN = ifelse((
-                    genes %in% genes_to_plot) & (log2FoldChange <= -1 * FC_threshold),
-                    genes, NA
+                    .data$genes %in% genes_to_plot) & (.data$log2FoldChange <= -1 * FC_threshold),
+                    .data$genes, NA
                 )
             )
             if (nudge_x == 0) nudge_x <- 3
@@ -236,8 +283,8 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
     }
 
     initial_number_of_genes <- nrow(results_volcano)
-    max_FC_up_significant <- results_volcano |> filter(diffexpressed != 'NO') |> dplyr::select(log2FoldChange) |> max(na.rm = T)
-    min_FC_up_significant <- results_volcano |> filter(diffexpressed != 'NO') |> dplyr::select(log2FoldChange) |> min(na.rm = T)
+    max_FC_up_significant <- results_volcano |> filter(.data$diffexpressed != 'NO') |> dplyr::select("log2FoldChange") |> max(na.rm = T)
+    min_FC_up_significant <- results_volcano |> filter(.data$diffexpressed != 'NO') |> dplyr::select("log2FoldChange") |> min(na.rm = T)
     # ChromVar (Z-score) plots use a tighter x-axis extent (±2) than other modalities (±3)
     axis_limit <- if (test_type == 'Wilcox_ChromVar_motif') 2 else 3
     if (min_FC_up_significant > -axis_limit | is.na(min_FC_up_significant)) {
@@ -247,8 +294,8 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
         max_FC_up_significant <- axis_limit
     }
     results_volcano <- results_volcano |>
-        filter(!(diffexpressed == 'NO' & (log2FoldChange < min_FC_up_significant | log2FoldChange > max_FC_up_significant))) |>
-        arrange(diffexpressed)
+        filter(!(.data$diffexpressed == 'NO' & (.data$log2FoldChange < min_FC_up_significant | .data$log2FoldChange > max_FC_up_significant))) |>
+        arrange(.data$diffexpressed)
     final_number_of_genes <- nrow(results_volcano)
     message('Removed ', initial_number_of_genes-final_number_of_genes, ' non-significant genes that would bias the plot visualization')
 
@@ -263,8 +310,8 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
     arrow_label_y <- y_max * 1.04  # vertical position of the text label (above the arrow)
 
     volcano_plot <- results_volcano |>
-        arrange(desc(padj)) |>
-        ggplot(aes(x=log2FoldChange, y=log10_pval, col=diffexpressed)) +
+        arrange(desc(.data$padj)) |>
+        ggplot(aes(x=.data$log2FoldChange, y=.data$log10_pval, col=.data$diffexpressed)) +
         geom_point(size=pt_size, stroke = 0) +
 
         # ── UP arrow (right, group2 color) ──────────────────────────────────
@@ -278,7 +325,7 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
         annotate('text',
             x     = arrow_x_end / 2,
             y     = arrow_label_y,
-            label = paste0('UP in ', group2),
+            label = up_label,
             color = my_colors[['UP']],
             size  = label_size, fontface = 'bold', hjust = 0.5
         ) +
@@ -294,7 +341,7 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
         annotate('text',
             x     = -arrow_x_end / 2,
             y     = arrow_label_y,
-            label = paste0('UP in ', group1),
+            label = down_label,
             color = my_colors[['DOWN']],
             size  = label_size, fontface = 'bold', hjust = 0.5
         ) +
@@ -308,7 +355,7 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
             max.iter = 10000000,
             nudge_x = nudge_x,
             nudge_y = nudge_y,
-            aes(label = genes_to_label_UP, segment.size=label_line_width, segment.alpha=0.8, segment.curvature=0),
+            aes(label = .data$genes_to_label_UP, segment.size=label_line_width, segment.alpha=0.8, segment.curvature=0),
             fontface = 'italic') +
         geom_text_repel(
             size=label_size,
@@ -320,19 +367,23 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
             nudge_x = -1*nudge_x,
             nudge_y = nudge_y,
             fontface = 'italic',
-            aes(label = genes_to_label_DOWN, segment.size=label_line_width, segment.alpha=0.8, segment.curvature=0)) +
+            aes(label = .data$genes_to_label_DOWN, segment.size=label_line_width, segment.alpha=0.8, segment.curvature=0)) +
         scale_colour_manual(values=my_colors) +
         geom_vline(xintercept= FC_threshold, col="lavenderblush2", linetype=2, size=dashed_line_width) +
         geom_vline(xintercept=-FC_threshold, col="lavenderblush2", linetype=2, size=dashed_line_width) +
         geom_hline(yintercept=-1*log10(p_value_threshold), col="lavenderblush2", linetype=2, size=dashed_line_width) +
         theme(text=element_text(size=20), legend.position="none") +
         labs(title=plot_title,
+             subtitle=plot_subtitle,
              x=x_axis_title,
              y='-Log10 Adj. p-value') +
         theme_classic(base_size = 28, base_line_size=1) +
         theme(legend.position="none",
               title      = element_text(size=15),
-              plot.title = element_text(size=15, margin = margin(b = 40)),  # <-- gap below title leaves room for arrows above the panel
+              # the 40pt gap has to sit on whichever text block is directly above the panel,
+              # since that is the whitespace the arrows are drawn into
+              plot.title = element_text(size=15, margin = margin(b = if (is.null(plot_subtitle)) 40 else 8)),
+              plot.subtitle = element_text(size=12, margin = margin(b = 40)),
               axis.text  = element_text(size=10),
               axis.title = element_text(size=13),
               plot.margin = margin(t = 20, r = 5, b = 5, l = 5)) +
@@ -340,7 +391,7 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
         scale_y_continuous(n.breaks = 8, expand = expansion(mult = c(0.02, 0.02))) +  # <-- panel ends at the data; arrows sit above it
         scale_x_continuous(n.breaks = 8)
 
-    ggsave(plot = volcano_plot, filename = paste0(test_type, '_volcano_in_', cluster, '.pdf'), path = local_figures_path)
+    ggsave(plot = volcano_plot, filename = paste0(test_type, '_volcano_in_', cluster, file_suffix, '.pdf'), path = local_figures_path)
     print(volcano_plot)
     return(volcano_plot)
 }
@@ -356,30 +407,27 @@ volcano_plot <- function (results, group1, group2, cluster, local_figures_path, 
 #' @param figures_path Character; directory path to save the plot
 #' @param group2 Character; the second group being compared (used in labels). Default NULL
 #' @param group1 Character; the first group being compared (used in labels). Default NULL
-#' @param title Character; plot title. Default 'Differentially Expressed Genes by Cell Type'
+#' @param title Character; plot title. Default NULL, which builds one from \code{data_type} and,
+#'   when both are supplied, \code{group1} and \code{group2}.
 #' @param data_type Character; type of features counted; one of 'genes', 'peaks', 'motifs', 'dorcs'.
 #' @param width Numeric; plot width in inches. Default 10
 #' @param height Numeric; plot height in inches. Default 6
 #' @param up_color Character; color for upregulated genes. Default '#E64B35' (red)
 #' @param down_color Character; color for downregulated genes. Default '#4DBBD5' (blue)
+#' @param file_suffix Character; appended to the saved PDF filename, which is
+#'   \code{DEG_counts_barplot_<data_type><file_suffix>.pdf}. Use it to keep summaries for several
+#'   comparisons in one directory from overwriting each other, e.g. by passing the \code{file_tag}
+#'   from \code{pseudobulk()}'s \code{contrast_labels}. Default NULL
 #'
 #' @return A ggplot object
 #'
 #' @export
-plot_deg_counts <- function(deg_counts_df, figures_path, group2 = NULL, group1 = NULL, title = NULL, data_type = c('genes', 'peaks', 'motifs', 'dorcs'), width = 10, height = 6, up_color = '#8E063B', down_color = '#023FA5') {
+plot_deg_counts <- function(deg_counts_df, figures_path, group2 = NULL, group1 = NULL, title = NULL, data_type = c('genes', 'peaks', 'motifs', 'dorcs'), width = 10, height = 6, up_color = '#8E063B', down_color = '#023FA5', file_suffix = NULL) {
 
     # Validate data_type
     data_type <- match.arg(data_type)
 
-    # Set default title based on data_type if not provided
-    if (is.null(title)) {
-        title <- switch(data_type,
-            genes = 'Differentially Expressed Genes by Cell Type',
-            peaks = 'Differentially Accessible Peaks by Cell Type',
-            motifs = 'Differential Motif Activities by Cell Type',
-            dorcs = 'Differential DORCs by Cell Type'
-        )
-    }
+    if (is.null(file_suffix)) file_suffix <- ''
 
     # Validate input
     required_cols <- c('cell_type', 'UP_count', 'DOWN_count')
@@ -389,27 +437,27 @@ plot_deg_counts <- function(deg_counts_df, figures_path, group2 = NULL, group1 =
 
     # Transform data for plotting
     deg_counts_long <- deg_counts_df |>
-        mutate(total_genes = UP_count + DOWN_count) |>
-        arrange(desc(total_genes)) |>
-        mutate(cell_type = fct_inorder(cell_type) |> fct_rev()) |>
+        mutate(total_genes = .data$UP_count + .data$DOWN_count) |>
+        arrange(desc(.data$total_genes)) |>
+        mutate(cell_type = fct_inorder(.data$cell_type) |> fct_rev()) |>
         pivot_longer(
-            cols = c(UP_count, DOWN_count),
+            cols = any_of(c("UP_count", "DOWN_count")),
             names_to = "direction",
             values_to = "count"
         ) |>
-        mutate(direction = factor(direction, levels = c("DOWN_count", "UP_count")))
+        mutate(direction = factor(.data$direction, levels = c("DOWN_count", "UP_count")))
 
-    # labels
-        if (!is.null(group1) & !is.null(group2)) {
-            title <- paste0('Differential ', data_type, ' in ', group2, ' vs. ', group1)
-            labels  <- c("UP_count" = paste0("Up in ", group2), "DOWN_count" = paste0("Up in ", group1))
-        } else {
-            title <- paste0('Differential ', data_type, ' by Cell Type')
-            labels  <- c("UP_count" = "Upregulated", "DOWN_count" = "Downregulated")
-        }
+    # labels. An explicitly supplied title wins; otherwise derive one from the groups.
+    if (!is.null(group1) & !is.null(group2)) {
+        if (is.null(title)) title <- paste0('Differential ', data_type, ' in ', group2, ' vs. ', group1)
+        labels  <- c("UP_count" = paste0("Up in ", group2), "DOWN_count" = paste0("Up in ", group1))
+    } else {
+        if (is.null(title)) title <- paste0('Differential ', data_type, ' by Cell Type')
+        labels  <- c("UP_count" = "Upregulated", "DOWN_count" = "Downregulated")
+    }
 
     # Create plot
-    p <- ggplot(deg_counts_long, aes(x = count, y = cell_type, fill = direction)) +
+    p <- ggplot(deg_counts_long, aes(x = .data$count, y = .data$cell_type, fill = .data$direction)) +
         geom_col(position = position_dodge(width = 0.8), width = 0.7) +
         scale_fill_manual(
             values = c("UP_count" = up_color, "DOWN_count" = down_color),
@@ -437,8 +485,8 @@ plot_deg_counts <- function(deg_counts_df, figures_path, group2 = NULL, group1 =
         )
 
     # Save plot
-    ggsave(paste0(figures_path, '/DEG_counts_barplot.pdf'), plot = p, width = width, height = height)
+    ggsave(paste0(figures_path, '/DEG_counts_barplot_', data_type, file_suffix, '.pdf'), plot = p, width = width, height = height)
     print(p)
 
-    # return(p)
+    return(p)
 }

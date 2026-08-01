@@ -14,6 +14,7 @@ pathway_functional_analysis(
   group2 = "",
   run_GSEA = FALSE,
   top_n_genes = NULL,
+  file_suffix = "",
   ...
 )
 }
@@ -36,6 +37,12 @@ log2FoldChange, padj}
 \item{run_GSEA}{Logical; whether to run GSEA in addition to ORA. Default FALSE}
 
 \item{top_n_genes}{Integer or NULL; number of top genes to use for ORA. If NULL, uses all significant genes. Default NULL}
+
+\item{file_suffix}{Character; appended to the output directory names. Needed when several
+comparisons share a \code{path}: the directory names encode only one group plus
+\code{grouping_var}, so two contrasts on the same groups (e.g. within different subgroups)
+otherwise resolve to the same directory, and \code{create_analysis_directory} deletes the
+earlier one. Default ''}
 
 \item{...}{Additional arguments passed to pathway_overrepresentation_analysis}
 }

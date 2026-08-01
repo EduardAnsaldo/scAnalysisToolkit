@@ -226,6 +226,11 @@ pathway_GSEA_analysis <- function (results, local_path, group, minGSSize = 5, ma
 #' @param group2 Character; name of treatment group. Default ''
 #' @param run_GSEA Logical; whether to run GSEA in addition to ORA. Default FALSE
 #' @param top_n_genes Integer or NULL; number of top genes to use for ORA. If NULL, uses all significant genes. Default NULL
+#' @param file_suffix Character; appended to the output directory names. Needed when several
+#'   comparisons share a \code{path}: the directory names encode only one group plus
+#'   \code{grouping_var}, so two contrasts on the same groups (e.g. within different subgroups)
+#'   otherwise resolve to the same directory, and \code{create_analysis_directory} deletes the
+#'   earlier one. Default ''
 #' @param ... Additional arguments passed to pathway_overrepresentation_analysis
 #'
 #' @return List with two elements: plot_up (ggplot for upregulated genes) and
@@ -237,13 +242,13 @@ pathway_GSEA_analysis <- function (results, local_path, group, minGSSize = 5, ma
 #' upregulated in group2 vs group1 and downregulated genes (upregulated in group1).
 #'
 #' @export
-pathway_functional_analysis <- function (results,  grouping_var, path='./', FC_threshold = 0.3, p_value_threshold = 0.05, group1 = '', group2 = '', run_GSEA = FALSE, top_n_genes = NULL, ...) {
+pathway_functional_analysis <- function (results,  grouping_var, path='./', FC_threshold = 0.3, p_value_threshold = 0.05, group1 = '', group2 = '', run_GSEA = FALSE, top_n_genes = NULL, file_suffix = '', ...) {
 
 cluster <- grouping_var
 
 ####################################### UP ########################################
 
-      local_path <- create_analysis_directory(here::here(path, paste0('Pathway_functional_analysis_UP_in_', group2, '_', cluster)))
+      local_path <- create_analysis_directory(here::here(path, paste0('Pathway_functional_analysis_UP_in_', group2, '_', cluster, file_suffix)))
 
       significant_genes <- results |>
             filter((.data$padj < p_value_threshold) & (.data$log2FoldChange > FC_threshold)) |>
@@ -269,7 +274,7 @@ cluster <- grouping_var
 
 ######################################## DOWN ########################################
 
-      local_path <- create_analysis_directory(here::here(path, paste0('Pathway_functional_analysis_UP_in_', group1, '_', cluster)))
+      local_path <- create_analysis_directory(here::here(path, paste0('Pathway_functional_analysis_UP_in_', group1, '_', cluster, file_suffix)))
 
       significant_genes <- results |>
             filter((.data$padj < p_value_threshold) & (.data$log2FoldChange < -1*FC_threshold)) |>

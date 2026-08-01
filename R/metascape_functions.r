@@ -115,12 +115,17 @@ if (nrow(enrichment_results) > 1) {
 #' @param p_value_threshold Numeric; adjusted p-value threshold. Default 0.05
 #' @param top_n_genes Integer; maximum number of top genes to include based on p-value.
 #'   Default NULL (include all significant genes)
+#' @param file_suffix Character; appended to the output directory names. Needed when several
+#'   comparisons share a \code{path}: the directory names encode only one group plus
+#'   \code{grouping_var}, so two contrasts on the same groups (e.g. within different subgroups)
+#'   otherwise resolve to the same directory, and \code{create_analysis_directory} deletes the
+#'   earlier one. Default ''
 #' @param ... Additional arguments passed to Metascape_overrepresentation_analysis
 #'
 #' @return Invisible NULL; creates output directories with Metascape enrichment results
 #'
 #' @export
-Metascape_functional_analysis <- function (results, grouping_var, group2, group1, path='./', FC_threshold, p_value_threshold = 0.05, top_n_genes = NULL, ...) {
+Metascape_functional_analysis <- function (results, grouping_var, group2, group1, path='./', FC_threshold, p_value_threshold = 0.05, top_n_genes = NULL, file_suffix = '', ...) {
 
      grouping_var_kebab_case <- str_replace_all(grouping_var, ' ', '_')
      group2_kebab_case <- str_replace_all(group2, ' ', '_')
@@ -130,7 +135,7 @@ Metascape_functional_analysis <- function (results, grouping_var, group2, group1
 
 ####################################### UP ########################################
 
-      local_path <- create_analysis_directory(here::here(path, paste0('Functional_analysis_metascape_UP_in_', group2_kebab_case, '_', grouping_var_kebab_case)))
+      local_path <- create_analysis_directory(here::here(path, paste0('Functional_analysis_metascape_UP_in_', group2_kebab_case, '_', grouping_var_kebab_case, file_suffix)))
 
       significant_genes <- results |>
             filter((.data$padj < p_value_threshold) & (.data$log2FoldChange > FC_threshold)) |>
@@ -154,7 +159,7 @@ Metascape_functional_analysis <- function (results, grouping_var, group2, group1
 
 ######################################## DOWN ########################################
 
-      local_path <- create_analysis_directory(here::here(path, paste0('Functional_analysis_metascape_DOWN_in', group1_kebab_case, '_', grouping_var_kebab_case)))
+      local_path <- create_analysis_directory(here::here(path, paste0('Functional_analysis_metascape_DOWN_in', group1_kebab_case, '_', grouping_var_kebab_case, file_suffix)))
 
       significant_genes <- results |>
             filter((.data$padj < p_value_threshold) & (.data$log2FoldChange < -1*FC_threshold)) |>

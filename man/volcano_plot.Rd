@@ -25,6 +25,11 @@ volcano_plot(
   nudge_y = NULL,
   label_line_width = 0.5,
   dashed_line_width = 0.5,
+  plot_subtitle = NULL,
+  x_axis_label = NULL,
+  up_label = NULL,
+  down_label = NULL,
+  file_suffix = NULL,
   ...
 )
 }
@@ -77,6 +82,17 @@ gene labels to their points (the geom_text_repel \code{segment.size}). Default 0
 
 \item{dashed_line_width}{Numeric; line width of the dashed fold-change and
 p-value threshold guide lines. Default 0.5}
+
+\item{plot_subtitle}{Character; subtitle describing the comparison. Default NULL (no subtitle)}
+
+\item{x_axis_label}{Character; overrides the x-axis title. Default NULL (auto-generated from
+\code{test_type} and the group names)}
+
+\item{up_label, down_label}{Character; text for the two direction arrows drawn above the
+panel. Default NULL ('UP in \code{group2}' and 'UP in \code{group1}')}
+
+\item{file_suffix}{Character; appended to the saved PDF filename, to keep several contrasts
+on the same cluster from overwriting each other. Default NULL}
 
 \item{...}{Additional arguments passed to plotting functions}
 }

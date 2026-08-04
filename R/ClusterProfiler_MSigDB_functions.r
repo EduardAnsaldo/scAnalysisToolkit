@@ -10,7 +10,7 @@
 #' @param significant_genes Character vector; gene symbols to test for enrichment
 #' @param all_genes Character vector; background/universe gene symbols
 #' @param local_path Character; path to save results and plots
-#' @param minGSSize Integer; minimum gene set size. Default 5
+#' @param minGSSize Integer; minimum gene set size. Default 4
 #' @param maxGSSize Integer; maximum gene set size. Default 400
 #' @param filename Character; prefix for output files. Default ''
 #' @param group Character; group identifier for plot titles. Default ''

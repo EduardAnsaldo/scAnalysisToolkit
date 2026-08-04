@@ -35,7 +35,7 @@ pathway_overrepresentation_analysis(
 
 \item{local_path}{Character; path to save results and plots}
 
-\item{minGSSize}{Integer; minimum gene set size. Default 5}
+\item{minGSSize}{Integer; minimum gene set size. Default 4}
 
 \item{maxGSSize}{Integer; maximum gene set size. Default 400}
 

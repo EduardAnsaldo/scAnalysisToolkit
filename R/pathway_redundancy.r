@@ -843,8 +843,12 @@ plot_pathway_topic <- function(res, pattern, where = 'label', n = 30, title = NU
 #' @param padj Named numeric or NULL; adjusted p-values named by gene symbol. When supplied,
 #'   bars are coloured by \code{-log10(padj)} on the same sequential scale the
 #'   over-representation bar plots use, so the most confidently changed genes stand out. Takes
-#'   precedence over \code{lfc}. Genes the DE table filtered out (\code{NA}) are drawn grey.
-#'   Default NULL
+#'   precedence over \code{lfc}. Values of 20 or more saturate at the top colour. Every gene shown
+#'   should be found in \code{padj}: the terms come from an over-representation run on a
+#'   \code{padj}-filtered gene list, so a gene with no adjusted p-value cannot be among them. A grey
+#'   bar therefore means the symbol did not match the table -- worth investigating rather than
+#'   expected, and possible in principle because enrichment round-trips symbols through Entrez
+#'   (\code{bitr} then \code{setReadable}). Default NULL
 #' @param title Character or NULL; plot title. Defaults to
 #'   \code{"Genes driving <topic>-related terms (top 25 of 137 genes)"}, where \code{<topic>} is
 #'   the [pathway_topics()] name if one was given and the regex as written otherwise. The count
@@ -887,13 +891,21 @@ plot_pathway_topic_genes <- function(res, pattern, where = 'label', top_genes = 
         pathway_redundancy_theme()
 
     if (!is.null(padj)) {
-        # Same palette and breaks as the over-representation bar plots, so -log10(p) reads the
-        # same way throughout the package. No hard limits: a gene with padj < 1e-20 should
-        # saturate at the top colour rather than fall outside the scale and be dropped.
+        # Same palette, breaks and limits as the over-representation bar plots, so -log10(p) reads
+        # the same way throughout the package.
+        #
+        # `limits` is load-bearing, not decoration. A binned scale builds its bins from the breaks
+        # PLUS the data limits, so without an explicit lower limit the single smallest value sits
+        # exactly on the lower limit, falls outside the first bin, and comes back NA -- drawn in
+        # na.value. It looked like a missing statistic but was purely the scale (e.g. Apoe at
+        # -log10 = 2.7 rendering grey). Anchoring at 0, the natural floor for -log10(padj), means
+        # the first bin always covers the minimum. squish makes the >= 20 saturation explicit.
         gene_plot +
             geom_col(aes(fill = -log10(unname(padj[as.character(.data$gene)]))), width = 0.7) +
             scale_fill_stepsn(colours = grDevices::hcl.colors(n = 6, 'YlOrRd', rev = TRUE),
                               breaks = c(2, 4, 6, 10, 20),
+                              limits = c(0, 20),
+                              oob = scales::squish,
                               na.value = 'grey85',
                               name = expression(-log[10] ~ italic(p)[adj]))
     } else if (is.null(lfc)) {

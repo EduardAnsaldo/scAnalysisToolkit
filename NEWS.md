@@ -30,6 +30,10 @@
   the new `redundancy_plots_up` / `redundancy_plots_down` elements. Figures and tables are
   still written to disk.
 
+* `pathway_overrepresentation_analysis()` lowers its `minGSSize` default from 5 to 4, so smaller
+  gene sets are tested. `pathway_GSEA_analysis()` and
+  `pathway_overrepresentation_analysis_multiple_lists()` stay at 5.
+
 * `bulk_analysis()` no longer errors on its own defaults: `run_pathway_enrichment` defaulted
   to `FALSE`, which the dispatcher rejected after the DE and plotting had already run. It is
   now `NULL`.

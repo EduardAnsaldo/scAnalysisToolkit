@@ -31,8 +31,12 @@ bars are coloured by direction on a diverging scale centred at zero. Ignored whe
 \item{padj}{Named numeric or NULL; adjusted p-values named by gene symbol. When supplied,
 bars are coloured by \code{-log10(padj)} on the same sequential scale the
 over-representation bar plots use, so the most confidently changed genes stand out. Takes
-precedence over \code{lfc}. Genes the DE table filtered out (\code{NA}) are drawn grey.
-Default NULL}
+precedence over \code{lfc}. Values of 20 or more saturate at the top colour. Every gene shown
+should be found in \code{padj}: the terms come from an over-representation run on a
+\code{padj}-filtered gene list, so a gene with no adjusted p-value cannot be among them. A grey
+bar therefore means the symbol did not match the table -- worth investigating rather than
+expected, and possible in principle because enrichment round-trips symbols through Entrez
+(\code{bitr} then \code{setReadable}). Default NULL}
 
 \item{title}{Character or NULL; plot title. Defaults to
 \code{"Genes driving <topic>-related terms (top 25 of 137 genes)"}, where \code{<topic>} is

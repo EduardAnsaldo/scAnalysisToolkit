@@ -15,6 +15,7 @@ pathway_functional_analysis(
   run_GSEA = FALSE,
   top_n_genes = NULL,
   file_suffix = "",
+  collapse_redundancy = FALSE,
   ...
 )
 }
@@ -44,11 +45,25 @@ comparisons share a \code{path}: the directory names encode only one group plus
 otherwise resolve to the same directory, and \code{create_analysis_directory} deletes the
 earlier one. Default ''}
 
+\item{collapse_redundancy}{Logical; passed to \code{\link[=pathway_overrepresentation_analysis]{pathway_overrepresentation_analysis()}} to
+additionally collapse the enriched terms into non-redundant gene-overlap clusters. When TRUE,
+nothing is printed and every plot is returned instead. Default FALSE}
+
 \item{...}{Additional arguments passed to pathway_overrepresentation_analysis}
 }
 \value{
-List with two elements: plot_up (ggplot for upregulated genes) and
-plot_down (ggplot for downregulated genes)
+List with eight elements: plot_up and plot_down (ggplots for genes up in \code{group2}
+and in \code{group1}), results_up and results_down, the corresponding clusterProfiler
+\code{enrichResult} objects (NULL when no enrichment was run or none was found),
+redundancy_up and redundancy_down, the \code{pathway_clusters} objects from
+\code{\link[=collapse_pathway_redundancy]{collapse_pathway_redundancy()}}, and redundancy_plots_up and redundancy_plots_down, each a
+list of \code{clusters} (bar plot), \code{network} and \code{topics} (named by topic, each
+with \code{terms} and \code{genes}). The four redundancy elements are NULL unless
+\code{collapse_redundancy = TRUE}. Use \code{as_tibble()} on a results element for the same
+table written to CSV.
+
+With \code{collapse_redundancy = TRUE} nothing is printed -- not the over-representation bar
+plots either -- so every figure comes back for the caller to place.
 }
 \description{
 Wrapper function that performs comprehensive pathway enrichment analysis on differential

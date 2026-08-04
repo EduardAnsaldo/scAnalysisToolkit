@@ -31,6 +31,21 @@
 #' @param minimum_cell_number Integer; minimum cells required per group. Default 10
 #' @param run_pathway_enrichment Character; method for pathway enrichment ('Metascape',
 #'   'ClusterProfiler', or NULL). Default NULL
+#' @param collapse_redundancy Logical; when pathway enrichment runs with 'ClusterProfiler',
+#'   additionally collapse the enriched terms into non-redundant gene-overlap clusters with
+#'   [collapse_pathway_redundancy()] and write the cluster bar plot, the term-overlap network
+#'   and both cluster tables into each enrichment output directory. Nothing is printed when this
+#'   is TRUE -- not even the over-representation bar plots -- so every figure comes back in the
+#'   returned \code{enrichment} element for you to place. For an interactive network, call
+#'   [plot_pathway_cluster_map()] with \code{interactive = TRUE} on the returned
+#'   \code{redundancy_up} / \code{redundancy_down} object. Default FALSE
+#' @param topics Character vector or named list; when \code{collapse_redundancy = TRUE}, also
+#'   write a terms plot and a driving-genes plot per topic. Each element of a character vector
+#'   is its own topic, and may be either a [pathway_topics()] name such as \code{'lipid'} or
+#'   an arbitrary case-insensitive regex such as \code{'^(fatty|lanosterol)'}. Use the named
+#'   list form to OR several regexes into one topic and name its output files, e.g.
+#'   \code{list(cytokines = c('interleukin', 'chemokine'))}. A topic matching no term in a
+#'   given direction writes no file. Default NULL
 #' @param genes_to_exclude Character vector of regular expressions; genes matching any
 #'   pattern are excluded from analysis. Plain gene names work as literal patterns.
 #'   Default c()
@@ -61,7 +76,12 @@
 #'   \item{contrast_labels}{List; the plot labels describing the comparison the contrast encodes}
 #'   \item{scatterplot}{ggplot; scatterplot object}
 #'   \item{volcanoplot}{ggplot; volcano plot object}
-#'   \item{enrichment}{Enrichment analysis results (plot_up and plot_down), or NULL}
+#'   \item{enrichment}{Enrichment analysis output, or NULL. For ClusterProfiler: a list of
+#'     plot_up, plot_down (ggplots), results_up, results_down (clusterProfiler
+#'     \code{enrichResult} objects, NULL when nothing was enriched), redundancy_up,
+#'     redundancy_down (\code{pathway_clusters} objects) and redundancy_plots_up,
+#'     redundancy_plots_down (lists of \code{clusters}, \code{network} and \code{topics} plots).
+#'     The four redundancy elements are NULL unless \code{collapse_redundancy = TRUE}}
 #'
 #' @export
 pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clusters',
@@ -69,7 +89,8 @@ pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clus
                        contrast = NULL, shrink_type = NULL, FC_threshold = 0.3, p_value_threshold = 0.05,
                        max_overlaps = 15,
                        expression_threshold_for_gene_list = 20, minimum_cell_number = 10,
-                       run_pathway_enrichment = NULL, genes_to_exclude = c(),
+                       run_pathway_enrichment = NULL, collapse_redundancy = FALSE, topics = NULL,
+                       genes_to_exclude = c(),
                        exclude_vdj = FALSE, ...) {
 
     local_figures_path <- here::here(path, 'figures')
@@ -166,6 +187,8 @@ pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clus
         p_value_threshold = p_value_threshold,
         group1 = if (is.na(contrast_labels$denominator)) group1 else contrast_labels$denominator,
         group2 = if (is.na(contrast_labels$numerator)) group2 else contrast_labels$numerator,
+        collapse_redundancy = collapse_redundancy,
+        topics = topics,
         # The enrichment output directories are named from one group plus the cluster only, so two
         # contrasts sharing those would collide -- and create_analysis_directory() unlinks first,
         # deleting the earlier result rather than merging.
@@ -213,6 +236,21 @@ pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clus
 #'   filtering. Default 20
 #' @param minimum_cell_number Integer; minimum cells required per group. Default 30
 #' @param run_pathway_enrichment Character; method for pathway enrichment or NULL. Default NULL
+#' @param collapse_redundancy Logical; when pathway enrichment runs with 'ClusterProfiler',
+#'   additionally collapse the enriched terms into non-redundant gene-overlap clusters with
+#'   [collapse_pathway_redundancy()] and write the cluster bar plot, the term-overlap network
+#'   and both cluster tables into each enrichment output directory. Nothing is printed when this
+#'   is TRUE -- not even the over-representation bar plots -- so every figure comes back in the
+#'   returned \code{enrichment} element for you to place. For an interactive network, call
+#'   [plot_pathway_cluster_map()] with \code{interactive = TRUE} on the returned
+#'   \code{redundancy_up} / \code{redundancy_down} object. Default FALSE
+#' @param topics Character vector or named list; when \code{collapse_redundancy = TRUE}, also
+#'   write a terms plot and a driving-genes plot per topic. Each element of a character vector
+#'   is its own topic, and may be either a [pathway_topics()] name such as \code{'lipid'} or
+#'   an arbitrary case-insensitive regex such as \code{'^(fatty|lanosterol)'}. Use the named
+#'   list form to OR several regexes into one topic and name its output files, e.g.
+#'   \code{list(cytokines = c('interleukin', 'chemokine'))}. A topic matching no term in a
+#'   given direction writes no file. Default NULL
 #' @param exclude_sex_chr_genes Logical; if TRUE, removes mouse sex chromosome genes
 #'   from results to avoid false positives from sex imbalance. Default FALSE
 #' @param genes_to_exclude Character vector of regular expressions; genes matching any
@@ -228,7 +266,12 @@ pseudobulk <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clus
 #'   \item{UP_count}{Integer; number of upregulated genes}
 #'   \item{DOWN_count}{Integer; number of downregulated genes}
 #'   \item{results}{Data frame; complete DE results}
-#'   \item{enrichment}{Enrichment analysis results (plot_up and plot_down), or NULL}
+#'   \item{enrichment}{Enrichment analysis output, or NULL. For ClusterProfiler: a list of
+#'     plot_up, plot_down (ggplots), results_up, results_down (clusterProfiler
+#'     \code{enrichResult} objects, NULL when nothing was enriched), redundancy_up,
+#'     redundancy_down (\code{pathway_clusters} objects) and redundancy_plots_up,
+#'     redundancy_plots_down (lists of \code{clusters}, \code{network} and \code{topics} plots).
+#'     The four redundancy elements are NULL unless \code{collapse_redundancy = TRUE}}
 #'
 #' @export
 DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, cluster = 'all_clusters',
@@ -239,6 +282,7 @@ DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, clus
                                       gene_lists_to_plot = NULL, expression_threshold_for_gene_list = 20,
                                       minimum_cell_number = 30,
                                       run_pathway_enrichment = NULL,
+                                      collapse_redundancy = FALSE, topics = NULL,
                                       exclude_sex_chr_genes = FALSE,
                                       genes_to_exclude = c(), exclude_vdj = FALSE, ...) {
 
@@ -301,7 +345,10 @@ DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, clus
         FC_threshold = FC_threshold,
         p_value_threshold = p_value_threshold,
         group1 = group1,
-        group2 = group2
+        group2 = group2,
+        collapse_redundancy = collapse_redundancy,
+        topics = topics,
+        ...
     )
 
     # Plot specific gene lists
@@ -359,6 +406,21 @@ DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, clus
 #'   filtering. Default 20
 #' @param minimum_cell_number Integer; minimum cells required per group. Default 30
 #' @param run_pathway_enrichment Character; method for pathway enrichment or NULL. Default NULL
+#' @param collapse_redundancy Logical; when pathway enrichment runs with 'ClusterProfiler',
+#'   additionally collapse the enriched terms into non-redundant gene-overlap clusters with
+#'   [collapse_pathway_redundancy()] and write the cluster bar plot, the term-overlap network
+#'   and both cluster tables into each enrichment output directory. Nothing is printed when this
+#'   is TRUE -- not even the over-representation bar plots -- so every figure comes back in the
+#'   returned \code{enrichment} element for you to place. For an interactive network, call
+#'   [plot_pathway_cluster_map()] with \code{interactive = TRUE} on the returned
+#'   \code{redundancy_up} / \code{redundancy_down} object. Default FALSE
+#' @param topics Character vector or named list; when \code{collapse_redundancy = TRUE}, also
+#'   write a terms plot and a driving-genes plot per topic. Each element of a character vector
+#'   is its own topic, and may be either a [pathway_topics()] name such as \code{'lipid'} or
+#'   an arbitrary case-insensitive regex such as \code{'^(fatty|lanosterol)'}. Use the named
+#'   list form to OR several regexes into one topic and name its output files, e.g.
+#'   \code{list(cytokines = c('interleukin', 'chemokine'))}. A topic matching no term in a
+#'   given direction writes no file. Default NULL
 #' @param exclude_sex_chr_genes Logical; if TRUE, removes mouse sex chromosome genes
 #'   from results to avoid false positives from sex imbalance. Default FALSE
 #' @param genes_to_exclude Character vector of regular expressions; genes matching any
@@ -375,7 +437,12 @@ DEG_FindMarkers_RNA_assay <- function(scRNAseq, comparison, group1, group2, clus
 #'   \item{results}{Data frame; complete DE results}
 #'   \item{scatterplot}{ggplot; scatterplot object}
 #'   \item{volcanoplot}{ggplot; volcano plot object}
-#'   \item{enrichment}{Enrichment analysis results (plot_up and plot_down), or NULL}
+#'   \item{enrichment}{Enrichment analysis output, or NULL. For ClusterProfiler: a list of
+#'     plot_up, plot_down (ggplots), results_up, results_down (clusterProfiler
+#'     \code{enrichResult} objects, NULL when nothing was enriched), redundancy_up,
+#'     redundancy_down (\code{pathway_clusters} objects) and redundancy_plots_up,
+#'     redundancy_plots_down (lists of \code{clusters}, \code{network} and \code{topics} plots).
+#'     The four redundancy elements are NULL unless \code{collapse_redundancy = TRUE}}
 #'
 #' @export
 DEG_FindMarkers_SCT_assay <- function(scRNAseq, comparison, group1, group2, is_integrated_subset = FALSE,
@@ -385,6 +452,7 @@ DEG_FindMarkers_SCT_assay <- function(scRNAseq, comparison, group1, group2, is_i
                                       distance_from_diagonal_threshold = 0.7, gene_lists_to_plot = NULL,
                                       expression_threshold_for_gene_list = 20,
                                       minimum_cell_number = 30, run_pathway_enrichment = NULL,
+                                      collapse_redundancy = FALSE, topics = NULL,
                                       exclude_sex_chr_genes = FALSE,
                                       genes_to_exclude = c(), exclude_vdj = FALSE, ...) {
 
@@ -474,6 +542,8 @@ DEG_FindMarkers_SCT_assay <- function(scRNAseq, comparison, group1, group2, is_i
         group2 = group2,
         pathways_of_interest = pathways_of_interest,
         comparison = comparison,
+        collapse_redundancy = collapse_redundancy,
+        topics = topics,
         ...
     )
 
@@ -532,7 +602,23 @@ DEG_FindMarkers_SCT_assay <- function(scRNAseq, comparison, group1, group2, is_i
 #' @param expression_threshold_for_gene_list Numeric; minimum average normalized counts
 #'   for filtering gene lists. Default 20
 #' @param minimum_cell_number Integer; minimum replicates required (not used for bulk). Default 10
-#' @param run_pathway_enrichment Logical; whether to run pathway enrichment. Default FALSE
+#' @param run_pathway_enrichment Character; method for pathway enrichment ('Metascape',
+#'   'ClusterProfiler', or NULL). Default NULL
+#' @param collapse_redundancy Logical; when pathway enrichment runs with 'ClusterProfiler',
+#'   additionally collapse the enriched terms into non-redundant gene-overlap clusters with
+#'   [collapse_pathway_redundancy()] and write the cluster bar plot, the term-overlap network
+#'   and both cluster tables into each enrichment output directory. Nothing is printed when this
+#'   is TRUE -- not even the over-representation bar plots -- so every figure comes back in the
+#'   returned \code{enrichment} element for you to place. For an interactive network, call
+#'   [plot_pathway_cluster_map()] with \code{interactive = TRUE} on the returned
+#'   \code{redundancy_up} / \code{redundancy_down} object. Default FALSE
+#' @param topics Character vector or named list; when \code{collapse_redundancy = TRUE}, also
+#'   write a terms plot and a driving-genes plot per topic. Each element of a character vector
+#'   is its own topic, and may be either a [pathway_topics()] name such as \code{'lipid'} or
+#'   an arbitrary case-insensitive regex such as \code{'^(fatty|lanosterol)'}. Use the named
+#'   list form to OR several regexes into one topic and name its output files, e.g.
+#'   \code{list(cytokines = c('interleukin', 'chemokine'))}. A topic matching no term in a
+#'   given direction writes no file. Default NULL
 #' @param genes_to_exclude Character vector of regular expressions; genes matching any
 #'   pattern are excluded from analysis. Plain gene names work as literal patterns.
 #'   Default c()
@@ -551,7 +637,8 @@ bulk_analysis <- function(counts_table, comparison = 'Groups', group1, group2, c
                          max_overlaps = 15, label_size = 5, pathways_of_interest = NULL,
                          label_threshold = 100000, distance_from_diagonal_threshold = 0.4,
                          gene_lists_to_plot = NULL, expression_threshold_for_gene_list = 20,
-                         minimum_cell_number = 10, run_pathway_enrichment = FALSE,
+                         minimum_cell_number = 10, run_pathway_enrichment = NULL,
+                         collapse_redundancy = FALSE, topics = NULL,
                          genes_to_exclude = c(), exclude_vdj = FALSE, ...) {
 
     local_figures_path <- here::here(path, 'figures')
@@ -611,6 +698,8 @@ bulk_analysis <- function(counts_table, comparison = 'Groups', group1, group2, c
         p_value_threshold = p_value_threshold,
         group1 = group1,
         group2 = group2,
+        collapse_redundancy = collapse_redundancy,
+        topics = topics,
         ...
     )
 

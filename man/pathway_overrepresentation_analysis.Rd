@@ -16,6 +16,14 @@ pathway_overrepresentation_analysis(
   font_size = 10,
   label_length = 60,
   wrap_labels = FALSE,
+  collapse_redundancy = FALSE,
+  topics = NULL,
+  redundancy_padj = 0.05,
+  redundancy_min_sim = 0.25,
+  redundancy_resolution = 1,
+  redundancy_seed = 1,
+  redundancy_n_clusters = 15,
+  redundancy_max_clusters = 12,
   ...
 )
 }
@@ -34,9 +42,9 @@ pathway_overrepresentation_analysis(
 
 \item{group}{Character; group identifier for plot titles. Default ''}
 
-\item{nterms_to_plot}{Integer; number of terms to show in dot plot. Default 50}
+\item{nterms_to_plot}{Integer; number of terms to show in the bar plot. Default 12}
 
-\item{font_size}{Numeric; font size for plots. Default 8}
+\item{font_size}{Numeric; font size for plots. Default 10}
 
 \item{label_length}{Integer; max character length for y-axis pathway labels.
 Used as the truncation width (default) or, when \code{wrap_labels = TRUE},
@@ -49,10 +57,55 @@ When \code{FALSE} (default) labels are then truncated to \code{label_length};
 when \code{TRUE} they are wrapped onto multiple lines at \code{label_length}.
 Default \code{FALSE}.}
 
+\item{collapse_redundancy}{Logical; whether to additionally collapse the enriched terms
+into non-redundant gene-overlap clusters with \code{\link[=collapse_pathway_redundancy]{collapse_pathway_redundancy()}} and write
+the cluster bar plot, the term-overlap network and both cluster tables into
+\code{local_path}. The MSigDB collections used here are mixed
+(\code{HALLMARK_}/\code{REACTOME_}/\code{WP_}/\code{BIOCARTA_}/\code{GOBP_}), so
+\code{clusterProfiler::simplify()} does not apply and similarity is computed on the
+enriched genes instead. The plots are written to \code{local_path} and returned via the
+\code{pathway_redundancy_plots} attribute -- nothing is printed, so the caller decides where
+each figure goes. Default \code{FALSE}}
+
+\item{topics}{Character vector or named list; when \code{collapse_redundancy = TRUE}, an
+extra pair of plots (terms and driving genes) is written per topic. Each element of a
+character vector is its own topic, and may be either a \code{\link[=pathway_topics]{pathway_topics()}} name such as
+\code{'lipid'} or an arbitrary case-insensitive regex such as \code{'^(fatty|lanosterol)'}.
+Use the named list form to OR several regexes into one topic and name its output files,
+e.g. \code{list(cytokines = c('interleukin', 'chemokine'))}. A topic matching no enriched
+term writes no file. Default NULL}
+
+\item{redundancy_padj}{Numeric; adjusted p-value cutoff for including a term in the
+collapse. Default 0.05}
+
+\item{redundancy_min_sim}{Numeric; Jaccard similarity required to link two terms.
+Default 0.25}
+
+\item{redundancy_resolution}{Numeric; Louvain granularity; above 1 splits large clusters.
+Default 1}
+
+\item{redundancy_seed}{Integer; seed for the stochastic Louvain step. Default 1}
+
+\item{redundancy_n_clusters}{Integer; clusters shown in the redundancy bar plot.
+Default 15}
+
+\item{redundancy_max_clusters}{Integer; clusters coloured in the redundancy network;
+the rest are drawn grey. Default 12}
+
 \item{...}{Additional arguments (unused)}
 }
 \value{
-ggplot object; bar plot of enriched pathways (or no-data plot if insufficient genes/results)
+ggplot object; bar plot of enriched pathways (or no-data plot if insufficient
+genes/results). The clusterProfiler \code{enrichResult} behind the plot is attached as an
+\code{enrichment_results} attribute, so the statistics can be recovered without re-reading the
+CSV: \code{attr(p, 'enrichment_results')}, or \code{as_tibble()} of it for the table that was
+written. The attribute is \code{NULL} when no enrichment was run or none was found. It is an
+attribute rather than a list element because callers rely on the return value being a bare
+ggplot (\code{print}, \code{wrap_plots}, \code{p$data}). When
+\code{collapse_redundancy = TRUE} two more attributes are attached the same way:
+\code{pathway_clusters}, the \code{pathway_clusters} object, and
+\code{pathway_redundancy_plots}, a list of \code{clusters} (bar plot), \code{network} and
+\code{topics} (named by topic, each with \code{terms} and \code{genes}).
 }
 \description{
 Performs pathway overrepresentation analysis using clusterProfiler's enricher

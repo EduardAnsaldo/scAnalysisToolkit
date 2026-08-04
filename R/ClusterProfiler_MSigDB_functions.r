@@ -14,8 +14,8 @@
 #' @param maxGSSize Integer; maximum gene set size. Default 400
 #' @param filename Character; prefix for output files. Default ''
 #' @param group Character; group identifier for plot titles. Default ''
-#' @param nterms_to_plot Integer; number of terms to show in dot plot. Default 50
-#' @param font_size Numeric; font size for plots. Default 8
+#' @param nterms_to_plot Integer; number of terms to show in the bar plot. Default 12
+#' @param font_size Numeric; font size for plots. Default 10
 #' @param label_length Integer; max character length for y-axis pathway labels.
 #'   Used as the truncation width (default) or, when \code{wrap_labels = TRUE},
 #'   the wrapping width. Default 60.
@@ -25,18 +25,61 @@
 #'   When \code{FALSE} (default) labels are then truncated to \code{label_length};
 #'   when \code{TRUE} they are wrapped onto multiple lines at \code{label_length}.
 #'   Default \code{FALSE}.
+#' @param collapse_redundancy Logical; whether to additionally collapse the enriched terms
+#'   into non-redundant gene-overlap clusters with [collapse_pathway_redundancy()] and write
+#'   the cluster bar plot, the term-overlap network and both cluster tables into
+#'   \code{local_path}. The MSigDB collections used here are mixed
+#'   (\code{HALLMARK_}/\code{REACTOME_}/\code{WP_}/\code{BIOCARTA_}/\code{GOBP_}), so
+#'   \code{clusterProfiler::simplify()} does not apply and similarity is computed on the
+#'   enriched genes instead. The plots are written to \code{local_path} and returned via the
+#'   \code{pathway_redundancy_plots} attribute -- nothing is printed, so the caller decides where
+#'   each figure goes. Default \code{FALSE}
+#' @param topics Character vector or named list; when \code{collapse_redundancy = TRUE}, an
+#'   extra pair of plots (terms and driving genes) is written per topic. Each element of a
+#'   character vector is its own topic, and may be either a [pathway_topics()] name such as
+#'   \code{'lipid'} or an arbitrary case-insensitive regex such as \code{'^(fatty|lanosterol)'}.
+#'   Use the named list form to OR several regexes into one topic and name its output files,
+#'   e.g. \code{list(cytokines = c('interleukin', 'chemokine'))}. A topic matching no enriched
+#'   term writes no file. Default NULL
+#' @param redundancy_padj Numeric; adjusted p-value cutoff for including a term in the
+#'   collapse. Default 0.05
+#' @param redundancy_min_sim Numeric; Jaccard similarity required to link two terms.
+#'   Default 0.25
+#' @param redundancy_resolution Numeric; Louvain granularity; above 1 splits large clusters.
+#'   Default 1
+#' @param redundancy_seed Integer; seed for the stochastic Louvain step. Default 1
+#' @param redundancy_n_clusters Integer; clusters shown in the redundancy bar plot.
+#'   Default 15
+#' @param redundancy_max_clusters Integer; clusters coloured in the redundancy network;
+#'   the rest are drawn grey. Default 12
 #' @param ... Additional arguments (unused)
 #'
-#' @return ggplot object; bar plot of enriched pathways (or no-data plot if insufficient genes/results)
+#' @return ggplot object; bar plot of enriched pathways (or no-data plot if insufficient
+#'   genes/results). The clusterProfiler \code{enrichResult} behind the plot is attached as an
+#'   \code{enrichment_results} attribute, so the statistics can be recovered without re-reading the
+#'   CSV: \code{attr(p, 'enrichment_results')}, or \code{as_tibble()} of it for the table that was
+#'   written. The attribute is \code{NULL} when no enrichment was run or none was found. It is an
+#'   attribute rather than a list element because callers rely on the return value being a bare
+#'   ggplot (\code{print}, \code{wrap_plots}, \code{p$data}). When
+#'   \code{collapse_redundancy = TRUE} two more attributes are attached the same way:
+#'   \code{pathway_clusters}, the \code{pathway_clusters} object, and
+#'   \code{pathway_redundancy_plots}, a list of \code{clusters} (bar plot), \code{network} and
+#'   \code{topics} (named by topic, each with \code{terms} and \code{genes}).
 #'
 #' @export
-pathway_overrepresentation_analysis <- function (significant_genes, all_genes, local_path, minGSSize = 5, maxGSSize = 400, filename = '', group = '', nterms_to_plot = 12, font_size = 10, label_length = 60, wrap_labels = FALSE,  ...)  {
+pathway_overrepresentation_analysis <- function (significant_genes, all_genes, local_path, minGSSize = 5, maxGSSize = 400, filename = '', group = '', nterms_to_plot = 12, font_size = 10, label_length = 60, wrap_labels = FALSE, collapse_redundancy = FALSE, topics = NULL, redundancy_padj = 0.05, redundancy_min_sim = 0.25, redundancy_resolution = 1, redundancy_seed = 1, redundancy_n_clusters = 15, redundancy_max_clusters = 12,  ...)  {
 
      set_enrichment_color_scale()
 
+     # Set here so the early returns below can attach them unconditionally
+     enrichment_results <- NULL
+     redundancy <- NULL
+
      if (length(significant_genes) <= 4) {
           p1 <- create_no_data_plot()
-          return(p1)
+          return(structure(p1, enrichment_results = enrichment_results,
+                           pathway_clusters = redundancy$clusters,
+                           pathway_redundancy_plots = redundancy$plots))
      }
 
      # Convert gene symbols to Entrez IDs
@@ -53,7 +96,9 @@ pathway_overrepresentation_analysis <- function (significant_genes, all_genes, l
 
      if (length(significant_genes_entrez) <= 4) {
           p1 <- create_no_data_plot()
-          return(p1)
+          return(structure(p1, enrichment_results = enrichment_results,
+                           pathway_clusters = redundancy$clusters,
+                           pathway_redundancy_plots = redundancy$plots))
      }
 
      # Create TERM2GENE database from MSigDB pathway collections
@@ -88,6 +133,25 @@ pathway_overrepresentation_analysis <- function (significant_genes, all_genes, l
      enrichment_results_table <- as_tibble(enrichment_results)
      
      write.csv(enrichment_results_table, here::here(local_path, paste0(filename,'Pathway_OverRepresentation_analysis_results.csv')))
+
+     # Collapse the redundant terms into gene-overlap clusters. Runs here rather than in the
+     # calling wrapper so both directions of a comparison are covered by one hook, and so the
+     # output lands in the directory this ORA already owns.
+     if (collapse_redundancy && nrow(enrichment_results_table) > 1) {
+          redundancy <- run_pathway_redundancy_analysis(
+               enrichment_results,
+               local_path   = local_path,
+               filename     = filename,
+               title        = paste0(filename, 'Pathways UP in ', group),
+               topics       = topics,
+               padj         = redundancy_padj,
+               min_sim      = redundancy_min_sim,
+               resolution   = redundancy_resolution,
+               seed         = redundancy_seed,
+               n_clusters   = redundancy_n_clusters,
+               max_clusters = redundancy_max_clusters
+          )
+     }
 
      # colnames(enrichment_results_table) |> print()
 
@@ -133,7 +197,9 @@ pathway_overrepresentation_analysis <- function (significant_genes, all_genes, l
      } else {
           p1 <- create_no_data_plot()
      }
-     return(p1)
+     return(structure(p1, enrichment_results = enrichment_results,
+                      pathway_clusters = redundancy$clusters,
+                      pathway_redundancy_plots = redundancy$plots))
 }
 
 #' Pathway Gene Set Enrichment Analysis using MSigDB
@@ -231,10 +297,23 @@ pathway_GSEA_analysis <- function (results, local_path, group, minGSSize = 5, ma
 #'   \code{grouping_var}, so two contrasts on the same groups (e.g. within different subgroups)
 #'   otherwise resolve to the same directory, and \code{create_analysis_directory} deletes the
 #'   earlier one. Default ''
+#' @param collapse_redundancy Logical; passed to [pathway_overrepresentation_analysis()] to
+#'   additionally collapse the enriched terms into non-redundant gene-overlap clusters. When TRUE,
+#'   nothing is printed and every plot is returned instead. Default FALSE
 #' @param ... Additional arguments passed to pathway_overrepresentation_analysis
 #'
-#' @return List with two elements: plot_up (ggplot for upregulated genes) and
-#'   plot_down (ggplot for downregulated genes)
+#' @return List with eight elements: plot_up and plot_down (ggplots for genes up in \code{group2}
+#'   and in \code{group1}), results_up and results_down, the corresponding clusterProfiler
+#'   \code{enrichResult} objects (NULL when no enrichment was run or none was found),
+#'   redundancy_up and redundancy_down, the \code{pathway_clusters} objects from
+#'   [collapse_pathway_redundancy()], and redundancy_plots_up and redundancy_plots_down, each a
+#'   list of \code{clusters} (bar plot), \code{network} and \code{topics} (named by topic, each
+#'   with \code{terms} and \code{genes}). The four redundancy elements are NULL unless
+#'   \code{collapse_redundancy = TRUE}. Use \code{as_tibble()} on a results element for the same
+#'   table written to CSV.
+#'
+#'   With \code{collapse_redundancy = TRUE} nothing is printed -- not the over-representation bar
+#'   plots either -- so every figure comes back for the caller to place.
 #'
 #' @details
 #' Uses MSigDB pathway collections: Hallmark (MH), BIOCARTA, REACTOME, WIKIPATHWAYS,
@@ -242,7 +321,7 @@ pathway_GSEA_analysis <- function (results, local_path, group, minGSSize = 5, ma
 #' upregulated in group2 vs group1 and downregulated genes (upregulated in group1).
 #'
 #' @export
-pathway_functional_analysis <- function (results,  grouping_var, path='./', FC_threshold = 0.3, p_value_threshold = 0.05, group1 = '', group2 = '', run_GSEA = FALSE, top_n_genes = NULL, file_suffix = '', ...) {
+pathway_functional_analysis <- function (results,  grouping_var, path='./', FC_threshold = 0.3, p_value_threshold = 0.05, group1 = '', group2 = '', run_GSEA = FALSE, top_n_genes = NULL, file_suffix = '', collapse_redundancy = FALSE, ...) {
 
 cluster <- grouping_var
 
@@ -263,8 +342,10 @@ cluster <- grouping_var
 
       ######################## ORA ########################
 
-      plot_up <- pathway_overrepresentation_analysis(significant_genes, all_genes, local_path, group = group2, ...)
-      print(plot_up)
+      plot_up <- pathway_overrepresentation_analysis(significant_genes, all_genes, local_path, group = group2, collapse_redundancy = collapse_redundancy, ...)
+      # With the redundancy collapse on, nothing is printed: the caller gets every plot back and
+      # decides where it goes, rather than having figures land wherever the call happens to sit.
+      if (!collapse_redundancy) print(plot_up)
 
       #################### GSEA ####################
      if (run_GSEA) {
@@ -289,15 +370,24 @@ cluster <- grouping_var
 
       ######################## ORA ########################
 
-      plot_down <- pathway_overrepresentation_analysis(significant_genes, all_genes, local_path, group = group1, ...)
-      print(plot_down)
+      plot_down <- pathway_overrepresentation_analysis(significant_genes, all_genes, local_path, group = group1, collapse_redundancy = collapse_redundancy, ...)
+      if (!collapse_redundancy) print(plot_down)
 
       #################### GSEA ####################
       if (run_GSEA) {
       pathway_GSEA_analysis(results, local_path, group1, ...)
       }
 
-      return(list(plot_up = plot_up, plot_down = plot_down))
+      # Read the attribute here, before anything adds a layer to the plots: `p + theme(...)` returns
+      # a new object and would drop it.
+      return(list(plot_up               = plot_up,
+                  plot_down             = plot_down,
+                  results_up            = attr(plot_up,   'enrichment_results'),
+                  results_down          = attr(plot_down, 'enrichment_results'),
+                  redundancy_up         = attr(plot_up,   'pathway_clusters'),
+                  redundancy_down       = attr(plot_down, 'pathway_clusters'),
+                  redundancy_plots_up   = attr(plot_up,   'pathway_redundancy_plots'),
+                  redundancy_plots_down = attr(plot_down, 'pathway_redundancy_plots')))
 }
 
 #' Pathway Functional Analysis for Cluster Identification using MSigDB

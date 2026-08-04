@@ -21,7 +21,9 @@ bulk_analysis(
   gene_lists_to_plot = NULL,
   expression_threshold_for_gene_list = 20,
   minimum_cell_number = 10,
-  run_pathway_enrichment = FALSE,
+  run_pathway_enrichment = NULL,
+  collapse_redundancy = FALSE,
+  topics = NULL,
   genes_to_exclude = c(),
   exclude_vdj = FALSE,
   ...
@@ -63,7 +65,25 @@ for filtering gene lists. Default 20}
 
 \item{minimum_cell_number}{Integer; minimum replicates required (not used for bulk). Default 10}
 
-\item{run_pathway_enrichment}{Logical; whether to run pathway enrichment. Default FALSE}
+\item{run_pathway_enrichment}{Character; method for pathway enrichment ('Metascape',
+'ClusterProfiler', or NULL). Default NULL}
+
+\item{collapse_redundancy}{Logical; when pathway enrichment runs with 'ClusterProfiler',
+additionally collapse the enriched terms into non-redundant gene-overlap clusters with
+\code{\link[=collapse_pathway_redundancy]{collapse_pathway_redundancy()}} and write the cluster bar plot, the term-overlap network
+and both cluster tables into each enrichment output directory. Nothing is printed when this
+is TRUE -- not even the over-representation bar plots -- so every figure comes back in the
+returned \code{enrichment} element for you to place. For an interactive network, call
+\code{\link[=plot_pathway_cluster_map]{plot_pathway_cluster_map()}} with \code{interactive = TRUE} on the returned
+\code{redundancy_up} / \code{redundancy_down} object. Default FALSE}
+
+\item{topics}{Character vector or named list; when \code{collapse_redundancy = TRUE}, also
+write a terms plot and a driving-genes plot per topic. Each element of a character vector
+is its own topic, and may be either a \code{\link[=pathway_topics]{pathway_topics()}} name such as \code{'lipid'} or
+an arbitrary case-insensitive regex such as \code{'^(fatty|lanosterol)'}. Use the named
+list form to OR several regexes into one topic and name its output files, e.g.
+\code{list(cytokines = c('interleukin', 'chemokine'))}. A topic matching no term in a
+given direction writes no file. Default NULL}
 
 \item{genes_to_exclude}{Character vector of regular expressions; genes matching any
 pattern are excluded from analysis. Plain gene names work as literal patterns.

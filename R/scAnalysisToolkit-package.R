@@ -37,6 +37,7 @@
 #' @importFrom purrr map2
 #' @importFrom purrr map_chr
 #' @importFrom purrr map_dfr
+#' @importFrom purrr map_lgl
 #' @importFrom purrr walk
 #' @importFrom scales alpha
 #' @importFrom scales breaks_width

@@ -91,8 +91,20 @@ Two things make this fail silently or noisily under `Rscript`, both verified:
   interactive`. Commit first — that is why the bump is step 2, not step 1. Do not work around this
   by editing `DESCRIPTION` instead.
 
-The tag must point at the commit that carries the bumped `DESCRIPTION`, so it cannot be created
-before that commit exists.
+**The tag must point at a commit carrying both the bumped `DESCRIPTION` and that version's
+`NEWS.md` section.** The five steps above put them in one commit, so this is automatic — but a bump
+committed on its own splits them, and then the bump commit has the version without the notes.
+`use_github_release()` reads `NEWS.md` *at the tagged commit*, so tagging that one publishes an
+empty release. In practice: **tag the tip of the release branch, or the merge commit on the default
+branch — never an intermediate bump commit.** Check before tagging, it is two commands:
+
+```sh
+git show <target>:DESCRIPTION | grep '^Version:'   # the version you mean to release
+git show <target>:NEWS.md | head -1                # its heading must be that same version
+```
+
+`use_github_release()` reads the version from `DESCRIPTION` at `HEAD` to build the tag name, so it
+has to run from the commit being released — the same constraint from the other side.
 
 **`NEWS.md` is the release notes.** `use_version()` adds a heading for the new version to it, and
 `usethis::use_github_release()` publishes whatever sits under the topmost heading as the GitHub

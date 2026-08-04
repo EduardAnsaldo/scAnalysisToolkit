@@ -10,6 +10,7 @@ plot_pathway_topic_genes(
   where = "label",
   top_genes = 25,
   lfc = NULL,
+  padj = NULL,
   title = NULL
 )
 }
@@ -24,9 +25,19 @@ plot_pathway_topic_genes(
 \item{top_genes}{Integer; number of genes to show. Default 25}
 
 \item{lfc}{Named numeric or NULL; log2 fold changes named by gene symbol. When supplied,
-bars are coloured by direction. Default NULL}
+bars are coloured by direction on a diverging scale centred at zero. Ignored when
+\code{padj} is also given. Default NULL}
 
-\item{title}{Character or NULL; plot title}
+\item{padj}{Named numeric or NULL; adjusted p-values named by gene symbol. When supplied,
+bars are coloured by \code{-log10(padj)} on the same sequential scale the
+over-representation bar plots use, so the most confidently changed genes stand out. Takes
+precedence over \code{lfc}. Genes the DE table filtered out (\code{NA}) are drawn grey.
+Default NULL}
+
+\item{title}{Character or NULL; plot title. Defaults to
+\code{"Genes driving <topic>-related terms (top 25 of 137 genes)"}, where \code{<topic>} is
+the \code{\link[=pathway_topics]{pathway_topics()}} name if one was given and the regex as written otherwise. The count
+reads \code{"all N genes"} when \code{top_genes} did not truncate anything}
 }
 \value{
 A ggplot object, or a placeholder plot when nothing matches

@@ -161,7 +161,8 @@
             httr2::req_headers(
                 "x-api-key" = api_key,
                 "anthropic-version" = anthropic_version,
-                "content-type" = "application/json"
+                "content-type" = "application/json",
+                .redact = "x-api-key"
             ) |>
             httr2::req_body_json(body) |>
             httr2::req_retry(
@@ -360,8 +361,11 @@ annotate_seurat_with_LLM <- function(
     }
     # Dependencies needed for any network / parsing work.
     if (use_pubmed || !dry_run) {
+        # httr2 >= 1.0.0 for req_headers(.redact =); on older versions `.redact`
+        # would be sent as a literal header and the API key left unredacted.
         rlang::check_installed(c("httr2", "jsonlite"),
-                               reason = "to call the Anthropic API and query PubMed.")
+                               reason = "to call the Anthropic API and query PubMed.",
+                               version = c("1.0.0", NA))
     }
     if (!dry_run) {
         api_key <- .llm_resolve_api_key(api_key, keyring_service)

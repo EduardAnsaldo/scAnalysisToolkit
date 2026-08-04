@@ -10,7 +10,8 @@ collapse_pathway_redundancy(
   min_sim = 0.25,
   resolution = 1,
   seed = 1,
-  name = NULL
+  name = NULL,
+  label_by = c("collection", "richfactor", "genes", "padj")
 )
 }
 \arguments{
@@ -31,6 +32,27 @@ Default 1}
 Default 1}
 
 \item{name}{Character or NULL; label used as the default plot title. Default NULL}
+
+\item{label_by}{How to name each cluster, reported as \code{cluster_name}. One of:
+\describe{
+\item{\code{"collection"}}{(default) the member from the most curated collection
+available -- \code{HALLMARK} before \code{REACTOME}, \code{WP}, \code{BIOCARTA}, then
+\code{GOBP}. Those names are written for people to read, where GO names are
+auto-composed and often unwieldy ("Cholesterol homeostasis" rather than "Cholesterol
+metabolism with bloch and kandutschrussell pathways"). Ties break on specificity.}
+\item{\code{"richfactor"}}{the member with the highest \code{RichFactor} -- the largest
+fraction of its gene set enriched. This favours specific terms, where \code{"genes"}
+favours broad ones that swept up the same genes incidentally. Falls back to
+\code{FoldEnrichment}, which ranks identically, then to \code{p.adjust} with a warning
+if neither column is present.}
+\item{\code{"genes"}}{the member with the most enriched genes. Tends to pick the broadest
+term in the cluster.}
+\item{\code{"padj"}}{the most significant member -- the same term as
+\code{cluster_label}.}
+}
+Every plot names clusters the same way, from \code{cluster_name}. The
+\code{cluster_label} column keeps the most significant member for reference in the tables
+regardless of \code{label_by}. Default \code{"collection"}}
 }
 \value{
 An object of class \code{pathway_clusters}: a list with \code{terms} (one row per
@@ -39,6 +61,11 @@ term, with its \code{collection}, cleaned \code{label}, \code{genes} list-column
 the adjusted p-value of its best member), \code{sim} (the square Jaccard matrix) and
 \code{params}. Returns \code{NULL} with a message when fewer than two terms pass
 \code{padj}, so the function is safe to call inside a pipeline.
+
+Clusters carry two names. \code{cluster_name} is chosen by \code{label_by} and is what every
+plot displays, with \code{cluster_name_term} recording which term it came from.
+\code{cluster_label} is always the most significant member, kept in the tables so that
+reference point survives whatever \code{label_by} was used.
 }
 \description{
 Groups the significant terms of an over-representation result into non-redundant clusters

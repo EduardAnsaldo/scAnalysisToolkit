@@ -8,7 +8,7 @@ pathway_overrepresentation_analysis(
   significant_genes,
   all_genes,
   local_path,
-  minGSSize = 5,
+  minGSSize = 4,
   maxGSSize = 400,
   filename = "",
   group = "",
@@ -22,6 +22,7 @@ pathway_overrepresentation_analysis(
   redundancy_min_sim = 0.25,
   redundancy_resolution = 1,
   redundancy_seed = 1,
+  redundancy_label_by = "collection",
   redundancy_n_clusters = 15,
   redundancy_max_clusters = 12,
   ...
@@ -85,6 +86,10 @@ Default 0.25}
 Default 1}
 
 \item{redundancy_seed}{Integer; seed for the stochastic Louvain step. Default 1}
+
+\item{redundancy_label_by}{Character; how to name each redundancy cluster. See
+\code{label_by} in \code{\link[=collapse_pathway_redundancy]{collapse_pathway_redundancy()}} for the strategies. Default
+\code{'richfactor'}}
 
 \item{redundancy_n_clusters}{Integer; clusters shown in the redundancy bar plot.
 Default 15}

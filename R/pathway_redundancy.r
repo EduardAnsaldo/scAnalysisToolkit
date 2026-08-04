@@ -22,7 +22,7 @@
 #' @export
 pathway_topics <- function() {
     list(
-        lipid        = c('lipid', 'lipoprotein', 'cholesterol', 'sterol', 'fatty acid',
+        lipid        = c('lipid', 'fat', 'lipoprotein', 'cholesterol', 'sterol', 'fatty acid',
                          'triglyceride', 'acylglycerol', 'acyl', 'lipase', 'adipo', 'eicosanoid'),
         mitochondria = c('mitochondri', 'respiratory', 'oxidative phosphorylation',
                          'electron transport', 'atp synth', 'cellular respiration', 'complex i'),
@@ -32,7 +32,7 @@ pathway_topics <- function() {
         chromatin    = c('chromatin', 'histone', 'epigenetic', 'nucleosome', 'telomer',
                          'methylat', 'acetylat', 'dna repair'),
         immune       = c('immune', 'interleukin', 'interferon', 'cytokine', 'antigen',
-                         'inflammat', 'antimicrobial', 'defense response'),
+                         'inflammat', 'antimicrobial', 'defense response', 'T cell', 'B cell', 'macrophage', 'dendritic', 'neutrophil'),
         stress       = c('oxidant', 'detoxif', 'glutathione', 'reactive oxygen',
                          'xenobiotic', 'chemical stress', 'unfolded protein')
     )
@@ -118,6 +118,26 @@ sanitize_for_filename <- function(x) {
 #' @param seed Integer; Louvain is stochastic, so the seed is fixed for reproducibility.
 #'   Default 1
 #' @param name Character or NULL; label used as the default plot title. Default NULL
+#' @param label_by How to name each cluster, reported as \code{cluster_name}. One of:
+#'   \describe{
+#'     \item{\code{"collection"}}{(default) the member from the most curated collection
+#'       available -- \code{HALLMARK} before \code{REACTOME}, \code{WP}, \code{BIOCARTA}, then
+#'       \code{GOBP}. Those names are written for people to read, where GO names are
+#'       auto-composed and often unwieldy ("Cholesterol homeostasis" rather than "Cholesterol
+#'       metabolism with bloch and kandutschrussell pathways"). Ties break on specificity.}
+#'     \item{\code{"richfactor"}}{the member with the highest \code{RichFactor} -- the largest
+#'       fraction of its gene set enriched. This favours specific terms, where \code{"genes"}
+#'       favours broad ones that swept up the same genes incidentally. Falls back to
+#'       \code{FoldEnrichment}, which ranks identically, then to \code{p.adjust} with a warning
+#'       if neither column is present.}
+#'     \item{\code{"genes"}}{the member with the most enriched genes. Tends to pick the broadest
+#'       term in the cluster.}
+#'     \item{\code{"padj"}}{the most significant member -- the same term as
+#'       \code{cluster_label}.}
+#'   }
+#'   Every plot names clusters the same way, from \code{cluster_name}. The
+#'   \code{cluster_label} column keeps the most significant member for reference in the tables
+#'   regardless of \code{label_by}. Default \code{"collection"}
 #'
 #' @return An object of class \code{pathway_clusters}: a list with \code{terms} (one row per
 #'   term, with its \code{collection}, cleaned \code{label}, \code{genes} list-column,
@@ -126,11 +146,19 @@ sanitize_for_filename <- function(x) {
 #'   \code{params}. Returns \code{NULL} with a message when fewer than two terms pass
 #'   \code{padj}, so the function is safe to call inside a pipeline.
 #'
+#'   Clusters carry two names. \code{cluster_name} is chosen by \code{label_by} and is what every
+#'   plot displays, with \code{cluster_name_term} recording which term it came from.
+#'   \code{cluster_label} is always the most significant member, kept in the tables so that
+#'   reference point survives whatever \code{label_by} was used.
+#'
 #' @export
 collapse_pathway_redundancy <- function(x, padj = 0.05, min_sim = 0.25, resolution = 1,
-                                        seed = 1, name = NULL) {
+                                        seed = 1, name = NULL,
+                                        label_by = c('collection', 'richfactor', 'genes',
+                                                     'padj')) {
 
     rlang::check_installed('igraph', reason = 'to cluster pathway terms by gene overlap.')
+    label_by <- match.arg(label_by)
 
     enrichment_table <- if (inherits(x, 'enrichResult') || inherits(x, 'gseaResult')) {
         as.data.frame(x)
@@ -194,11 +222,15 @@ collapse_pathway_redundancy <- function(x, padj = 0.05, min_sim = 0.25, resoluti
             collections   = paste(sort(unique(.data$collection)), collapse = ','),
             .groups       = 'drop'
         ) |>
+        # cluster_label stays the most significant member whatever label_by says: the plots all
+        # use cluster_name, but the tables keep this as a fixed reference point
+        left_join(pathway_cluster_names(terms, label_by), by = 'cluster') |>
         arrange(.data$best_padj) |>
         mutate(rank = row_number())
 
     terms <- terms |>
-        left_join(select(clusters, 'cluster', 'cluster_label', 'rank'), by = 'cluster')
+        left_join(select(clusters, 'cluster', 'cluster_label', 'cluster_name', 'rank'),
+                  by = 'cluster')
 
     structure(
         list(
@@ -206,7 +238,7 @@ collapse_pathway_redundancy <- function(x, padj = 0.05, min_sim = 0.25, resoluti
             clusters = clusters,
             sim      = sim_matrix,
             params   = list(padj = padj, min_sim = min_sim, resolution = resolution,
-                            seed = seed, name = name)
+                            seed = seed, name = name, label_by = label_by)
         ),
         class = c('pathway_clusters', 'list')
     )
@@ -247,6 +279,97 @@ pathway_jaccard_matrix <- function(terms) {
     sim_matrix[terms$ID, terms$ID, drop = FALSE]
 }
 
+#' Specificity Column to Rank Terms By
+#'
+#' \code{RichFactor} is the fraction of a gene set that came back enriched, so it separates a
+#' tight, specific term from a broad one that swept up the same genes incidentally --
+#' \code{Count} cannot. \code{FoldEnrichment} is \code{RichFactor} over a constant, so within
+#' one result the two rank identically and either will do.
+#'
+#' @param terms Tibble of terms
+#'
+#' @return Character; the column name to use, or NULL when neither is present
+#'
+#' @noRd
+specificity_column <- function(terms) {
+    present <- intersect(c('RichFactor', 'FoldEnrichment'), names(terms))
+    if (length(present)) present[1] else NULL
+}
+
+#' Pick One Representative Term Per Cluster
+#'
+#' @param terms Tibble of terms, already ordered by \code{p.adjust}, so \code{with_ties = FALSE}
+#'   breaks ties in favour of the most significant member
+#' @param column Character; column to order by
+#' @param largest Logical; TRUE takes the maximum, FALSE the minimum
+#'
+#' @return Tibble of one row per cluster
+#'
+#' @noRd
+cluster_representative_term <- function(terms, column, largest = TRUE) {
+    picked <- terms |> group_by(.data$cluster)
+    picked <- if (largest) {
+        slice_max(picked, .data[[column]], n = 1, with_ties = FALSE)
+    } else {
+        slice_min(picked, .data[[column]], n = 1, with_ties = FALSE)
+    }
+    picked |> ungroup()
+}
+
+#' Name Each Cluster of Redundant Terms
+#'
+#' @param terms Tibble of terms, ordered by \code{p.adjust}, carrying \code{cluster},
+#'   \code{label}, \code{collection}, \code{Count} and \code{p.adjust}
+#' @param label_by One of \code{"collection"}, \code{"richfactor"}, \code{"genes"} or
+#'   \code{"padj"}
+#'
+#' @return Tibble of \code{cluster}, \code{cluster_name} and \code{cluster_name_term} -- the
+#'   \code{ID} the name was taken from
+#'
+#' @noRd
+pathway_cluster_names <- function(terms, label_by) {
+
+    specificity <- specificity_column(terms)
+    if (is.null(specificity) && label_by %in% c('richfactor', 'collection')) {
+        warning('No RichFactor or FoldEnrichment column found; naming clusters by p.adjust ',
+                'instead. Pass an enrichResult, or a CSV written from one, to rank terms by ',
+                'specificity.', call. = FALSE)
+    }
+
+    representative <- switch(
+        label_by,
+        richfactor = if (is.null(specificity)) {
+            cluster_representative_term(terms, 'p.adjust', largest = FALSE)
+        } else {
+            cluster_representative_term(terms, specificity, largest = TRUE)
+        },
+        genes = cluster_representative_term(terms, 'Count', largest = TRUE),
+        padj  = cluster_representative_term(terms, 'p.adjust', largest = FALSE),
+        collection = {
+            # Curated collections name things for humans; GO names are auto-composed and clumsy
+            priority <- c('HALLMARK', 'REACTOME', 'WP', 'BIOCARTA', 'GOBP')
+            preferred <- terms |>
+                mutate(collection_rank = match(.data$collection, priority),
+                       collection_rank = if_else(is.na(.data$collection_rank),
+                                                 length(priority) + 1L,
+                                                 as.integer(.data$collection_rank))) |>
+                group_by(.data$cluster) |>
+                filter(.data$collection_rank == min(.data$collection_rank)) |>
+                ungroup()
+            if (is.null(specificity)) {
+                cluster_representative_term(preferred, 'p.adjust', largest = FALSE)
+            } else {
+                cluster_representative_term(preferred, specificity, largest = TRUE)
+            }
+        }
+    )
+
+    representative |>
+        transmute(cluster = .data$cluster,
+                  cluster_name = .data$label,
+                  cluster_name_term = .data$ID)
+}
+
 #' Print a Pathway Cluster Result
 #'
 #' One-line summary of the collapse followed by the five most significant clusters.
@@ -260,11 +383,12 @@ pathway_jaccard_matrix <- function(terms) {
 #' @export
 print.pathway_clusters <- function(x, ...) {
     params <- x$params
-    cat(sprintf('%s%d terms -> %d clusters (jaccard >= %.2f, louvain, seed %s)\n',
+    cat(sprintf('%s%d terms -> %d clusters (jaccard >= %.2f, louvain, seed %s, named by %s)\n',
                 if (is.null(params$name)) '' else paste0(params$name, ': '),
-                nrow(x$terms), nrow(x$clusters), params$min_sim, params$seed))
+                nrow(x$terms), nrow(x$clusters), params$min_sim, params$seed,
+                params$label_by %||% 'padj'))
     top_clusters <- head(x$clusters, 5)
-    cat(paste0('  ', top_clusters$rank, '. ', str_trunc(top_clusters$cluster_label, 50),
+    cat(paste0('  ', top_clusters$rank, '. ', str_trunc(top_clusters$cluster_name, 50),
                ' (', top_clusters$n_terms, ' terms, p.adj ',
                signif(top_clusters$best_padj, 2), ')',
                collapse = '\n'), '\n')
@@ -289,6 +413,7 @@ write_pathway_clusters <- function(res, file) {
     res$terms |>
         transmute(
             rank          = .data$rank,
+            cluster_name  = .data$cluster_name,
             cluster_label = .data$cluster_label,
             ID            = .data$ID,
             Description   = .data$Description,
@@ -305,8 +430,10 @@ write_pathway_clusters <- function(res, file) {
 
 #' Bar Plot of Collapsed Pathway Clusters
 #'
-#' One bar per cluster, labelled by its most significant member, so a block of eight
-#' near-duplicate terms reads as one signal instead of eight.
+#' One bar per cluster, so a block of eight near-duplicate terms reads as one signal instead of
+#' eight. Bars are labelled by \code{cluster_name}, chosen by the \code{label_by} given to
+#' [collapse_pathway_redundancy()], the same name [plot_pathway_cluster_map()] and
+#' [plot_pathway_topic()] use.
 #'
 #' @param res Object returned by [collapse_pathway_redundancy()]
 #' @param n Integer; number of clusters to show. Default 15
@@ -325,9 +452,9 @@ plot_pathway_clusters <- function(res, n = 15, title = res$params$name) {
     plot_data <- head(res$clusters, n) |>
         mutate(
             log_padj = -log10(.data$best_padj),
-            # Rank-prefixed so two clusters whose labels truncate identically stay distinct
+            # Rank-prefixed so two clusters whose names truncate identically stay distinct
             cluster_display = fct_reorder(
-                paste0(.data$rank, '. ', str_trunc(.data$cluster_label, 44)),
+                paste0(.data$rank, '. ', str_trunc(.data$cluster_name, 44)),
                 .data$log_padj
             )
         )
@@ -348,8 +475,12 @@ plot_pathway_clusters <- function(res, n = 15, title = res$params$name) {
 #' Enrichment Map of Collapsed Pathway Clusters
 #'
 #' Network of the significant terms: nodes are terms sized by gene count, edges are gene
-#' overlap above \code{min_sim}, colour is the cluster. One label per cluster, on its most
-#' significant member.
+#' overlap above \code{min_sim}, colour is the cluster. One label per cluster, taken from
+#' \code{cluster_name} and so chosen by the \code{label_by} argument of
+#' [collapse_pathway_redundancy()] -- by default the member from the most curated collection
+#' rather than the most significant one -- and drawn on that member's node. This is the same
+#' name [plot_pathway_clusters()] and [plot_pathway_topic()] show, so the three plots agree.
+#' Clusters are ordered by rank in the legend.
 #'
 #' @param res Object returned by [collapse_pathway_redundancy()]
 #' @param max_clusters Integer; number of clusters to colour. The rest are drawn grey as
@@ -360,9 +491,12 @@ plot_pathway_clusters <- function(res, n = 15, title = res$params$name) {
 #' @param label_length Integer; truncation width for node labels. Default 40
 #' @param interactive Logical; \code{FALSE} (the default) returns a ggplot, \code{TRUE} a
 #'   \code{plotly} htmlwidget whose nodes each carry a hover tooltip with the full term name,
-#'   collection, adjusted p-value, gene count and cluster. Worth asking for, because the static
-#'   version can only label one term per cluster. Default FALSE, so the return value stays
-#'   something \code{ggsave()} accepts
+#'   collection, adjusted p-value, cluster, and the term's genes comma-separated. Worth asking
+#'   for, because the static version can only label one term per cluster. Default FALSE, so the
+#'   return value stays something \code{ggsave()} accepts
+#' @param hover_gene_width Integer; character width at which the comma-separated gene list in the
+#'   tooltip is wrapped. plotly does not break long tooltip lines itself, so without this a term
+#'   with many genes runs off the plot. Only affects \code{interactive = TRUE}. Default 60
 #'
 #' @return A ggplot object, a \code{plotly} htmlwidget when \code{interactive = TRUE}, or a
 #'   placeholder plot when \code{res} is NULL or empty
@@ -382,7 +516,8 @@ plot_pathway_clusters <- function(res, n = 15, title = res$params$name) {
 #'
 #' @export
 plot_pathway_cluster_map <- function(res, max_clusters = 12, title = res$params$name,
-                                     seed = 1, label_length = 40, interactive = FALSE) {
+                                     seed = 1, label_length = 40, interactive = FALSE,
+                                     hover_gene_width = 60) {
 
     rlang::check_installed('igraph', reason = 'to lay out the pathway cluster map.')
     if (interactive) {
@@ -403,17 +538,23 @@ plot_pathway_cluster_map <- function(res, max_clusters = 12, title = res$params$
                                                  weights = igraph::E(term_graph)$weight)
 
     top_clusters <- head(res$clusters$cluster, max_clusters)
-    # Rank-prefixed so two clusters whose labels truncate identically get distinct colours
-    cluster_key <- res$clusters |>
-        mutate(cluster_key = paste0(.data$rank, '. ', str_trunc(.data$cluster_label, 30))) |>
-        select('cluster', 'cluster_key')
 
-    labelled_terms <- res$terms |>
+    # cluster_name is chosen by label_by back in collapse_pathway_redundancy(); cluster_label,
+    # which the bar plot and the tables use, is deliberately left alone.
+    # cluster_name is not selected here: res$terms already carries it, and taking it from both
+    # sides of the join would suffix it to cluster_name.x / cluster_name.y.
+    cluster_key <- res$clusters |>
+        # Rank-prefixed so two clusters whose names truncate identically get distinct colours
+        mutate(cluster_key = paste0(.data$rank, '. ', str_trunc(.data$cluster_name, 30))) |>
+        select('cluster', 'cluster_key', 'cluster_name_term')
+
+    labelled_terms <- cluster_key |>
         filter(.data$cluster %in% top_clusters) |>
-        group_by(.data$cluster) |>
-        slice_min(.data$p.adjust, n = 1, with_ties = FALSE) |>
-        ungroup() |>
-        pull('ID')
+        pull('cluster_name_term')
+
+    # top_clusters is already in rank order, so this puts the legend in 1, 2, ... 10, 11 order.
+    # A character column would instead sort lexically and read 1, 10, 11, 2.
+    cluster_levels <- cluster_key$cluster_key[match(top_clusters, cluster_key$cluster)]
 
     nodes <- tibble(ID = igraph::V(term_graph)$name,
                     x = layout_coordinates[, 1],
@@ -421,15 +562,25 @@ plot_pathway_cluster_map <- function(res, max_clusters = 12, title = res$params$
         left_join(res$terms, by = 'ID') |>
         left_join(cluster_key, by = 'cluster') |>
         mutate(
-            cluster_group = if_else(.data$cluster %in% top_clusters, .data$cluster_key, 'other'),
+            cluster_group = factor(
+                if_else(.data$cluster %in% top_clusters, .data$cluster_key, 'other'),
+                levels = c(cluster_levels, 'other')
+            ),
             node_label = if_else(.data$ID %in% labelled_terms,
                                  str_trunc(.data$label, label_length), NA_character_),
+            # The term's genes, wrapped: plotly does not break long tooltip lines, so a 50-gene
+            # term would otherwise run off the plot. str_wrap breaks on the ', ' separators, and
+            # the newlines become <br> because the tooltip is HTML.
+            hover_genes = map_chr(.data$genes, \(term_genes) str_replace_all(
+                str_wrap(paste(term_genes, collapse = ', '), width = hover_gene_width),
+                '\\n', '<br>')),
             hover = paste0(
                 '<b>', .data$label, '</b>',
                 '<br>', .data$collection,
-                '<br>cluster ', .data$rank, ': ', .data$cluster_label,
+                '<br>cluster ', .data$rank, ': ', .data$cluster_name,
                 '<br>p.adjust = ', signif(.data$p.adjust, 3),
-                '<br>', .data$Count, ' genes'
+                '<br>', .data$Count, ' genes:',
+                '<br><i>', .data$hover_genes, '</i>'
             )
         )
 
@@ -440,8 +591,7 @@ plot_pathway_cluster_map <- function(res, max_clusters = 12, title = res$params$
                   suffix = c('', '_end'))
 
     cluster_palette <- c(
-        setNames(scales::hue_pal()(length(top_clusters)),
-                 cluster_key$cluster_key[match(top_clusters, cluster_key$cluster)]),
+        setNames(scales::hue_pal()(length(top_clusters)), cluster_levels),
         other = 'grey85'
     )
 
@@ -553,6 +703,24 @@ resolve_topic_pattern <- function(pattern) {
     paste(pattern, collapse = '|')
 }
 
+#' Short Display Label for a Topic Specification
+#'
+#' The vocabulary name when one was given, otherwise the regex as written. Distinct from
+#' \code{resolve_topic_pattern()}, which expands a name into its whole synonym set -- far too
+#' long for a plot title.
+#'
+#' @param pattern Character vector; a [pathway_topics()] name or a set of regexes
+#'
+#' @return Character; one short label
+#'
+#' @noRd
+topic_display_label <- function(pattern) {
+    if (length(pattern) == 1L && pattern %in% names(pathway_topics())) {
+        return(pattern)
+    }
+    paste(pattern, collapse = '|')
+}
+
 #' Pathway Terms Belonging to a Topic
 #'
 #' Filters a collapsed result to the terms matching a topic, keeping the cluster each term
@@ -626,7 +794,10 @@ plot_pathway_topic <- function(res, pattern, where = 'label', n = 30, title = NU
             log_padj = -log10(.data$p.adjust),
             term_display = fct_reorder(make.unique(str_trunc(.data$label, 56), sep = ' '),
                                        .data$log_padj),
-            cluster_group = paste0(.data$rank, '. ', str_trunc(.data$cluster_label, 26))
+            # Ordered by rank, so the facets read 1, 2, ... 10, 11 rather than lexically
+            cluster_group = fct_reorder(
+                paste0(.data$rank, '. ', str_trunc(.data$cluster_name, 26)), .data$rank
+            )
         )
 
     topic_plot <- ggplot(plot_data, aes(x = .data$log_padj, y = .data$term_display)) +
@@ -644,16 +815,16 @@ plot_pathway_topic <- function(res, pattern, where = 'label', n = 30, title = NU
         pathway_redundancy_theme() +
         theme(axis.text.y = element_text(size = 7))
 
-    if (n_distinct(plot_data$cluster_group) > 1) {
-        topic_plot <- topic_plot +
-            facet_grid(cluster_group ~ ., scales = 'free_y', space = 'free_y', switch = 'y',
-                       labeller = label_wrap_gen(18)) +
-            theme(strip.placement = 'outside',
-                  panel.spacing.y = grid::unit(3, 'pt'),
-                  strip.background = element_rect(fill = 'grey96', colour = NA),
-                  strip.text.y.left = element_text(angle = 0, size = 6.5, hjust = 1))
-    }
-    topic_plot
+    # Always faceted, including when the topic sits in a single cluster: the strip is the only
+    # thing naming which cluster these terms belong to, and "the topic is one block" is itself
+    # the answer the plot exists to give.
+    topic_plot +
+        facet_grid(cluster_group ~ ., scales = 'free_y', space = 'free_y', switch = 'y',
+                   labeller = label_wrap_gen(18)) +
+        theme(strip.placement = 'outside',
+              panel.spacing.y = grid::unit(3, 'pt'),
+              strip.background = element_rect(fill = 'grey96', colour = NA),
+              strip.text.y.left = element_text(angle = 0, size = 6.5, hjust = 1))
 }
 
 #' Bar Plot of the Genes Driving a Pathway Topic
@@ -667,33 +838,65 @@ plot_pathway_topic <- function(res, pattern, where = 'label', n = 30, title = NU
 #'   [pathway_topic_terms()]
 #' @param top_genes Integer; number of genes to show. Default 25
 #' @param lfc Named numeric or NULL; log2 fold changes named by gene symbol. When supplied,
-#'   bars are coloured by direction. Default NULL
-#' @param title Character or NULL; plot title
+#'   bars are coloured by direction on a diverging scale centred at zero. Ignored when
+#'   \code{padj} is also given. Default NULL
+#' @param padj Named numeric or NULL; adjusted p-values named by gene symbol. When supplied,
+#'   bars are coloured by \code{-log10(padj)} on the same sequential scale the
+#'   over-representation bar plots use, so the most confidently changed genes stand out. Takes
+#'   precedence over \code{lfc}. Genes the DE table filtered out (\code{NA}) are drawn grey.
+#'   Default NULL
+#' @param title Character or NULL; plot title. Defaults to
+#'   \code{"Genes driving <topic>-related terms (top 25 of 137 genes)"}, where \code{<topic>} is
+#'   the [pathway_topics()] name if one was given and the regex as written otherwise. The count
+#'   reads \code{"all N genes"} when \code{top_genes} did not truncate anything
 #'
 #' @return A ggplot object, or a placeholder plot when nothing matches
 #'
 #' @export
 plot_pathway_topic_genes <- function(res, pattern, where = 'label', top_genes = 25,
-                                     lfc = NULL, title = NULL) {
+                                     lfc = NULL, padj = NULL, title = NULL) {
 
     matching_terms <- pathway_topic_terms(res, pattern, where)
     if (is.null(matching_terms) || !nrow(matching_terms)) {
         return(create_no_data_plot())
     }
 
-    plot_data <- tibble(gene = unlist(matching_terms$genes)) |>
-        count(.data$gene, sort = TRUE) |>
+    gene_counts <- tibble(gene = unlist(matching_terms$genes)) |>
+        count(.data$gene, sort = TRUE)
+
+    plot_data <- gene_counts |>
         head(top_genes) |>
         mutate(gene = fct_reorder(.data$gene, .data$n))
+
+    # Say how many bars there are, and whether that is everything: "top 40" would be misleading
+    # when the topic only turned up 12 genes in the first place.
+    genes_shown <- if (nrow(plot_data) < nrow(gene_counts)) {
+        sprintf('top %d of %d genes', nrow(plot_data), nrow(gene_counts))
+    } else {
+        sprintf('all %d genes', nrow(gene_counts))
+    }
 
     gene_plot <- ggplot(plot_data, aes(x = .data$n, y = .data$gene)) +
         scale_x_continuous(expand = expansion(c(0, 0.06))) +
         labs(x = sprintf('appears in N of the %d matching terms', nrow(matching_terms)),
-             y = '', title = title %||% 'Genes driving the topic',
-             subtitle = 'a gene in many terms is why those terms are redundant') +
+             y = '',
+             title = title %||% sprintf('Genes driving %s-related terms (%s)',
+                                        str_trunc(topic_display_label(pattern), 50),
+                                        genes_shown),
+             subtitle = 'A gene may appear in multiple redundant terms') +
         pathway_redundancy_theme()
 
-    if (is.null(lfc)) {
+    if (!is.null(padj)) {
+        # Same palette and breaks as the over-representation bar plots, so -log10(p) reads the
+        # same way throughout the package. No hard limits: a gene with padj < 1e-20 should
+        # saturate at the top colour rather than fall outside the scale and be dropped.
+        gene_plot +
+            geom_col(aes(fill = -log10(unname(padj[as.character(.data$gene)]))), width = 0.7) +
+            scale_fill_stepsn(colours = grDevices::hcl.colors(n = 6, 'YlOrRd', rev = TRUE),
+                              breaks = c(2, 4, 6, 10, 20),
+                              na.value = 'grey85',
+                              name = expression(-log[10] ~ italic(p)[adj]))
+    } else if (is.null(lfc)) {
         gene_plot + geom_col(width = 0.7, fill = '#4DBBD5')
     } else {
         gene_plot +
@@ -717,7 +920,7 @@ plot_pathway_topic_genes <- function(res, pattern, where = 'label', top_genes = 
 #' @param title Character; plot title, also the \code{name} of the returned object
 #' @param topics Character vector or named list of regex vectors; topics to plot. NULL for
 #'   none
-#' @param padj,min_sim,resolution,seed Passed to [collapse_pathway_redundancy()]
+#' @param padj,min_sim,resolution,seed,label_by Passed to [collapse_pathway_redundancy()]
 #' @param n_clusters Integer; clusters to show in the bar plot
 #' @param max_clusters Integer; clusters to colour in the network
 #'
@@ -730,11 +933,12 @@ plot_pathway_topic_genes <- function(res, pattern, where = 'label', top_genes = 
 run_pathway_redundancy_analysis <- function(enrichment_results, local_path, filename = '',
                                             title = NULL, topics = NULL, padj = 0.05,
                                             min_sim = 0.25, resolution = 1, seed = 1,
+                                            label_by = 'collection',
                                             n_clusters = 15, max_clusters = 12) {
 
     redundancy <- collapse_pathway_redundancy(enrichment_results, padj = padj,
                                               min_sim = min_sim, resolution = resolution,
-                                              seed = seed, name = title)
+                                              seed = seed, name = title, label_by = label_by)
     if (pathway_clusters_is_empty(redundancy)) {
         return(NULL)
     }

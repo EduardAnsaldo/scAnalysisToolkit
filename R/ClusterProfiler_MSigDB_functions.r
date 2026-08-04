@@ -48,6 +48,9 @@
 #' @param redundancy_resolution Numeric; Louvain granularity; above 1 splits large clusters.
 #'   Default 1
 #' @param redundancy_seed Integer; seed for the stochastic Louvain step. Default 1
+#' @param redundancy_label_by Character; how to name each redundancy cluster. See
+#'   \code{label_by} in [collapse_pathway_redundancy()] for the strategies. Default
+#'   \code{'richfactor'}
 #' @param redundancy_n_clusters Integer; clusters shown in the redundancy bar plot.
 #'   Default 15
 #' @param redundancy_max_clusters Integer; clusters coloured in the redundancy network;
@@ -67,7 +70,7 @@
 #'   \code{topics} (named by topic, each with \code{terms} and \code{genes}).
 #'
 #' @export
-pathway_overrepresentation_analysis <- function (significant_genes, all_genes, local_path, minGSSize = 5, maxGSSize = 400, filename = '', group = '', nterms_to_plot = 12, font_size = 10, label_length = 60, wrap_labels = FALSE, collapse_redundancy = FALSE, topics = NULL, redundancy_padj = 0.05, redundancy_min_sim = 0.25, redundancy_resolution = 1, redundancy_seed = 1, redundancy_n_clusters = 15, redundancy_max_clusters = 12,  ...)  {
+pathway_overrepresentation_analysis <- function (significant_genes, all_genes, local_path, minGSSize = 4, maxGSSize = 400, filename = '', group = '', nterms_to_plot = 12, font_size = 10, label_length = 60, wrap_labels = FALSE, collapse_redundancy = FALSE, topics = NULL, redundancy_padj = 0.05, redundancy_min_sim = 0.25, redundancy_resolution = 1, redundancy_seed = 1, redundancy_label_by = 'collection', redundancy_n_clusters = 15, redundancy_max_clusters = 12,  ...)  {
 
      set_enrichment_color_scale()
 
@@ -148,6 +151,7 @@ pathway_overrepresentation_analysis <- function (significant_genes, all_genes, l
                min_sim      = redundancy_min_sim,
                resolution   = redundancy_resolution,
                seed         = redundancy_seed,
+               label_by     = redundancy_label_by,
                n_clusters   = redundancy_n_clusters,
                max_clusters = redundancy_max_clusters
           )

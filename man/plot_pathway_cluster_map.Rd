@@ -10,7 +10,8 @@ plot_pathway_cluster_map(
   title = res$params$name,
   seed = 1,
   label_length = 40,
-  interactive = FALSE
+  interactive = FALSE,
+  hover_gene_width = 60
 )
 }
 \arguments{
@@ -28,9 +29,13 @@ plot_pathway_cluster_map(
 
 \item{interactive}{Logical; \code{FALSE} (the default) returns a ggplot, \code{TRUE} a
 \code{plotly} htmlwidget whose nodes each carry a hover tooltip with the full term name,
-collection, adjusted p-value, gene count and cluster. Worth asking for, because the static
-version can only label one term per cluster. Default FALSE, so the return value stays
-something \code{ggsave()} accepts}
+collection, adjusted p-value, cluster, and the term's genes comma-separated. Worth asking
+for, because the static version can only label one term per cluster. Default FALSE, so the
+return value stays something \code{ggsave()} accepts}
+
+\item{hover_gene_width}{Integer; character width at which the comma-separated gene list in the
+tooltip is wrapped. plotly does not break long tooltip lines itself, so without this a term
+with many genes runs off the plot. Only affects \code{interactive = TRUE}. Default 60}
 }
 \value{
 A ggplot object, a \code{plotly} htmlwidget when \code{interactive = TRUE}, or a
@@ -38,8 +43,12 @@ placeholder plot when \code{res} is NULL or empty
 }
 \description{
 Network of the significant terms: nodes are terms sized by gene count, edges are gene
-overlap above \code{min_sim}, colour is the cluster. One label per cluster, on its most
-significant member.
+overlap above \code{min_sim}, colour is the cluster. One label per cluster, taken from
+\code{cluster_name} and so chosen by the \code{label_by} argument of
+\code{\link[=collapse_pathway_redundancy]{collapse_pathway_redundancy()}} -- by default the member from the most curated collection
+rather than the most significant one -- and drawn on that member's node. This is the same
+name \code{\link[=plot_pathway_clusters]{plot_pathway_clusters()}} and \code{\link[=plot_pathway_topic]{plot_pathway_topic()}} show, so the three plots agree.
+Clusters are ordered by rank in the legend.
 }
 \details{
 \code{ggplotly()} cannot render repelled labels, so the interactive version places the

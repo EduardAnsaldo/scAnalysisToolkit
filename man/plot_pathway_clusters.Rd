@@ -18,6 +18,8 @@ plot_pathway_clusters(res, n = 15, title = res$params$name)
 A ggplot object, or a placeholder plot when \code{res} is NULL or empty
 }
 \description{
-One bar per cluster, labelled by its most significant member, so a block of eight
-near-duplicate terms reads as one signal instead of eight.
+One bar per cluster, so a block of eight near-duplicate terms reads as one signal instead of
+eight. Bars are labelled by \code{cluster_name}, chosen by the \code{label_by} given to
+\code{\link[=collapse_pathway_redundancy]{collapse_pathway_redundancy()}}, the same name \code{\link[=plot_pathway_cluster_map]{plot_pathway_cluster_map()}} and
+\code{\link[=plot_pathway_topic]{plot_pathway_topic()}} use.
 }

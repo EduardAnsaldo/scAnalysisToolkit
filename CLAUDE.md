@@ -61,17 +61,25 @@ so several comparisons can share one output directory. Note that
 `create_analysis_directory()` (`shared_utilities.r`) calls `unlink()` first, so a directory-name
 collision deletes the earlier result rather than merging — new writes must stay distinguishable.
 
-## Version bumps
+## Version bumps and releases
 
-**Never edit `Version:` in `DESCRIPTION` by hand.** Bump it with `usethis::use_version()`, then tag
-the resulting commit with the same number prefixed by `v`:
+**Never edit `Version:` in `DESCRIPTION` by hand.** A bump is always the same five steps, ending in
+a GitHub release — a bumped version that is not tagged and released is an unfinished job. Run the
+whole thing **on the default branch**, so merge the feature branch first:
 
 ```sh
-git add -A && git commit -m "..."          # 1. clean tree first (see below)
-Rscript -e 'usethis::use_version("minor")' # 2. bump: major | minor | patch
-git commit -am "Bump to 0.12.0"            # 3. commit the bump
-git tag v0.12.0                            # 4. tag it
+git switch main && git merge my-feature     # 1. release from the default branch, clean tree
+Rscript -e 'usethis::use_version("minor")'  # 2. bump: major | minor | patch
+# 3. write the release notes under the new NEWS.md heading use_version() just added
+git commit -am "Bump to 0.12.0"             # 4. commit the bump and the notes
+git tag -a v0.12.0 -m "scAnalysisToolkit 0.12.0"
+git push --follow-tags                      # 5. tag and push, then:
+Rscript -e 'usethis::use_github_release()'
 ```
+
+Tag with `-a`: every tag in this repo is annotated, and a lightweight one would diverge from the
+tag GitHub creates for the release. Push the tag *before* `use_github_release()` — it pushes the
+branch but not tags, and if the tag is missing GitHub silently creates its own lightweight one.
 
 Two things make this fail silently or noisily under `Rscript`, both verified:
 
@@ -85,6 +93,25 @@ Two things make this fail silently or noisily under `Rscript`, both verified:
 
 The tag must point at the commit that carries the bumped `DESCRIPTION`, so it cannot be created
 before that commit exists.
+
+**`NEWS.md` is the release notes.** `use_version()` adds a heading for the new version to it, and
+`usethis::use_github_release()` publishes whatever sits under the topmost heading as the GitHub
+release body — so an empty section ships an empty release. Fill it in before tagging.
+
+Keep it **short and strictly user-facing**: what someone calling these functions has to know. A new
+or removed function or argument, a changed default, a behaviour change they would notice, a bug that
+was biting them, a new dependency they must install. One line each, no subheadings unless the
+release is genuinely large. Leave out refactors, internal helpers, NSE cleanups, roxygen and comment
+edits, test and tooling changes, and anything only visible reading the diff — that is what the git
+history is for. If a bullet needs a paragraph to explain, it probably belongs in the function's
+documentation instead.
+
+**`use_github_release()` will not run from a detached `HEAD`** — `challenge_non_default_branch()`
+aborts with `Detached head; can't continue`, so check out the branch rather than the SHA. It reads
+the version from `DESCRIPTION` for the release name and tag, uses `HEAD` as the target commit, and
+publishes immediately with no confirmation prompt. If the tag already exists on GitHub the API
+ignores the target commit and attaches the release to that existing tag. Releases before 0.11.0
+have tags but no `NEWS.md` section.
 
 ## Code style
 

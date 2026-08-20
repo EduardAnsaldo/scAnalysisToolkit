@@ -9,9 +9,6 @@
 
 ## Overview
 
-**For internal use by the DeCarvalho and Constantinides labs at Scripps
-Research.**
-
 scAnalysisToolkit provides a comprehensive suite of helper functions for
 single-cell RNA-seq and ATAC-seq analysis workflows. The package
 includes helper tools and wrappers for:

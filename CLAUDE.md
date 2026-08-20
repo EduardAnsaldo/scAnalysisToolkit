@@ -1,21 +1,21 @@
 # scAnalysisToolkit
 
-An R package of helper functions and wrappers for single-cell RNA-seq and ATAC-seq analysis, for
-internal use by the DeCarvalho and Constantinides labs at Scripps Research. It wraps Seurat, Signac,
-SingleR, DESeq2, clusterProfiler and CellChat behind consistent interfaces that also write their
-figures and tables to disk. Operates on **Seurat objects only** — no scran or scanpy support.
+An R package of helper functions and wrappers for single-cell RNA-seq, single-cell VDJ and
+single-nuclei ATAC-seq analysis. It wraps Seurat, Signac, SingleR, DESeq2, clusterProfiler and
+CellChat behind consistent interfaces that also write their figures and tables to disk. Operates on
+**Seurat objects only** — no scran or scanpy support.
 
 `README.md` (generated from `README.Rmd` — edit the `.Rmd`) has the feature overview. This file
 covers the conventions that are not obvious from reading the code.
 
 ## Layout
 
-One file per domain under `R/`, 57 exported functions:
+One file per domain under `R/`, 65 exported functions and one S3 method:
 
 | area | files |
 |---|---|
 | Differential expression | `de_core.r` (stats), `de_wrappers.r` (pipelines), `de_visualization.r` (volcano/scatter/DEG-count plots) |
-| Pathway enrichment | `pathway_dispatchers.r` (method dispatch), `ClusterProfiler_MSigDB_functions.r`, `ClusterProfiler_GO_functions.r`, `metascape_functions.r` |
+| Pathway enrichment | `pathway_dispatchers.r` (method dispatch), `ClusterProfiler_MSigDB_functions.r`, `ClusterProfiler_GO_functions.r`, `metascape_functions.r`, `pathway_redundancy.r` (collapses enriched terms into gene-overlap clusters) |
 | Clustering & annotation | `seurat_clustering.r`, `cluster_annotation.r`, `llm_annotation.r` |
 | ATAC / regulatory | `differential_accessibility.r`, `motif_enrichment.r`, `GRN_analysis_FigR.r` |
 | Other analyses | `cellchat_analysis.r`, `cnmf_analysis.r`, `repertoire_analysis.r`, `pseudotime.R` |
@@ -28,7 +28,7 @@ One file per domain under `R/`, 57 exported functions:
 touching roxygen comments. Internal helpers are marked `@noRd` and get no `.Rd` file.
 
 **roxygen2 must be 8.0.0**, matching `Config/roxygen2/version` in `DESCRIPTION`. A different version
-reformats all 72 `.Rd` files at once and buries the real diff.
+reformats all 81 `.Rd` files at once and buries the real diff.
 
 **Non-standard evaluation.** The package was migrated off bare column references, and it is easy to
 regress:
@@ -63,52 +63,48 @@ collision deletes the earlier result rather than merging — new writes must sta
 
 ## Version bumps and releases
 
-**Never edit `Version:` in `DESCRIPTION` by hand.** A bump is always the same five steps, ending in
-a GitHub release — a bumped version that is not tagged and released is an unfinished job. Run the
-whole thing **on the default branch**, so merge the feature branch first:
+**Never edit `Version:` in `DESCRIPTION` by hand.** A bump is five steps ending in a GitHub release —
+a bumped version that is not tagged and released is an unfinished job. Run all of it **on the default
+branch**, so merge the feature branch first:
 
 ```sh
-git switch main && git merge my-feature     # 1. release from the default branch, clean tree
+git switch main && git merge my-feature     # 1. default branch, clean tree
 Rscript -e 'usethis::use_version("minor")'  # 2. bump: major | minor | patch
-# 3. write the release notes under the new NEWS.md heading use_version() just added
-git commit -am "Bump to 0.12.0"             # 4. commit the bump and the notes
+# 3. write the notes under the NEWS.md heading use_version() just added
+git commit -am "Bump to 0.12.0"             # 4. commit the bump and the notes together
 git tag -a v0.12.0 -m "scAnalysisToolkit 0.12.0"
-git push --follow-tags                      # 5. tag and push, then:
+git push --follow-tags                      # 5. tag, push, then release
 Rscript -e 'usethis::use_github_release()'
 ```
 
-Tag with `-a`: every tag in this repo is annotated, and a lightweight one would diverge from the
-tag GitHub creates for the release. Push the tag *before* `use_github_release()` — it pushes the
-branch but not tags, and if the tag is missing GitHub silently creates its own lightweight one.
+Each of these has bitten us at least once:
 
-Two things make this fail silently or noisily under `Rscript`, both verified:
+- **`use_version()` needs `which`.** With no argument it asks interactively; under `Rscript` it
+  silently returns and the version is left unchanged, with no error. Pass `"major"`, `"minor"` or
+  `"patch"`.
+- **`use_version()` needs a clean tree**, or it aborts with `User input required, but session is not
+  interactive`. That is why the bump is step 2, not step 1.
+- **Tag with `-a`.** Every tag here is annotated. Push it *before* `use_github_release()`: that
+  function pushes the branch but not tags, and if the tag is missing GitHub creates its own
+  lightweight one instead.
+- **The tag must carry both the bumped `DESCRIPTION` and that version's `NEWS.md` section.** Step 4
+  puts them in one commit; a separately committed bump splits them, and tagging that commit
+  publishes an empty release. Tag the tip, or the merge commit — never an intermediate bump. Two
+  commands to check:
 
-- **The `which` argument is required.** `use_version()` with no argument asks interactively which
-  component to bump; non-interactively it just returns and the version is left unchanged, with no
-  error. Always pass `"major"`, `"minor"` or `"patch"`.
-- **The working tree must be clean.** With uncommitted changes `use_version()` calls
-  `challenge_uncommitted_changes()`, which aborts with `User input required, but session is not
-  interactive`. Commit first — that is why the bump is step 2, not step 1. Do not work around this
-  by editing `DESCRIPTION` instead.
+  ```sh
+  git show <target>:DESCRIPTION | grep '^Version:'
+  git show <target>:NEWS.md | head -1        # heading must be that same version
+  ```
 
-**The tag must point at a commit carrying both the bumped `DESCRIPTION` and that version's
-`NEWS.md` section.** The five steps above put them in one commit, so this is automatic — but a bump
-committed on its own splits them, and then the bump commit has the version without the notes.
-`use_github_release()` reads `NEWS.md` *at the tagged commit*, so tagging that one publishes an
-empty release. In practice: **tag the tip of the release branch, or the merge commit on the default
-branch — never an intermediate bump commit.** Check before tagging, it is two commands:
+- **`use_github_release()` will not run from a detached `HEAD`** (`Detached head; can't continue`),
+  so check out the branch, not the SHA. It takes the version from `DESCRIPTION` at `HEAD` to build
+  the tag name, pushes the current branch, and publishes immediately with no confirmation prompt. If
+  the tag already exists on GitHub, the API ignores the target commit and attaches the release to
+  that tag.
 
-```sh
-git show <target>:DESCRIPTION | grep '^Version:'   # the version you mean to release
-git show <target>:NEWS.md | head -1                # its heading must be that same version
-```
-
-`use_github_release()` reads the version from `DESCRIPTION` at `HEAD` to build the tag name, so it
-has to run from the commit being released — the same constraint from the other side.
-
-**`NEWS.md` is the release notes.** `use_version()` adds a heading for the new version to it, and
-`usethis::use_github_release()` publishes whatever sits under the topmost heading as the GitHub
-release body — so an empty section ships an empty release. Fill it in before tagging.
+**`NEWS.md` is the release body** — `use_github_release()` publishes whatever sits under the topmost
+heading, so an empty section ships an empty release.
 
 Keep it **short and strictly user-facing**: what someone calling these functions has to know. A new
 or removed function or argument, a changed default, a behaviour change they would notice, a bug that
@@ -118,12 +114,10 @@ edits, test and tooling changes, and anything only visible reading the diff — 
 history is for. If a bullet needs a paragraph to explain, it probably belongs in the function's
 documentation instead.
 
-**`use_github_release()` will not run from a detached `HEAD`** — `challenge_non_default_branch()`
-aborts with `Detached head; can't continue`, so check out the branch rather than the SHA. It reads
-the version from `DESCRIPTION` for the release name and tag, uses `HEAD` as the target commit, and
-publishes immediately with no confirmation prompt. If the tag already exists on GitHub the API
-ignores the target commit and attaches the release to that existing tag. Releases before 0.11.0
-have tags but no `NEWS.md` section.
+Before tagging, confirm the notes are complete: diff exported signatures, argument defaults and
+`DESCRIPTION` against the previous tag, and account for every change as either noted or new in this
+version. Anything new ships under its own entry and needs no separate note — only changes to
+already-released behaviour do.
 
 ## Code style
 
@@ -135,4 +129,5 @@ have tags but no `NEWS.md` section.
   `lapply()`, `sapply()`, or the `apply()` family.
 - Follow the tidyverse style guide.
 - Prefer `usethis` and `devtools` for package tasks — e.g. `usethis::use_version()`
-  (see [Version bumps](#version-bumps)), `devtools::document()`, `devtools::check()`.
+  (see [Version bumps and releases](#version-bumps-and-releases)), `devtools::document()`,
+  `devtools::check()`.

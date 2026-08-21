@@ -20,3 +20,13 @@ Character string of the created path
 Removes an existing directory and creates a fresh one. Useful for ensuring
 clean output directories for analysis results.
 }
+\section{Warning}{
+
+This is destructive. \code{unlink(path, recursive = TRUE)} runs before the
+directory is created, so an existing directory of the same name is \strong{deleted}
+rather than merged into. Analyses that write several comparisons into one
+parent directory must give each a distinguishing name (for example via the
+\code{file_suffix} argument of \code{\link[=pathway_functional_analysis]{pathway_functional_analysis()}}), or the later run
+will destroy the earlier one's output.
+}
+

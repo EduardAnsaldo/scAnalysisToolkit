@@ -6,12 +6,21 @@
 #' Removes an existing directory and creates a fresh one. Useful for ensuring
 #' clean output directories for analysis results.
 #'
+#' @section Warning:
+#' This is destructive. `unlink(path, recursive = TRUE)` runs before the
+#' directory is created, so an existing directory of the same name is **deleted**
+#' rather than merged into. Analyses that write several comparisons into one
+#' parent directory must give each a distinguishing name (for example via the
+#' `file_suffix` argument of [pathway_functional_analysis()]), or the later run
+#' will destroy the earlier one's output.
+#'
 #' @param path Character string specifying the directory path to create
 #' @param recursive Logical; should directories be created recursively? Default TRUE
 #' @param showWarnings Logical; should warnings be shown? Default FALSE
 #'
 #' @return Character string of the created path
 #'
+#' @export
 create_analysis_directory <- function(path, recursive = TRUE, showWarnings = FALSE) {
     unlink(path, recursive = TRUE)
     dir.create(path, recursive = recursive, showWarnings = showWarnings)
@@ -28,6 +37,7 @@ create_analysis_directory <- function(path, recursive = TRUE, showWarnings = FAL
 #'
 #' @return A ggplot object
 #'
+#' @export
 create_no_data_plot <- function(label = 'N/A', text_size = 24) {
     ggplot() +
         theme_void() +
@@ -43,6 +53,7 @@ create_no_data_plot <- function(label = 'N/A', text_size = 24) {
 #'
 #' @return NULL (invisibly); sets global option
 #'
+#' @export
 set_enrichment_color_scale <- function() {
     color_scale <- viridis::viridis(n = 4, direction = -1)
     options(enrichplot.colours = color_scale)
@@ -63,6 +74,7 @@ set_enrichment_color_scale <- function() {
 #'
 #' @return A geom_text_repel layer
 #'
+#' @export
 add_gene_labels_layer <- function(label_column, diffexpressed, label_size = 5,
                                    max_overlaps = 15, nudge_x = NULL, nudge_y = NULL) {
     # Default nudge based on direction if not specified
@@ -149,6 +161,7 @@ match_genes_to_exclude <- function(genes, genes_to_exclude = c(), exclude_vdj = 
 #'   \item{n_group2}{Integer; number of cells in group 2}
 #'   \item{message}{Character; error message if validation fails}
 #'
+#' @export
 validate_cell_counts <- function(seurat, comparison, group1, group2, minimum_cell_number) {
     n_group1 <- seurat@meta.data |>
         filter(str_detect(!!as.name(comparison), group1)) |>
@@ -537,6 +550,7 @@ run_standard_enrichment <- function(results, run_pathway_enrichment,
 #'
 #' @return NULL (invisibly); creates plot files
 #'
+#' @export
 plot_gene_lists <- function(results, gene_lists_to_plot, group1, group2,
                            cluster, local_figures_path,
                            FC_threshold, p_value_threshold, test_type,

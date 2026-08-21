@@ -127,6 +127,7 @@ SE_from_Signac <- function(obj,
 #' }
 #'
 #' @seealso \code{\link{gene_to_jaspar}} for the reverse operation
+#' @export
 ID_to_symbol <- function(motif_id){
   rlang::check_installed(c("JASPAR2024", "RSQLite", "TFBSTools"), reason = "to use `ID_to_symbol()`")
   
@@ -191,6 +192,7 @@ ID_to_symbol <- function(motif_id){
 #' }
 #'
 #' @seealso \code{\link{ID_to_symbol}} for converting JASPAR IDs back to gene symbols
+#' @export
 gene_to_jaspar <- function(gene_symbol, species = "Homo sapiens", collection = "CORE") {
   rlang::check_installed(c("JASPAR2024", "RSQLite", "TFBSTools"), reason = "to use `gene_to_jaspar()`")
   
@@ -438,6 +440,7 @@ run_figr_analysis <- function(seurat,
 #' @param genes Character vector of genes to plot (default: top 15 valid DORCs)
 #' @param umap_reduction Name of UMAP reduction in ATAC_se (default: "UMAP.WNN")
 #' @return List of combined ggplot objects
+#' @export
 plot_dorc_genes <- function(results, 
               genes = NULL, 
               umap_reduction = "UMAP.WNN") {

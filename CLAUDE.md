@@ -10,7 +10,7 @@ covers the conventions that are not obvious from reading the code.
 
 ## Layout
 
-One file per domain under `R/`, 65 exported functions and one S3 method:
+One file per domain under `R/`, 77 exported functions and one S3 method:
 
 | area | files |
 |---|---|
@@ -25,7 +25,20 @@ One file per domain under `R/`, 65 exported functions and one S3 method:
 ## Conventions
 
 **`NAMESPACE` and `man/` are generated — never hand-edit either.** Run `devtools::document()` after
-touching roxygen comments. Internal helpers are marked `@noRd` and get no `.Rd` file.
+touching roxygen comments. Internal helpers are marked `@noRd` and get no `.Rd` file — but two
+exceptions predate that rule and still have `.Rd` pages without `@export`, so they appear in the
+docs while being unreachable as `scAnalysisToolkit::name()`:
+
+- `run_figr_analysis()` — also broken. `GRN_analysis_FigR.r:300` reads `gr` before it is assigned,
+  and the Seurat-v3 slot writes below it fail on a v5 `Assay5` object. Left unexported deliberately.
+- `run_standard_enrichment()` — dead code, see check NOTE 2 below.
+
+If you add a helper, `@noRd` it or `@export` it; do not leave a third one in this state.
+
+**There is an agent skill at `.claude/skills/scanalysistoolkit/`**, symlinked into
+`~/.claude/skills/`. It documents the calling contract for all 77 exports and is the single source of
+truth for the package's API — the `scrnaseq-seurat-analysis` skill defers to it. Keep it current when
+exported signatures change; see the release checklist.
 
 **roxygen2 must be 8.0.0**, matching `Config/roxygen2/version` in `DESCRIPTION`. A different version
 reformats all 81 `.Rd` files at once and buries the real diff.
@@ -118,6 +131,17 @@ Before tagging, confirm the notes are complete: diff exported signatures, argume
 `DESCRIPTION` against the previous tag, and account for every change as either noted or new in this
 version. Anything new ships under its own entry and needs no separate note — only changes to
 already-released behaviour do.
+
+**If that signature diff is non-empty, update `.claude/skills/scanalysistoolkit/` in the same
+commit.** The skill states signatures, defaults, return shapes and failure modes verbatim, so a
+stale entry sends callers to an argument that no longer exists — and because the wrappers absorb
+unknown arguments through `...`, the resulting call fails silently rather than erroring. Two checks:
+
+```sh
+grep -c '^export' NAMESPACE                                   # must match the count in the skill
+grep -o 'export(.*)' NAMESPACE | sed 's/export(//; s/)//' |   # every export must appear in SKILL.md
+  while read n; do grep -q "$n" .claude/skills/scanalysistoolkit/SKILL.md || echo "missing: $n"; done
+```
 
 ## Code style
 

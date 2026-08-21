@@ -90,6 +90,7 @@ apply_integer_breaks <- function(plot,
 #' @param widths Numeric vector of relative widths (track vs expression)
 #'
 #' @return A patchwork object
+#' @export
 create_tracks_patchwork <- function(seurat,
                                     regions,
                                     theme = NULL,
@@ -963,6 +964,7 @@ CoveragePlot_custom <- function(seurat,
 #'   centered, italic, size 12.
 #'
 #' @return A patchwork object
+#' @export
 create_tracks_patchwork2 <- function(seurat,
                                     regions,
                                     theme = NULL,

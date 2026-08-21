@@ -11,6 +11,7 @@
 #' @param base_colors Character vector; base colors to use for groups. Default colorblind-friendly palette
 #'
 #' @return Named character vector with colors for each sample
+#' @export
 create_group_palette <- function(samples, groups, base_colors = c(
                 "skyblue", "darkorange", "wheat", "darkolivegreen", "orchid",
                 "seagreen", "gold", "lavenderblush", "tomato")) {

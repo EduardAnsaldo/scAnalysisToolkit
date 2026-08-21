@@ -1,3 +1,23 @@
+# scAnalysisToolkit 0.12.0
+
+* Twelve helpers that had documentation but no `@export` are now callable:
+  `gene_to_jaspar()`, `ID_to_symbol()`, `plot_dorc_genes()`, `create_tracks_patchwork()`,
+  `create_tracks_patchwork2()`, `create_group_palette()`, `create_analysis_directory()`,
+  `validate_cell_counts()`, `plot_gene_lists()`, `add_gene_labels_layer()`,
+  `create_no_data_plot()` and `set_enrichment_color_scale()`.
+
+* `create_analysis_directory()` is destructive and its help page now says so: it calls
+  `unlink()` before creating the directory, so an existing directory of the same name is
+  deleted rather than merged into.
+
+* `run_figr_analysis()` stays unexported — it reads an unassigned variable, and its
+  Seurat-v3 slot writes fail on v5 objects. Run FigR's own steps and pass the result to
+  `analyze_figr_results()`.
+
+* New agent skill under `.claude/skills/scanalysistoolkit/` covering the calling contract for
+  all 77 exports: signatures, return shapes, required Seurat metadata columns, and the
+  bare-vs-quoted column-argument rule. It ships with the repository, not the installed package.
+
 # scAnalysisToolkit 0.11.0
 
 * New `collapse_pathway_redundancy()` groups an over-representation result's significant

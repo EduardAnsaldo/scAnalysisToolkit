@@ -1,6 +1,6 @@
 Package: scAnalysisToolkit
 Title: Comprehensive Toolkit for Single-Cell Multi-Omics Analysis
-Version: 0.11.0
+Version: 0.12.0
 Authors@R:
     person("Eduard", "Ansaldo", , "EAnsaldo@scripps.edu", role = c("aut", "cre"))
 Description: Provides a comprehensive suite of analysis and visualization tools and

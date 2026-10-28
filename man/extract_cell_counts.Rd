@@ -10,7 +10,8 @@ extract_cell_counts(
   figures_path,
   tables_path,
   object_annotations = "",
-  plot_grouping = "Samples"
+  plot_grouping = "Samples",
+  title = NULL
 )
 }
 \arguments{
@@ -30,9 +31,13 @@ bar plot with individual sample points (default), "Groups" creates a stacked bar
 showing the composition of experimental groups within each cluster/cell type, "grouping_var"
 creates a stacked bar plot showing the composition of clusters/cell types within each
 experimental group (same as "Groups" but with x-axis and fill variables switched). Default "Samples"}
+
+\item{title}{Character or NULL; plot title. When NULL (default) the title is generated
+from the column name, e.g. "Frequency per cell_type". Set it when the denominator is not
+obvious from the column name, e.g. when \code{seurat} is a subset such as DCs only.}
 }
 \value{
-Invisibly returns NULL. Creates output files:
+Invisibly returns the ggplot object, which is also printed. Creates output files:
 \itemize{
 \item Frequency table CSV: Percentage of each cluster per sample
 \item Count table CSV: Raw cell counts per cluster per sample
@@ -44,4 +49,10 @@ or stacked bar plot showing composition (Groups mode)
 Calculates cell counts and frequencies for each cluster/cell type across samples
 and experimental groups. Generates frequency tables and bar plots with error bars
 showing mean frequency and variability across replicates.
+}
+\details{
+The per-sample table is completed so that every sample has a row for every
+\code{grouping_var} level present in \code{seurat}: a cell type absent from a sample counts as
+0 cells / 0\%, so it enters the per-group mean and SE in the "Samples" plot and shows
+as 0 (not NA) in the CSVs. Empty factor levels absent from the whole object are not added.
 }

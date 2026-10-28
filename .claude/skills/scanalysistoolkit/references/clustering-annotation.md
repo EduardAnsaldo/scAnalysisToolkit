@@ -120,7 +120,7 @@ re-prints the grids, and requires the three graphs to already exist.
 
 ```r
 extract_cell_counts(seurat, grouping_var, figures_path, tables_path,
-                    object_annotations = '', plot_grouping = 'Samples')
+                    object_annotations = '', plot_grouping = 'Samples', title = NULL)
 ```
 
 ⚠️ **`grouping_var` is embraced — pass a bare, unquoted column name.** `plot_grouping` is a plain
@@ -140,7 +140,15 @@ per grouping you want. Note the modes differ in more than layout: `'Samples'` pl
 per-sample tibble (mean ± SE), while the other two plot per-cell stacked proportions from
 `meta.data` directly.
 
-Always prints the plot (and invisibly returns it — the roxygen `@return NULL` is wrong).
+The per-sample table is zero-filled (since 0.12.1): a sample with no cells of a level gets a 0 row, so
+the `'Samples'` mean ± SE averages over every sample in the group and the CSVs show 0, not `NA`. Only
+levels present in the object are filled — empty factor levels are dropped first.
+
+`title` replaces the auto-generated plot title (`"Frequency per <grouping_var>"` and its equivalents)
+in all three modes; `NULL` keeps the default. Set it on subsets, where the column name does not say
+what the denominator is.
+
+Always prints the plot and invisibly returns it.
 
 **Writes** — tables via `here::here()` (**project-root** relative), figures via `ggsave(path=)`
 (**`getwd()`** relative). If those differ, your tables and figures land in different trees. Filenames

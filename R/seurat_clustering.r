@@ -339,6 +339,11 @@ perform_seurat_clustering <- function(
 #' and experimental groups. Generates frequency tables and bar plots with error bars
 #' showing mean frequency and variability across replicates.
 #'
+#' The per-sample table is completed so that every sample has a row for every
+#' `grouping_var` level present in `seurat`: a cell type absent from a sample counts as
+#' 0 cells / 0%, so it enters the per-group mean and SE in the "Samples" plot and shows
+#' as 0 (not NA) in the CSVs. Empty factor levels absent from the whole object are not added.
+#'
 #' @param seurat Seurat object with cluster assignments and metadata
 #' @param grouping_var Unquoted column name; metadata column for grouping cells
 #'   (e.g., seurat_clusters, cell_type)
@@ -351,7 +356,11 @@ perform_seurat_clustering <- function(
 #'   creates a stacked bar plot showing the composition of clusters/cell types within each
 #'   experimental group (same as "Groups" but with x-axis and fill variables switched). Default "Samples"
 #'
-#' @return Invisibly returns NULL. Creates output files:
+#' @param title Character or NULL; plot title. When NULL (default) the title is generated
+#'   from the column name, e.g. "Frequency per cell_type". Set it when the denominator is not
+#'   obvious from the column name, e.g. when `seurat` is a subset such as DCs only.
+#'
+#' @return Invisibly returns the ggplot object, which is also printed. Creates output files:
 #'   \itemize{
 #'     \item Frequency table CSV: Percentage of each cluster per sample
 #'     \item Count table CSV: Raw cell counts per cluster per sample
@@ -360,15 +369,20 @@ perform_seurat_clustering <- function(
 #'   }
 #'
 #' @export
-extract_cell_counts <- function(seurat, grouping_var, figures_path, tables_path, object_annotations='', plot_grouping = "Samples") {
+extract_cell_counts <- function(seurat, grouping_var, figures_path, tables_path, object_annotations='', plot_grouping = "Samples", title = NULL) {
     cell_counts <- FetchData(seurat, vars = c(englue("{{grouping_var}}"), "Samples", "Groups"))
-    cell_counts <- arrange(cell_counts, .data$Samples)
+    # Drop empty factor levels so complete() below adds only levels present in this object
+    cell_counts <- arrange(cell_counts, .data$Samples) |> droplevels()
 
     counts <- cell_counts |> add_count(.data$Samples, name='total_cell_count_by_sample')
 
     counts <- counts |>
         dplyr::count(  {{grouping_var}},  , .data$Samples, .data$Groups,  .data$total_cell_count_by_sample,name='cluster_count')  |>
             mutate(frequency_within_sample=.data$cluster_count*100/.data$total_cell_count_by_sample)  |>
+            # A sample with no cells of a type has no row after count(); add it at 0 so the
+            # per-sample means and the CSVs count it
+            tidyr::complete(nesting(!!!syms(c('Samples', 'Groups', 'total_cell_count_by_sample'))), {{grouping_var}},
+                fill = list(cluster_count = 0L, frequency_within_sample = 0)) |>
             mutate(Samples = as.character(.data$Samples)) |>
             arrange(.data$Samples, desc(.data$Samples))
 
@@ -403,7 +417,7 @@ extract_cell_counts <- function(seurat, grouping_var, figures_path, tables_path,
                 geom = "errorbar", width = 0.2, position = position_dodge(width = 0.9) ) +
             scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
             theme_classic() +
-            labs(x = 'Cell type', y = 'Frequency (%)', title = englue('Frequency per {{grouping_var}}'))+
+            labs(x = 'Cell type', y = 'Frequency (%)', title = title %||% englue('Frequency per {{grouping_var}}'))+
             guides(alpha = 'none')+
             theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
         ggsave(plot = plot2, filename =  paste0(englue('frequency_per_{{grouping_var}}_per_sample '), object_annotations, '.pdf'), width = 12, height = 6, path = figures_path)
@@ -414,7 +428,7 @@ extract_cell_counts <- function(seurat, grouping_var, figures_path, tables_path,
             geom_bar(position=position_fill()) +
             scale_y_continuous(labels = scales::percent_format(), expand = expansion(mult = c(0, 0.01))) +
             theme_classic() +
-            labs(x = englue('{{grouping_var}}'), y = 'Frequency (%)', title = englue('Composition of Groups per {{grouping_var}}'), fill = 'Groups') +
+            labs(x = englue('{{grouping_var}}'), y = 'Frequency (%)', title = title %||% englue('Composition of Groups per {{grouping_var}}'), fill = 'Groups') +
             theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
         ggsave(plot = plot2, filename =  paste0(englue('composition_of_groups_per_{{grouping_var}} '), object_annotations, '.pdf'), width = 10, height = 6, path = figures_path)
         print(plot2)
@@ -424,13 +438,14 @@ extract_cell_counts <- function(seurat, grouping_var, figures_path, tables_path,
             geom_bar(position=position_fill()) +
             scale_y_continuous(labels = scales::percent_format(), expand = expansion(mult = c(0, 0.01))) +
             theme_classic() +
-            labs(x = 'Groups', y = 'Frequency (%)', title = englue('Composition of {{grouping_var}} per Group'), fill = englue('{{grouping_var}}')) +
+            labs(x = 'Groups', y = 'Frequency (%)', title = title %||% englue('Composition of {{grouping_var}} per Group'), fill = englue('{{grouping_var}}')) +
             theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
         ggsave(plot = plot2, filename =  paste0(englue('composition_of_{{grouping_var}}_per_group '), object_annotations, '.pdf'), width = 10, height = 6, path = figures_path)
         print(plot2)
     } else {
         stop("plot_grouping must be either 'Samples', 'Groups', or 'grouping_var'")
     }
+    invisible(plot2)
 }
 #' Process Multimodal Seurat Object with RNA and ATAC Data
 #'

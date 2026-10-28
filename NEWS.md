@@ -1,3 +1,12 @@
+# scAnalysisToolkit 0.12.1
+
+* `extract_cell_counts()` now counts a cell type absent from a sample as 0% instead of dropping
+  that sample. The `plot_grouping = "Samples"` bars and error bars were averaged over only the
+  samples containing the type, inflating rare populations; the frequency and count CSVs showed
+  `NA` where they now show 0.
+
+* `extract_cell_counts()` gains `title`, which replaces the auto-generated plot title.
+
 # scAnalysisToolkit 0.12.0
 
 * Twelve helpers that had documentation but no `@export` are now callable:
